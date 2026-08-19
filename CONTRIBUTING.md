@@ -1,7 +1,7 @@
 # Contributing
 
 This repository follows the shared delivery process, canonical at
-`contextplane/docs/07-contributing/03-delivery-process.md` in the
+`contextplane/.develop/delivery-process.md` in the
 [roughcompass/contextplane](https://github.com/roughcompass/contextplane)
 repository. In one line: GitHub Issues/PRs are the only coordination state;
 trunk-based with short-lived branches; claim = assign + push branch + draft PR;
