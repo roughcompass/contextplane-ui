@@ -7,7 +7,7 @@
     "dev": "turbo dev",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "generate:api": "openapi-typescript ../contextplane/openapi.json -o apps/admin-dashboard/src/shared/api/generated/contextplane.ts && prettier --write apps/admin-dashboard/src/shared/api/generated/contextplane.ts",
+    "generate:api": "openapi-typescript contracts/openapi.json -o apps/admin-dashboard/src/shared/api/generated/contextplane.ts && prettier --write apps/admin-dashboard/src/shared/api/generated/contextplane.ts",
     "lint": "node scripts/check-test-colocation.mjs && turbo lint",
     "lint:test-colocation": "node scripts/check-test-colocation.mjs",
     "test": "turbo test",
