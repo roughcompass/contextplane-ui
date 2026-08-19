@@ -1,0 +1,28 @@
+{
+  "name": "contextplane-ui",
+  "private": true,
+  "packageManager": "pnpm@11.21.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "generate:api": "openapi-typescript ../contextplane/openapi.json -o apps/admin-dashboard/src/shared/api/generated/contextplane.ts && prettier --write apps/admin-dashboard/src/shared/api/generated/contextplane.ts",
+    "lint": "node scripts/check-test-colocation.mjs && turbo lint",
+    "lint:test-colocation": "node scripts/check-test-colocation.mjs",
+    "test": "turbo test",
+    "type-check": "turbo type-check"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@types/node": "latest",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "latest",
+    "turbo": "latest",
+    "typescript": "^6.0.0",
+    "typescript-eslint": "latest"
+  }
+}

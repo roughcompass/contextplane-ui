@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@source "../../../packages/ui/src";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+  --cp-canvas: oklch(0.975 0.004 230);
+  --cp-surface: oklch(1 0 0);
+  --cp-surface-muted: oklch(0.955 0.006 230);
+  --cp-foreground: oklch(0.27 0.014 240);
+  --cp-muted: oklch(0.49 0.018 240);
+  --cp-subtle: oklch(0.64 0.015 240);
+  --cp-border: oklch(0.88 0.008 230);
+  --cp-border-subtle: oklch(0.93 0.006 230);
+  --cp-border-strong: oklch(0.74 0.012 230);
+  --cp-accent: oklch(0.53 0.105 205);
+  --cp-accent-strong: oklch(0.4 0.09 215);
+  --cp-accent-subtle: oklch(0.95 0.028 205);
+  --cp-accent-foreground: oklch(1 0 0);
+  --cp-success: oklch(0.48 0.12 150);
+  --cp-success-subtle: oklch(0.96 0.035 150);
+  --cp-warning: oklch(0.54 0.12 70);
+  --cp-warning-subtle: oklch(0.97 0.04 80);
+  --cp-danger: oklch(0.52 0.16 35);
+  --cp-danger-subtle: oklch(0.96 0.035 35);
+  --cp-info: var(--cp-accent-strong);
+  --cp-info-subtle: var(--cp-accent-subtle);
+  --cp-overlay: oklch(0.14 0.02 240 / 0.48);
+  --cp-font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --cp-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-canvas: oklch(0.17 0.018 240);
+  --cp-surface: oklch(0.215 0.02 240);
+  --cp-surface-muted: oklch(0.26 0.022 240);
+  --cp-foreground: oklch(0.94 0.006 230);
+  --cp-muted: oklch(0.72 0.014 230);
+  --cp-subtle: oklch(0.58 0.014 230);
+  --cp-border: oklch(0.34 0.022 240);
+  --cp-border-subtle: oklch(0.29 0.02 240);
+  --cp-border-strong: oklch(0.47 0.025 240);
+  --cp-accent: oklch(0.72 0.11 205);
+  --cp-accent-strong: oklch(0.82 0.1 205);
+  --cp-accent-subtle: oklch(0.29 0.045 210);
+  --cp-accent-foreground: oklch(0.16 0.02 240);
+  --cp-success: oklch(0.73 0.12 150);
+  --cp-success-subtle: oklch(0.27 0.04 150);
+  --cp-warning: oklch(0.79 0.12 80);
+  --cp-warning-subtle: oklch(0.29 0.04 80);
+  --cp-danger: oklch(0.74 0.14 35);
+  --cp-danger-subtle: oklch(0.28 0.05 35);
+  --cp-info: var(--cp-accent);
+  --cp-info-subtle: var(--cp-accent-subtle);
+  --cp-overlay: oklch(0.06 0.01 240 / 0.72);
+}
+
+@theme inline {
+  --color-canvas: var(--cp-canvas);
+  --color-surface: var(--cp-surface);
+  --color-surface-muted: var(--cp-surface-muted);
+  --color-foreground: var(--cp-foreground);
+  --color-muted: var(--cp-muted);
+  --color-subtle: var(--cp-subtle);
+  --color-border: var(--cp-border);
+  --color-border-subtle: var(--cp-border-subtle);
+  --color-border-strong: var(--cp-border-strong);
+  --color-accent: var(--cp-accent);
+  --color-accent-strong: var(--cp-accent-strong);
+  --color-accent-subtle: var(--cp-accent-subtle);
+  --color-accent-foreground: var(--cp-accent-foreground);
+  --color-success: var(--cp-success);
+  --color-success-subtle: var(--cp-success-subtle);
+  --color-warning: var(--cp-warning);
+  --color-warning-subtle: var(--cp-warning-subtle);
+  --color-danger: var(--cp-danger);
+  --color-danger-subtle: var(--cp-danger-subtle);
+  --color-info: var(--cp-info);
+  --color-info-subtle: var(--cp-info-subtle);
+  --color-overlay: var(--cp-overlay);
+  --font-sans: var(--cp-font-sans);
+  --font-mono: var(--cp-font-mono);
+}
+
+@layer base {
+  * {
+    border-color: var(--cp-border);
+  }
+
+  html {
+    min-width: 320px;
+    background: var(--cp-canvas);
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--cp-canvas);
+    color: var(--cp-foreground);
+    font-family: var(--cp-font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  select {
+    cursor: pointer;
+  }
+
+  a:focus-visible,
+  select:focus-visible {
+    border-radius: 0.25rem;
+    outline: 2px solid var(--cp-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--cp-accent-subtle);
+    color: var(--cp-foreground);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --cp-muted: oklch(0.38 0.02 240);
+    --cp-subtle: oklch(0.45 0.018 240);
+    --cp-border: oklch(0.58 0.014 230);
+    --cp-border-subtle: oklch(0.68 0.012 230);
+    --cp-border-strong: oklch(0.42 0.018 230);
+  }
+
+  :root[data-theme="dark"] {
+    --cp-muted: oklch(0.82 0.012 230);
+    --cp-subtle: oklch(0.74 0.014 230);
+    --cp-border: oklch(0.62 0.02 240);
+    --cp-border-subtle: oklch(0.5 0.02 240);
+    --cp-border-strong: oklch(0.78 0.018 230);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

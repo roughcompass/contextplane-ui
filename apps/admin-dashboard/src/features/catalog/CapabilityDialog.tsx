@@ -1,0 +1,351 @@
+import { Plus, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+
+import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+
+import {
+  ContextplaneApiError,
+  createCapability,
+  getCapability,
+  type CatalogCapabilitySummary,
+  type ContextplaneClient,
+  type ContextplaneRequestOptions,
+} from "../../shared/api";
+import { CapabilityConnectionsPanel } from "./CapabilityConnectionsPanel";
+import { CapabilityEvidencePanel } from "./CapabilityEvidencePanel";
+import { CapabilityOverviewPanel } from "./CapabilityOverviewPanel";
+
+export type CapabilityDialogTarget = { mode: "create" } | { capabilityId: string; mode: "detail" };
+
+type CapabilityPanel = "connections" | "evidence" | "impact" | "interface" | "overview";
+
+interface CapabilityDialogProps {
+  apiTenantId?: string;
+  client: ContextplaneClient;
+  onClose: () => void;
+  onCreated: (capability: CatalogCapabilitySummary) => void;
+  target: CapabilityDialogTarget;
+  tenantName: string;
+}
+
+export const catalogInputClassName =
+  "mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent";
+export const catalogLabelClassName = "block text-xs font-medium text-muted";
+
+function panelFromLocation(): CapabilityPanel {
+  const value = new URLSearchParams(window.location.search).get("panel");
+  return value === "connections" ||
+    value === "evidence" ||
+    value === "impact" ||
+    value === "interface"
+    ? value
+    : "overview";
+}
+
+function safeFailure(error: unknown): { description: string; requestId: string | null } {
+  if (error instanceof ContextplaneApiError) {
+    return {
+      description:
+        error.status === 403
+          ? "The current credential cannot access this capability."
+          : error.status === 404
+            ? "This capability no longer exists or is not visible."
+            : "The capability could not be loaded from the service.",
+      requestId: error.requestId,
+    };
+  }
+  return { description: "The capability could not be loaded from the service.", requestId: null };
+}
+
+function CreateCapabilityForm({
+  client,
+  onCreated,
+  requestContext,
+  tenantName,
+}: {
+  client: ContextplaneClient;
+  onCreated: (capability: CatalogCapabilitySummary) => void;
+  requestContext: ContextplaneRequestOptions;
+  tenantName: string;
+}) {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const nameId = useId();
+  const [name, setName] = useState("");
+  const [externalId, setExternalId] = useState("");
+  const [attributesText, setAttributesText] = useState("{}");
+  const [error, setError] = useState<string | null>(null);
+  const mutation = useMutation({
+    mutationFn: (attributes: Record<string, unknown>) =>
+      createCapability(
+        client,
+        {
+          attributes,
+          entity_type: "capability",
+          ...(externalId.trim() ? { external_id: externalId.trim() } : {}),
+          name: name.trim(),
+        },
+        requestContext,
+      ),
+    onSuccess: (capability) => {
+      void queryClient.invalidateQueries({ queryKey: ["contextplane"] });
+      showToast({
+        message: `${capability.name} is now available in the canonical catalog.`,
+        title: "Capability created",
+        variant: "success",
+      });
+      onCreated(capability);
+    },
+  });
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!name.trim()) {
+      setError("Enter a capability name.");
+      return;
+    }
+    try {
+      const value: unknown = JSON.parse(attributesText);
+      if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        setError("Attributes must be a JSON object.");
+        return;
+      }
+      setError(null);
+      mutation.mutate(value as Record<string, unknown>);
+    } catch {
+      setError("Enter valid JSON attributes.");
+    }
+  }
+
+  return (
+    <form className="space-y-5 p-6" onSubmit={submit}>
+      <Notice title="Creates canonical tenant state" variant="info">
+        This form sends a new capability to {tenantName}. The service applies entity-type, identity,
+        uniqueness, and authorization rules before accepting it.
+      </Notice>
+      <label className={catalogLabelClassName} htmlFor={nameId}>
+        Capability name
+        <input
+          autoFocus
+          required
+          className={catalogInputClassName}
+          id={nameId}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Customer identity resolution"
+          value={name}
+        />
+      </label>
+      <label className={catalogLabelClassName}>
+        External ID
+        <input
+          className={catalogInputClassName}
+          onChange={(event) => setExternalId(event.target.value)}
+          placeholder="Optional source identifier"
+          value={externalId}
+        />
+      </label>
+      <label className={catalogLabelClassName}>
+        Attributes
+        <span className="mt-1 block font-normal text-muted">
+          Structured JSON governed by the registered schema for this entity type.
+        </span>
+        <textarea
+          aria-invalid={error ? true : undefined}
+          className={`${catalogInputClassName} min-h-44 resize-y font-mono leading-6`}
+          onChange={(event) => setAttributesText(event.target.value)}
+          spellCheck={false}
+          value={attributesText}
+        />
+      </label>
+      {error ? (
+        <Notice title="Review the capability" variant="danger">
+          {error}
+        </Notice>
+      ) : null}
+      {mutation.isError ? (
+        <RequestFailure
+          onRetry={() => {
+            setError(null);
+          }}
+          title="Capability was not created"
+        >
+          The service rejected the request. Your entered values remain available for correction.
+        </RequestFailure>
+      ) : null}
+      <div className="flex justify-end border-t border-border-subtle pt-5">
+        <Button disabled={mutation.isPending} type="submit">
+          <Plus aria-hidden="true" className="size-4" />
+          {mutation.isPending ? "Creating…" : "Create capability"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+const panels: readonly { id: CapabilityPanel; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "evidence", label: "Artifacts" },
+  { id: "interface", label: "Interface" },
+  { id: "connections", label: "Adoption & subscriptions" },
+  { id: "impact", label: "Version impact" },
+];
+
+export function CapabilityDialog({
+  apiTenantId,
+  client,
+  onClose,
+  onCreated,
+  target,
+  tenantName,
+}: CapabilityDialogProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [panel, setPanel] = useState<CapabilityPanel>(panelFromLocation);
+  const requestContext: ContextplaneRequestOptions = apiTenantId ? { tenantId: apiTenantId } : {};
+  const capabilityId = target.mode === "detail" ? target.capabilityId : null;
+  const detail = useQuery({
+    enabled: capabilityId !== null,
+    queryFn: ({ signal }) => getCapability(client, capabilityId ?? "", requestContext, signal),
+    queryKey: [
+      "contextplane",
+      apiTenantId ?? "credential-default",
+      "catalog",
+      "capability",
+      capabilityId,
+    ],
+  });
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    closeButtonRef.current?.focus();
+  }, []);
+
+  function close() {
+    dialogRef.current?.close();
+  }
+
+  function changePanel(nextPanel: CapabilityPanel) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("panel", nextPanel);
+    window.history.replaceState(window.history.state, "", url);
+    setPanel(nextPanel);
+  }
+
+  const title =
+    target.mode === "create" ? "Create capability" : detail.data?.name || "Capability detail";
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="capability-dialog-title"
+      className="m-0 max-h-dvh w-dvw max-w-none overflow-y-auto border-0 bg-surface p-0 text-foreground backdrop:bg-overlay sm:m-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(72rem,calc(100dvw-2rem))] sm:rounded-xl sm:border sm:border-border sm:shadow-2xl"
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      onClose={onClose}
+    >
+      <header className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-border bg-surface px-6 py-5">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-[0.04em] text-muted uppercase">
+            {target.mode === "create" ? "Canonical catalog" : "Capability"}
+          </p>
+          <h2 id="capability-dialog-title" className="mt-1 text-xl font-semibold text-foreground">
+            {title}
+          </h2>
+          {detail.data ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusBadge tone="info">{detail.data.lifecycle}</StatusBadge>
+              <StatusBadge>{detail.data.entityType}</StatusBadge>
+              <span className="break-all font-mono text-xs text-muted">{detail.data.entityId}</span>
+            </div>
+          ) : null}
+        </div>
+        <Button
+          ref={closeButtonRef}
+          aria-label="Close capability"
+          onClick={close}
+          size="icon"
+          variant="ghost"
+        >
+          <X aria-hidden="true" className="size-5" />
+        </Button>
+      </header>
+
+      {target.mode === "create" ? (
+        <CreateCapabilityForm
+          client={client}
+          onCreated={onCreated}
+          requestContext={requestContext}
+          tenantName={tenantName}
+        />
+      ) : detail.isPending ? (
+        <div className="space-y-4 p-6" aria-label="Loading capability" role="status">
+          <div className="h-6 w-52 animate-pulse rounded bg-surface-muted" />
+          <div className="h-40 animate-pulse rounded bg-surface-muted" />
+        </div>
+      ) : detail.isError ? (
+        <div className="p-6">
+          <RequestFailure
+            onRetry={() => void detail.refetch()}
+            requestId={safeFailure(detail.error).requestId}
+            title="Capability unavailable"
+          >
+            {safeFailure(detail.error).description}
+          </RequestFailure>
+        </div>
+      ) : detail.data ? (
+        <>
+          <div
+            aria-label="Capability tasks"
+            className="sticky top-[105px] z-10 flex overflow-x-auto border-b border-border bg-surface px-4"
+            role="tablist"
+          >
+            {panels.map((candidate) => (
+              <button
+                key={candidate.id}
+                aria-controls="capability-panel"
+                aria-selected={panel === candidate.id}
+                className={`-mb-px min-h-11 shrink-0 border-b-2 px-4 py-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                  panel === candidate.id
+                    ? "border-accent font-semibold text-foreground"
+                    : "border-transparent text-muted hover:text-foreground"
+                }`}
+                onClick={() => changePanel(candidate.id)}
+                role="tab"
+                type="button"
+              >
+                {candidate.label}
+              </button>
+            ))}
+          </div>
+          <div id="capability-panel" aria-live="polite" role="tabpanel">
+            {panel === "overview" ? (
+              <CapabilityOverviewPanel
+                capability={detail.data}
+                client={client}
+                onDeleted={close}
+                requestContext={requestContext}
+              />
+            ) : panel === "connections" ? (
+              <CapabilityConnectionsPanel
+                capability={detail.data}
+                client={client}
+                requestContext={requestContext}
+              />
+            ) : (
+              <CapabilityEvidencePanel
+                capability={detail.data}
+                client={client}
+                mode={panel}
+                requestContext={requestContext}
+              />
+            )}
+          </div>
+        </>
+      ) : null}
+    </dialog>
+  );
+}

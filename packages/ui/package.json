@@ -1,0 +1,39 @@
+{
+  "name": "@repo/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./brand": "./src/brand/index.ts",
+    "./brand/constants": "./src/brand/constants.ts",
+    "./layouts": "./src/layouts/index.ts",
+    "./primitives": "./src/primitives/index.ts",
+    "./shell": "./src/shell/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --coverage",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "clsx": "latest",
+    "lucide-react": "latest",
+    "tailwind-merge": "latest"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vitest": "latest"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
