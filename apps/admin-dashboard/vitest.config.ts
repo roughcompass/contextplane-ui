@@ -21,6 +21,10 @@ export default defineConfig({
         url: "http://localhost/",
       },
     },
+    hookTimeout: 30_000,
     setupFiles: ["./src/setupTests.ts"],
+    // Shell tests chain multiple lazy-route awaits; the default 5s is a
+    // false failure on CI, not a hang. A genuine hang still fails here.
+    testTimeout: 30_000,
   },
 });

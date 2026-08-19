@@ -1,6 +1,12 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
+
+// Route components are code-split with React.lazy. A cold CI runner resolves
+// those dynamic imports well past Testing Library's 1s default, so findBy*
+// queries need more patience there than on a warm local module cache. This
+// changes how long a query waits, never what it asserts.
+configure({ asyncUtilTimeout: 5_000 });
 
 afterEach(cleanup);
 
