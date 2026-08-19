@@ -11,6 +11,7 @@ design-system package.
 ```text
 apps/admin-dashboard/     # the operator and tenant-administrator dashboard
 packages/ui/              # @repo/ui — domain-neutral primitives, layouts, shell, brand
+contracts/openapi.json    # pinned service contract; the generated API client derives from it
 .develop/DESIGN.md        # design language, trust presentation, accessibility, UI acceptance
 CLAUDE.md                 # engineering guide: architecture, React rules, quality gates
 ```
@@ -58,20 +59,24 @@ Target one package with `--filter`, for example `pnpm --filter admin-dashboard d
 
 ## The API contract
 
-`apps/admin-dashboard/src/shared/api/generated/contextplane.ts` is generated, not written. It comes
-from the committed `openapi.json` in the service repository, which this workspace expects as a
-sibling checkout:
+`contracts/openapi.json` is this repository's **pinned copy** of the service contract, committed
+here rather than read from a sibling checkout. Pinning it is what makes a build reproducible from
+this repository alone: a sibling path would make the client depend on whichever revision of another
+repository happened to be on disk, and CI has no sibling at all.
 
-```text
-<parent>/contextplane/openapi.json
-<parent>/contextplane-ui/
-```
-
-After the service contract changes, regenerate and let the type checker find the call sites:
+`apps/admin-dashboard/src/shared/api/generated/contextplane.ts` is generated from that pin, never
+written by hand:
 
 ```bash
 pnpm generate:api && pnpm type-check
 ```
+
+Regeneration must be a no-op — CI fails if the committed client differs from what the pinned
+contract produces, which is what keeps the two from drifting apart silently.
+
+Adopting a server contract change is therefore a deliberate step rather than something that happens
+by being next to the right checkout. [`contracts/README.md`](contracts/README.md) records the
+current pin and the procedure for bumping it.
 
 Never hand-edit the generated file, and never hand-write endpoint DTOs beside it. Everything else in
 `shared/api/` — the runtime adapter that owns base URL, bearer token, tenant selection, error

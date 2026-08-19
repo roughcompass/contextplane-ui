@@ -1,0 +1,11 @@
+# Vendored artifacts must stay byte-identical to their source, not merely
+# equivalent. `contracts/openapi.json` is pinned to a specific contextplane
+# commit and its hash is recorded in contracts/README.md; reformatting it would
+# leave the file semantically the same but no longer comparable to the artifact
+# it was copied from, which is the one check that proves the pin is honest.
+#
+# The generated client is deliberately NOT ignored here: `pnpm generate:api`
+# formats it as its second step, and CI compares a fresh regeneration against
+# the committed file. Ignoring it would skip that formatting and make every
+# regeneration report dirty.
+contracts/openapi.json
