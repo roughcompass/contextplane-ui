@@ -2,8 +2,7 @@
 
 ## Scope and authority
 
-- **Domain:** UI for a Context Plane: state graph, LLM context orchestration, and semantic data
-  mesh.
+- **Domain:** UI for a Context Plane: state graph and LLM context orchestration.
 - **Stack:** Turborepo, `pnpm`, React 19, strict TypeScript, Vite, Tailwind CSS v4.
 - **Layout:** Applications live in `apps/`; shared packages, including `@repo/ui`, live in
   `packages/`.

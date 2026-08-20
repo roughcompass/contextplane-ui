@@ -1,7 +1,7 @@
 # Contextplane UI
 
 Browser client for the [Contextplane](https://github.com/roughcompass/contextplane) service — a
-context plane covering the state graph, LLM context orchestration, and the semantic data mesh.
+context plane covering the state graph and LLM context orchestration.
 
 This is a Turborepo workspace. One application ships today, `admin-dashboard`, backed by a shared
 design-system package.
