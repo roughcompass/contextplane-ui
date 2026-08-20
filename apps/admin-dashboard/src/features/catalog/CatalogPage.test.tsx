@@ -8,6 +8,16 @@ import { ToastProvider } from "@repo/ui/primitives";
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { CatalogPage } from "./CatalogPage";
 
+const concept = {
+  attributes: {},
+  created_at: "2026-08-12T14:31:02Z",
+  entity_id: "0f2e6d43-8b2c-4f0e-9b31-7c1f2b7a5d10",
+  entity_type: "concept",
+  external_id: null,
+  lifecycle: "ga",
+  name: "Settlement window",
+};
+
 const capability = {
   attributes: { lifecycle: { state: "ga" }, summary: "Resolves policy decisions" },
   created_at: "2026-08-12T14:28:41Z",
@@ -68,7 +78,7 @@ describe("CatalogPage", () => {
       target: { value: "missing" },
     });
 
-    expect(screen.getByText("No capability matches")).toBeVisible();
+    expect(screen.getByText("No entity matches")).toBeVisible();
     expect(window.location.search).toContain("q=missing");
   });
 
@@ -117,6 +127,100 @@ describe("CatalogPage", () => {
     });
   });
 
+  it("lists every entity type the tenant holds, not only capabilities", async () => {
+    const client = clientFor(() => ({ items: [capability, concept], next_cursor: null }));
+    renderCatalog(client);
+
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    expect(screen.getAllByRole("button", { name: "Settlement window" })[0]).toBeVisible();
+    expect(screen.getAllByText("concept")[0]).toBeVisible();
+    expect(client.request).toHaveBeenCalledWith(
+      "/v1/capabilities?page_size=100",
+      expect.objectContaining({ tenantId: "tenant-a" }),
+    );
+  });
+
+  it("narrows to one entity type at the service and keeps the choice in the URL", async () => {
+    const client = clientFor(() => ({ items: [capability, concept], next_cursor: null }));
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Entity type All types" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Concept" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/capabilities?entity_type=concept&page_size=100",
+        expect.objectContaining({ tenantId: "tenant-a" }),
+      ),
+    );
+    expect(window.location.search).toContain("type=concept");
+  });
+
+  it("creates a concept at its own route, with the parent capability it belongs to", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/concepts" && options?.method === "POST") return concept;
+      if (path.startsWith(`/v1/capabilities/${concept.entity_id}`)) return concept;
+      return { items: [capability], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create concept" }));
+    const dialog = screen.getByRole("dialog", { name: "Create concept" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Concept name" }), {
+      target: { value: "Settlement window" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create concept" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/concepts",
+        expect.objectContaining({
+          body: expect.objectContaining({ entity_type: "concept", name: "Settlement window" }),
+          method: "POST",
+          tenantId: "tenant-a",
+        }),
+      ),
+    );
+  });
+
+  it("creates an operation at its own route", async () => {
+    const operation = { ...concept, entity_type: "operation", name: "Reprice order" };
+    const client = clientFor((path, options) => {
+      if (path === "/v1/operations" && options?.method === "POST") return operation;
+      if (path.startsWith(`/v1/capabilities/${operation.entity_id}`)) return operation;
+      return { items: [], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create operation" })[0]!);
+    const dialog = screen.getByRole("dialog", { name: "Create operation" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Operation name" }), {
+      target: { value: "Reprice order" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create operation" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/operations",
+        expect.objectContaining({
+          body: expect.objectContaining({ entity_type: "operation", name: "Reprice order" }),
+          method: "POST",
+        }),
+      ),
+    );
+  });
+
+  it("reopens a create dialog from the URL alone, for the type the URL names", async () => {
+    window.history.replaceState({}, "", "/catalog?create=operation");
+    renderCatalog(clientFor(() => ({ items: [], next_cursor: null })));
+
+    expect(await screen.findByRole("dialog", { name: "Create operation" })).toBeVisible();
+  });
+
   it("keeps a creation draft available when the service refuses the write", async () => {
     const client = clientFor((path, options) => {
       if (path === "/v1/capabilities" && options?.method === "POST") {
@@ -133,7 +237,7 @@ describe("CatalogPage", () => {
     fireEvent.change(name, { target: { value: "Draft remains" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Create capability" }));
 
-    expect(await within(dialog).findByText("Capability was not created")).toBeVisible();
+    expect(await within(dialog).findByText("The capability was not created")).toBeVisible();
     expect(name).toHaveValue("Draft remains");
   });
 });

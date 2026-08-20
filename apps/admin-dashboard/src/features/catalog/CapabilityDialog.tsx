@@ -6,9 +6,10 @@ import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/
 
 import {
   ContextplaneApiError,
-  createCapability,
+  createCatalogEntity,
   getCapability,
   type CatalogCapabilitySummary,
+  type CatalogEntityType,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
@@ -16,7 +17,15 @@ import { CapabilityConnectionsPanel } from "./CapabilityConnectionsPanel";
 import { CapabilityEvidencePanel } from "./CapabilityEvidencePanel";
 import { CapabilityOverviewPanel } from "./CapabilityOverviewPanel";
 
-export type CapabilityDialogTarget = { mode: "create" } | { capabilityId: string; mode: "detail" };
+export type CapabilityDialogTarget =
+  { entityType: CatalogEntityType; mode: "create" } | { capabilityId: string; mode: "detail" };
+
+/** What each creatable type is called in the copy the operator reads. */
+const entityTypeLabels: Readonly<Record<CatalogEntityType, string>> = {
+  capability: "capability",
+  concept: "concept",
+  operation: "operation",
+};
 
 type CapabilityPanel = "connections" | "evidence" | "impact" | "interface" | "overview";
 
@@ -48,27 +57,30 @@ function safeFailure(error: unknown): { description: string; requestId: string |
     return {
       description:
         error.status === 403
-          ? "The current credential cannot access this capability."
+          ? "The current credential cannot access this entity."
           : error.status === 404
-            ? "This capability no longer exists or is not visible."
-            : "The capability could not be loaded from the service.",
+            ? "This entity no longer exists or is not visible."
+            : "The entity could not be loaded from the service.",
       requestId: error.requestId,
     };
   }
-  return { description: "The capability could not be loaded from the service.", requestId: null };
+  return { description: "The entity could not be loaded from the service.", requestId: null };
 }
 
-function CreateCapabilityForm({
+function CreateEntityForm({
   client,
+  entityType,
   onCreated,
   requestContext,
   tenantName,
 }: {
   client: ContextplaneClient;
+  entityType: CatalogEntityType;
   onCreated: (capability: CatalogCapabilitySummary) => void;
   requestContext: ContextplaneRequestOptions;
   tenantName: string;
 }) {
+  const label = entityTypeLabels[entityType];
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const nameId = useId();
@@ -78,31 +90,31 @@ function CreateCapabilityForm({
   const [error, setError] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: (attributes: Record<string, unknown>) =>
-      createCapability(
+      createCatalogEntity(
         client,
         {
           attributes,
-          entity_type: "capability",
-          ...(externalId.trim() ? { external_id: externalId.trim() } : {}),
+          entityType,
+          ...(externalId.trim() ? { externalId: externalId.trim() } : {}),
           name: name.trim(),
         },
         requestContext,
       ),
-    onSuccess: (capability) => {
+    onSuccess: (entity) => {
       void queryClient.invalidateQueries({ queryKey: ["contextplane"] });
       showToast({
-        message: `${capability.name} is now available in the canonical catalog.`,
-        title: "Capability created",
+        message: `${entity.name} is now available in the canonical catalog.`,
+        title: `${label.charAt(0).toUpperCase()}${label.slice(1)} created`,
         variant: "success",
       });
-      onCreated(capability);
+      onCreated(entity);
     },
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim()) {
-      setError("Enter a capability name.");
+      setError(`Enter a ${label} name.`);
       return;
     }
     try {
@@ -121,11 +133,12 @@ function CreateCapabilityForm({
   return (
     <form className="space-y-5 p-6" onSubmit={submit}>
       <Notice title="Creates canonical tenant state" variant="info">
-        This form sends a new capability to {tenantName}. The service applies entity-type, identity,
+        This form sends a new {label} to {tenantName}. The service applies entity-type, identity,
         uniqueness, and authorization rules before accepting it.
       </Notice>
       <label className={catalogLabelClassName} htmlFor={nameId}>
-        Capability name
+        {label.charAt(0).toUpperCase()}
+        {label.slice(1)} name
         <input
           autoFocus
           required
@@ -159,7 +172,7 @@ function CreateCapabilityForm({
         />
       </label>
       {error ? (
-        <Notice title="Review the capability" variant="danger">
+        <Notice title={`Review the ${label}`} variant="danger">
           {error}
         </Notice>
       ) : null}
@@ -168,7 +181,7 @@ function CreateCapabilityForm({
           onRetry={() => {
             setError(null);
           }}
-          title="Capability was not created"
+          title={`The ${label} was not created`}
         >
           The service rejected the request. Your entered values remain available for correction.
         </RequestFailure>
@@ -176,7 +189,7 @@ function CreateCapabilityForm({
       <div className="flex justify-end border-t border-border-subtle pt-5">
         <Button disabled={mutation.isPending} type="submit">
           <Plus aria-hidden="true" className="size-4" />
-          {mutation.isPending ? "Creating…" : "Create capability"}
+          {mutation.isPending ? "Creating…" : `Create ${label}`}
         </Button>
       </div>
     </form>
@@ -234,7 +247,9 @@ export function CapabilityDialog({
   }
 
   const title =
-    target.mode === "create" ? "Create capability" : detail.data?.name || "Capability detail";
+    target.mode === "create"
+      ? `Create ${entityTypeLabels[target.entityType]}`
+      : detail.data?.name || "Entity detail";
 
   return (
     <dialog
@@ -250,7 +265,7 @@ export function CapabilityDialog({
       <header className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-border bg-surface px-6 py-5">
         <div className="min-w-0">
           <p className="text-xs font-semibold tracking-[0.04em] text-muted uppercase">
-            {target.mode === "create" ? "Canonical catalog" : "Capability"}
+            {target.mode === "create" ? "Canonical catalog" : "Catalog entity"}
           </p>
           <h2 id="capability-dialog-title" className="mt-1 text-xl font-semibold text-foreground">
             {title}
@@ -265,7 +280,7 @@ export function CapabilityDialog({
         </div>
         <Button
           ref={closeButtonRef}
-          aria-label="Close capability"
+          aria-label="Close entity"
           onClick={close}
           size="icon"
           variant="ghost"
@@ -275,14 +290,15 @@ export function CapabilityDialog({
       </header>
 
       {target.mode === "create" ? (
-        <CreateCapabilityForm
+        <CreateEntityForm
           client={client}
+          entityType={target.entityType}
           onCreated={onCreated}
           requestContext={requestContext}
           tenantName={tenantName}
         />
       ) : detail.isPending ? (
-        <div className="space-y-4 p-6" aria-label="Loading capability" role="status">
+        <div className="space-y-4 p-6" aria-label="Loading entity" role="status">
           <div className="h-6 w-52 animate-pulse rounded bg-surface-muted" />
           <div className="h-40 animate-pulse rounded bg-surface-muted" />
         </div>
