@@ -9,6 +9,8 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { ToastProvider } from "@repo/ui/primitives";
+
 import { RelationshipsPage } from "./RelationshipsPage";
 
 const identity = {
@@ -87,11 +89,13 @@ function renderPage(client: ContextplaneClient) {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <RelationshipsPage
-        activeTenantName="Northstar Systems"
-        client={client}
-        searchRef={createRef<HTMLInputElement>()}
-      />
+      <ToastProvider>
+        <RelationshipsPage
+          activeTenantName="Northstar Systems"
+          client={client}
+          searchRef={createRef<HTMLInputElement>()}
+        />
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -349,5 +353,85 @@ describe("RelationshipsPage", () => {
     expect(
       await screen.findByRole("group", { name: /^Relationship graph focused on/ }),
     ).toBeVisible();
+  });
+
+  it("offers a supersede action per traversal row, and a create beside the view toggle", async () => {
+    window.history.replaceState({}, "", "/relationships?root=entity-identity&depth=3");
+    const client = clientFor((path) => {
+      if (path === "/v1/whoami") return identity;
+      if (path.startsWith("/v1/capabilities/entity-identity/dependents?")) return traversal;
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(client);
+
+    await screen.findByRole("table");
+    expect(screen.getAllByRole("button", { name: "Supersede" })).toHaveLength(edges.length);
+    expect(screen.getByRole("button", { name: "Create relationship" })).toBeVisible();
+  });
+
+  it("opens the editor on the row the operator chose", async () => {
+    window.history.replaceState({}, "", "/relationships?root=entity-identity&depth=3");
+    const client = clientFor((path) => {
+      if (path === "/v1/whoami") return identity;
+      if (path.startsWith("/v1/capabilities/entity-identity/dependents?")) return traversal;
+      if (path === "/v1/profiles/conformance") {
+        return {
+          binding: {
+            binding_id: "b-1",
+            profile_revision_id: "r-1",
+            state: "active",
+          },
+          bound: true,
+        };
+      }
+      if (path === "/v1/relationships/edge-policy") {
+        return {
+          endpoints: {
+            destination_entity_id: "entity-policy",
+            source_entity_id: "entity-identity",
+          },
+          is_inverse: false,
+          profile: { binding_id: "b-1", enforcement_mode: "mandatory", profile_revision_id: "r-1" },
+          properties: {},
+          provenance: {
+            authority: null,
+            confidence: null,
+            external_record_id: null,
+            external_revision: null,
+            freshness_state: null,
+            source_system: null,
+          },
+          readiness_state: "ready",
+          relationship_id: "edge-policy",
+          relationship_type: "depends_on",
+          temporal: { effective_from: null, effective_to: null, recorded_at: null },
+          validation: { mode: "mandatory", valid: true },
+        };
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(client);
+
+    await screen.findByRole("table");
+    fireEvent.click(screen.getAllByRole("button", { name: "Supersede" })[0]!);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Supersede relationship" }),
+    ).toBeVisible();
+  });
+
+  it("does not offer a supersede action on another tenant's projection rows", async () => {
+    window.history.replaceState({}, "", "/relationships?tab=projections");
+    const client = clientFor((path) => {
+      if (path === "/v1/whoami") return identity;
+      if (path.startsWith("/v1/graph/provider")) return { edges, next_cursor: null, nodes };
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(client);
+
+    // The projection area renders more than one table; waiting for any of them
+    // is enough, since a Supersede would appear in whichever held the edges.
+    await waitFor(() => expect(screen.getAllByRole("table").length).toBeGreaterThan(0));
+    expect(screen.queryByRole("button", { name: "Supersede" })).not.toBeInTheDocument();
   });
 });

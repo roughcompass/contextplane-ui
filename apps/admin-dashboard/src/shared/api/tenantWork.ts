@@ -576,3 +576,36 @@ export async function getIntentCheckpointByDigest(
     ),
   );
 }
+
+/**
+ * The binding governing this tenant, as the fields a writer needs.
+ *
+ * `getProfileConformance` returns the whole envelope untyped, which is right for
+ * a settings page displaying it and wrong for a write path that has to name a
+ * revision. This parses only what a caller must send or show.
+ */
+export interface GoverningBinding {
+  bindingId: string;
+  bound: boolean;
+  enforcementState: string;
+  profileRevisionId: string;
+}
+
+export async function getGoverningBinding(
+  client: ContextplaneClient,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<GoverningBinding | null> {
+  const payload = requiredRecord(
+    await client.request("/v1/profiles/conformance", contextOptions(context, signal)),
+    "profile conformance",
+  );
+  if (!requiredBoolean(payload, "bound")) return null;
+  const binding = requiredRecord(payload.binding, "profile binding");
+  return {
+    bindingId: requiredString(binding, "binding_id"),
+    bound: true,
+    enforcementState: requiredString(binding, "state"),
+    profileRevisionId: requiredString(binding, "profile_revision_id"),
+  };
+}

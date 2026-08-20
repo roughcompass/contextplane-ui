@@ -498,9 +498,14 @@ describe("optimistic concurrency on an update", () => {
       });
     });
 
-    const error = await updateRelationship(client, "c1", writeInput, {}, undefined, 'W/"old"').catch(
-      (caught: unknown) => caught,
-    );
+    const error = await updateRelationship(
+      client,
+      "c1",
+      writeInput,
+      {},
+      undefined,
+      'W/"old"',
+    ).catch((caught: unknown) => caught);
 
     expect((error as ContextplaneApiError).code).toBe("precondition_failed");
     expect((error as ContextplaneApiError).status).toBe(412);
