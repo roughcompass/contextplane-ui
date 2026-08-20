@@ -48,6 +48,7 @@ import {
   type MemoryClaimPersona,
 } from "../shared/api";
 import { createBrowserAccessTokenProvider } from "../shared/auth/runtimeAuth";
+import { EntitySearch } from "./EntitySearch";
 
 declare global {
   interface Window {
@@ -692,6 +693,19 @@ export function App() {
           onPointerOver={preloadNavigation}
           onTenantChange={scheduleTenantChange}
           onThemeToggle={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
+          search={
+            <EntitySearch
+              {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+              client={apiClient}
+              onResolved={(entityId) => {
+                const destination = new URL(window.location.href);
+                destination.pathname = "/catalog";
+                destination.search = `?capability=${encodeURIComponent(entityId)}&panel=overview`;
+                window.history.pushState(window.history.state, "", destination);
+                scheduleNavigation(destination);
+              }}
+            />
+          }
           tenants={tenants}
           theme={theme}
           user={{

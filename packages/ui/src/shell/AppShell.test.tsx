@@ -81,4 +81,38 @@ describe("AppShell", () => {
     await waitFor(() => expect(menuButton).toHaveFocus());
     expect(dialog).not.toHaveAttribute("open");
   });
+
+  it("renders a shell-wide search surface when one is supplied", () => {
+    render(
+      <AppShell
+        activeHref="/catalog"
+        activeTenantId="tenant-a"
+        navigation={navigation}
+        search={<input aria-label="Resolve an entity handle" type="search" />}
+        tenants={tenants}
+        user={{ initials: "TC", name: "Test Consumer" }}
+      >
+        <h1>Catalog page</h1>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("searchbox", { name: "Resolve an entity handle" })).toBeVisible();
+  });
+
+  it("renders the header without one, so the slot stays optional", () => {
+    render(
+      <AppShell
+        activeHref="/catalog"
+        activeTenantId="tenant-a"
+        navigation={navigation}
+        tenants={tenants}
+        user={{ initials: "TC", name: "Test Consumer" }}
+      >
+        <h1>Catalog page</h1>
+      </AppShell>,
+    );
+
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /^Active tenant/ })).toBeVisible();
+  });
 });
