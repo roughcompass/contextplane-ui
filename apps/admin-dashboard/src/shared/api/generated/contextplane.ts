@@ -2355,104 +2355,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/capabilities/{capability_id}/interface": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Read the capability's declared interface surface
-     * @description Return the active interface surface at ``as_of`` (or current truth).
-     *
-     *     The path segment accepts a UUID or slug-form name.
-     *
-     *     ``?view=audit`` is accepted for API consistency but is currently a no-op —
-     *     the interface service returns a composed record rather than raw attribute
-     *     rows, so no additional bitemporal metadata is available to surface.
-     */
-    get: operations["get_interface_v1_capabilities__capability_id__interface_get"];
-    /**
-     * Replace the capability's declared interface surface
-     * @description Normalize, soft-supersede prior versions, then write the new pair.
-     *
-     *     The path segment accepts a UUID or slug-form name.
-     */
-    put: operations["put_interface_v1_capabilities__capability_id__interface_put"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/capabilities/{capability_id}/preview-version": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Preview the impact of a proposed version + interface change
-     * @description Read-only advisory: normalize → semver → diff → blast-radius → filter.
-     *
-     *     The path segment accepts a UUID or slug-form name.
-     *
-     *     Returns the diff classification, the per-element changes, the
-     *     affected-consumer list (cross-tenant entries anonymised), and a
-     *     plain-text release-notes scaffold.
-     */
-    post: operations["preview_version_v1_capabilities__capability_id__preview_version_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/capabilities/{capability_id}/subscriptions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List the caller's subscriptions for a capability
-     * @description Active subscriptions owned by ``ctx.tenant_id`` for this capability.
-     *
-     *     The path segment accepts a UUID or slug-form name. Tenants only see
-     *     their own subscriptions through this endpoint.
-     *
-     *     Pass ``?view=audit`` to include bitemporal columns in the response.
-     *
-     *     Pagination: ``next_cursor`` is always ``None`` — subscriptions per
-     *     capability per tenant are bounded (typically 1–5 rows), so keyset
-     *     pagination is not wired. The envelope exists for client shape consistency.
-     */
-    get: operations["list_subscriptions_for_capability_v1_capabilities__capability_id__subscriptions_get"];
-    put?: never;
-    /**
-     * Create a subscription for a capability
-     * @description Create an active subscription owned by the caller's tenant.
-     *
-     *     The path segment accepts a UUID or slug-form name. Visibility is enforced
-     *     before the row is written. Returns ``{"subscription_id": "<uuid>"}``; the
-     *     full record can be retrieved via the list endpoint.
-     *
-     *     Honours ``X-Idempotency-Key``: same key + same body replays the
-     *     original response; same key + different body returns 409.
-     */
-    post: operations["create_subscription_v1_capabilities__capability_id__subscriptions_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/capabilities/{entity_id}": {
     parameters: {
       query?: never;
@@ -2504,6 +2406,75 @@ export interface paths {
      *     GET /v1/capabilities/{id} → ETag header → PATCH with If-Match.
      */
     patch: operations["patch_capability_v1_capabilities__entity_id__patch"];
+    trace?: never;
+  };
+  "/v1/capabilities/{entity_id}/adoptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List active adoptions for a capability
+     * @description Return the calling tenant's active adoption for this capability,
+     *     if any.
+     *
+     *     Scoped to the caller's tenant — listing other tenants' adoptions for
+     *     the same capability is not supported through this endpoint (use the
+     *     projection endpoints for the provider-side view).
+     *
+     *     Pass ``?view=audit`` to include bitemporal columns in the response.
+     *
+     *     Pagination: ``next_cursor`` is always ``None`` — adoptions per capability
+     *     per tenant are bounded (at most one active row), so keyset pagination is
+     *     not wired. The envelope exists for client shape consistency.
+     */
+    get: operations["list_adoptions_v1_capabilities__entity_id__adoptions_get"];
+    put?: never;
+    /**
+     * Adopt a provider capability (cross-tenant)
+     * @description Record an adoption event + provides_to edge.
+     *
+     *     The path segment accepts a UUID or a slug-form name. The consumer
+     *     tenant is ``ctx.tenant_id``. Returns ``201`` with the newly-created
+     *     adoption row. ``409`` if an active adoption already exists for the
+     *     (consumer, capability) pair (uniqueness constraint).
+     *
+     *     Pass ``?view=audit`` to include bitemporal columns in the response.
+     *     Honours ``X-Idempotency-Key``: same key + same body replays the
+     *     original response; same key + different body returns 409.
+     */
+    post: operations["adopt_capability_v1_capabilities__entity_id__adoptions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/capabilities/{entity_id}/adoptions/{adoption_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Soft-delete (unadopt) an adoption
+     * @description Soft-delete by setting t_invalidated_at. The provides_to edge is
+     *     retained so historical bi-temporal traversal still surfaces the
+     *     relationship.
+     *
+     *     Idempotent: calling on an already-invalidated adoption is a no-op
+     *     (returns 204).
+     */
+    delete: operations["_unadopt_capability_v1_capabilities__entity_id__adoptions__adoption_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/v1/capabilities/{entity_id}/artifacts": {
@@ -2648,6 +2619,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/capabilities/{entity_id}/interface": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read the capability's declared interface surface
+     * @description Return the active interface surface at ``as_of`` (or current truth).
+     *
+     *     The path segment accepts a UUID or slug-form name.
+     *
+     *     ``?view=audit`` is accepted for API consistency but is currently a no-op —
+     *     the interface service returns a composed record rather than raw attribute
+     *     rows, so no additional bitemporal metadata is available to surface.
+     */
+    get: operations["get_interface_v1_capabilities__entity_id__interface_get"];
+    /**
+     * Replace the capability's declared interface surface
+     * @description Normalize, soft-supersede prior versions, then write the new pair.
+     *
+     *     The path segment accepts a UUID or slug-form name.
+     */
+    put: operations["put_interface_v1_capabilities__entity_id__interface_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/capabilities/{entity_id}/lifecycle": {
     parameters: {
       query?: never;
@@ -2681,6 +2684,72 @@ export interface paths {
      *     404 if the entity does not exist.
      */
     patch: operations["patch_capability_lifecycle_v1_capabilities__entity_id__lifecycle_patch"];
+    trace?: never;
+  };
+  "/v1/capabilities/{entity_id}/preview-version": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview the impact of a proposed version + interface change
+     * @description Read-only advisory: normalize → semver → diff → blast-radius → filter.
+     *
+     *     The path segment accepts a UUID or slug-form name.
+     *
+     *     Returns the diff classification, the per-element changes, the
+     *     affected-consumer list (cross-tenant entries anonymised), and a
+     *     plain-text release-notes scaffold.
+     */
+    post: operations["preview_version_v1_capabilities__entity_id__preview_version_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/capabilities/{entity_id}/subscriptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the caller's subscriptions for a capability
+     * @description Active subscriptions owned by ``ctx.tenant_id`` for this capability.
+     *
+     *     The path segment accepts a UUID or slug-form name. Tenants only see
+     *     their own subscriptions through this endpoint.
+     *
+     *     Pass ``?view=audit`` to include bitemporal columns in the response.
+     *
+     *     Pagination: ``next_cursor`` is always ``None`` — subscriptions per
+     *     capability per tenant are bounded (typically 1–5 rows), so keyset
+     *     pagination is not wired. The envelope exists for client shape consistency.
+     */
+    get: operations["list_subscriptions_for_capability_v1_capabilities__entity_id__subscriptions_get"];
+    put?: never;
+    /**
+     * Create a subscription for a capability
+     * @description Create an active subscription owned by the caller's tenant.
+     *
+     *     The path segment accepts a UUID or slug-form name. Visibility is enforced
+     *     before the row is written. Returns ``{"subscription_id": "<uuid>"}``; the
+     *     full record can be retrieved via the list endpoint.
+     *
+     *     Honours ``X-Idempotency-Key``: same key + same body replays the
+     *     original response; same key + different body returns 409.
+     */
+    post: operations["create_subscription_v1_capabilities__entity_id__subscriptions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/v1/capabilities/{entity_id}/visibility": {
@@ -2717,75 +2786,6 @@ export interface paths {
      *     - 422 if visibility value is invalid or tenant-shared without shared_with_tenants.
      */
     patch: operations["set_visibility_handler_v1_capabilities__entity_id__visibility_patch"];
-    trace?: never;
-  };
-  "/v1/capabilities/{provider_cap_id}/adoptions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List active adoptions for a capability
-     * @description Return the calling tenant's active adoption for this capability,
-     *     if any.
-     *
-     *     Scoped to the caller's tenant — listing other tenants' adoptions for
-     *     the same capability is not supported through this endpoint (use the
-     *     projection endpoints for the provider-side view).
-     *
-     *     Pass ``?view=audit`` to include bitemporal columns in the response.
-     *
-     *     Pagination: ``next_cursor`` is always ``None`` — adoptions per capability
-     *     per tenant are bounded (at most one active row), so keyset pagination is
-     *     not wired. The envelope exists for client shape consistency.
-     */
-    get: operations["list_adoptions_v1_capabilities__provider_cap_id__adoptions_get"];
-    put?: never;
-    /**
-     * Adopt a provider capability (cross-tenant)
-     * @description Record an adoption event + provides_to edge.
-     *
-     *     The path segment accepts a UUID or a slug-form name. The consumer
-     *     tenant is ``ctx.tenant_id``. Returns ``201`` with the newly-created
-     *     adoption row. ``409`` if an active adoption already exists for the
-     *     (consumer, capability) pair (uniqueness constraint).
-     *
-     *     Pass ``?view=audit`` to include bitemporal columns in the response.
-     *     Honours ``X-Idempotency-Key``: same key + same body replays the
-     *     original response; same key + different body returns 409.
-     */
-    post: operations["adopt_capability_v1_capabilities__provider_cap_id__adoptions_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/capabilities/{provider_cap_id}/adoptions/{adoption_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Soft-delete (unadopt) an adoption
-     * @description Soft-delete by setting t_invalidated_at. The provides_to edge is
-     *     retained so historical bi-temporal traversal still surfaces the
-     *     relationship.
-     *
-     *     Idempotent: calling on an already-invalidated adoption is a no-op
-     *     (returns 204).
-     */
-    delete: operations["_unadopt_capability_v1_capabilities__provider_cap_id__adoptions__adoption_id__delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
     trace?: never;
   };
   "/v1/checkpoints/by-digest/{digest}": {
@@ -2954,13 +2954,11 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Lookup entity by external system slug and external ID
-     * @description Return the entity mapped to ``(external_system, external_id)`` for the tenant.
-     *
-     *     Returns ``404 Not Found`` when no mapping exists.  The ``external_system``
-     *     and ``external_id`` query parameters are both required.
+     * Deprecated: use GET /v1/entities:lookup
+     * @deprecated
+     * @description The pre-rename path. Delegates; retires on the date in the contract.
      */
-    get: operations["lookup_entity_by_external_id_v1_entities_get"];
+    get: operations["lookup_entity_by_external_id_deprecated_v1_entities_get"];
     put?: never;
     /**
      * Assert an entity through the generic profile-governed surface.
@@ -3120,6 +3118,29 @@ export interface paths {
      *     asking "may this go active now?" needs today's answer, which is this.
      */
     post: operations["validate_readiness_v1_entities__entity_id__validate_readiness_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/entities:lookup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Lookup entity by external system slug and external ID
+     * @description Return the entity mapped to ``(external_system, external_id)`` for the tenant.
+     *
+     *     Returns ``404 Not Found`` when no mapping exists.  The ``external_system``
+     *     and ``external_id`` query parameters are both required.
+     */
+    get: operations["lookup_entity_by_external_id_v1_entities_lookup_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -15584,191 +15605,6 @@ export interface operations {
       };
     };
   };
-  get_interface_v1_capabilities__capability_id__interface_get: {
-    parameters: {
-      query?: {
-        /** @description ISO-8601 UTC for time-travel */
-        as_of?: string | null;
-        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
-        view?: "default" | "audit";
-      };
-      header?: never;
-      path: {
-        /** @description Capability UUID or slug */
-        capability_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["InterfaceReadResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  put_interface_v1_capabilities__capability_id__interface_put: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Capability UUID or slug */
-        capability_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["InterfacePutRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["InterfaceSurfaceResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  preview_version_v1_capabilities__capability_id__preview_version_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Capability UUID or slug */
-        capability_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PreviewVersionRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BreakingChangePreviewResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_subscriptions_for_capability_v1_capabilities__capability_id__subscriptions_get: {
-    parameters: {
-      query?: {
-        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
-        view?: "default" | "audit";
-      };
-      header?: never;
-      path: {
-        /** @description Capability UUID or slug */
-        capability_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SubscriptionListResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_subscription_v1_capabilities__capability_id__subscriptions_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        "Idempotency-Key"?: string | null;
-        "X-Idempotency-Key"?: string | null;
-      };
-      path: {
-        /** @description Capability UUID or slug */
-        capability_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SubscriptionCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: string;
-          };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   get_capability_v1_capabilities__entity_id__get: {
     parameters: {
       query?: {
@@ -15864,6 +15700,114 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["CapabilityResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_adoptions_v1_capabilities__entity_id__adoptions_get: {
+    parameters: {
+      query?: {
+        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
+        view?: "default" | "audit";
+      };
+      header?: never;
+      path: {
+        /** @description Provider capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdoptionListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  adopt_capability_v1_capabilities__entity_id__adoptions_post: {
+    parameters: {
+      query?: {
+        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
+        view?: "default" | "audit";
+      };
+      header?: {
+        "Idempotency-Key"?: string | null;
+        "X-Idempotency-Key"?: string | null;
+      };
+      path: {
+        /** @description Provider capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdoptionCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdoptionResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  _unadopt_capability_v1_capabilities__entity_id__adoptions__adoption_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Provider capability UUID or slug */
+        entity_id: string;
+        adoption_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {
@@ -16155,6 +16099,79 @@ export interface operations {
       };
     };
   };
+  get_interface_v1_capabilities__entity_id__interface_get: {
+    parameters: {
+      query?: {
+        /** @description ISO-8601 UTC for time-travel */
+        as_of?: string | null;
+        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
+        view?: "default" | "audit";
+      };
+      header?: never;
+      path: {
+        /** @description Capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InterfaceReadResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_interface_v1_capabilities__entity_id__interface_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InterfacePutRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InterfaceSurfaceResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   patch_capability_lifecycle_v1_capabilities__entity_id__lifecycle_patch: {
     parameters: {
       query?: never;
@@ -16191,6 +16208,118 @@ export interface operations {
       };
     };
   };
+  preview_version_v1_capabilities__entity_id__preview_version_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PreviewVersionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BreakingChangePreviewResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_subscriptions_for_capability_v1_capabilities__entity_id__subscriptions_get: {
+    parameters: {
+      query?: {
+        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
+        view?: "default" | "audit";
+      };
+      header?: never;
+      path: {
+        /** @description Capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SubscriptionListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_subscription_v1_capabilities__entity_id__subscriptions_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "Idempotency-Key"?: string | null;
+        "X-Idempotency-Key"?: string | null;
+      };
+      path: {
+        /** @description Capability UUID or slug */
+        entity_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubscriptionCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   set_visibility_handler_v1_capabilities__entity_id__visibility_patch: {
     parameters: {
       query?: never;
@@ -16214,114 +16343,6 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["CapabilityResponse"];
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_adoptions_v1_capabilities__provider_cap_id__adoptions_get: {
-    parameters: {
-      query?: {
-        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
-        view?: "default" | "audit";
-      };
-      header?: never;
-      path: {
-        /** @description Provider capability UUID or slug */
-        provider_cap_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AdoptionListResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  adopt_capability_v1_capabilities__provider_cap_id__adoptions_post: {
-    parameters: {
-      query?: {
-        /** @description Response shape. `default` returns the fields a caller acts on. `audit` adds the bitemporal columns and the owning tenant, for reconstructing what the record looked like and when. */
-        view?: "default" | "audit";
-      };
-      header?: {
-        "Idempotency-Key"?: string | null;
-        "X-Idempotency-Key"?: string | null;
-      };
-      path: {
-        /** @description Provider capability UUID or slug */
-        provider_cap_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AdoptionCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AdoptionResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  _unadopt_capability_v1_capabilities__provider_cap_id__adoptions__adoption_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Provider capability UUID or slug */
-        provider_cap_id: string;
-        adoption_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
       };
       /** @description Validation Error */
       422: {
@@ -16601,7 +16622,7 @@ export interface operations {
       };
     };
   };
-  lookup_entity_by_external_id_v1_entities_get: {
+  lookup_entity_by_external_id_deprecated_v1_entities_get: {
     parameters: {
       query: {
         /** @description External system slug (registered via /v1/admin/external-systems) */
@@ -16891,6 +16912,40 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ReadinessReportV1"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  lookup_entity_by_external_id_v1_entities_lookup_get: {
+    parameters: {
+      query: {
+        /** @description External system slug (registered via /v1/admin/external-systems) */
+        external_system: string;
+        /** @description The raw external ID string as it appears in the upstream system */
+        external_id: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EntityRefResponse"];
         };
       };
       /** @description Validation Error */
