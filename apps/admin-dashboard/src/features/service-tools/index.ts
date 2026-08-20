@@ -1,1 +1,0 @@
-export { TenantServicePage } from "./TenantServicePage";

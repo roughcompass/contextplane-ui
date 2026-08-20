@@ -11,8 +11,6 @@ import {
   MessageSquareText,
   Settings,
   ShieldCheck,
-  SquareTerminal,
-  Wrench,
   Workflow,
 } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -65,11 +63,6 @@ const AnalyticsPage = lazy(async () => {
   return { default: feature.AnalyticsPage };
 });
 
-const AdminPage = lazy(async () => {
-  const feature = await import("../features/administration");
-  return { default: feature.AdminPage };
-});
-
 const ArcPage = lazy(async () => {
   const feature = await import("../features/arc");
   return { default: feature.ArcPage };
@@ -120,11 +113,6 @@ const SettingsPage = lazy(async () => {
   return { default: feature.SettingsPage };
 });
 
-const TenantServicePage = lazy(async () => {
-  const feature = await import("../features/service-tools");
-  return { default: feature.TenantServicePage };
-});
-
 const TenantWorkPage = lazy(async () => {
   const feature = await import("../features/tenant-work");
   return { default: feature.TenantWorkPage };
@@ -167,11 +155,6 @@ const navigation: readonly NavigationSection[] = [
       },
       { href: "/workspaces", icon: <Boxes className="size-4" />, label: "Workspaces" },
       { href: "/tenant-work", icon: <ListChecks className="size-4" />, label: "Tenant work" },
-      {
-        href: "/service-tools",
-        icon: <SquareTerminal className="size-4" />,
-        label: "Service tools",
-      },
     ],
   },
   {
@@ -193,14 +176,12 @@ const navigation: readonly NavigationSection[] = [
       { href: "/arc", icon: <ShieldCheck className="size-4" />, label: "Governed policies" },
       { href: "/proposals", icon: <Workflow className="size-4" />, label: "Proposals" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
-      { href: "/administration", icon: <Wrench className="size-4" />, label: "Administration" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
   },
 ];
 
 type AppRoute =
-  | "administration"
   | "analytics"
   | "arc"
   | "audit"
@@ -211,14 +192,12 @@ type AppRoute =
   | "proposals"
   | "relationships"
   | "sessions"
-  | "service-tools"
   | "settings"
   | "tenant-work"
   | "workspaces";
 
 function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/") return "overview";
-  if (pathname === "/administration") return "administration";
   if (pathname === "/analytics") return "analytics";
   if (pathname === "/arc") return "arc";
   if (pathname === "/audit") return "audit";
@@ -227,7 +206,6 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
-  if (pathname === "/service-tools") return "service-tools";
   if (pathname === "/settings") return "settings";
   if (pathname === "/tenant-work") return "tenant-work";
   if (pathname === "/workspaces" || pathname.startsWith("/workspaces/")) return "workspaces";
@@ -235,7 +213,6 @@ function routeForPathname(pathname: string): AppRoute {
 }
 
 function loadRouteModule(route: AppRoute): Promise<unknown> {
-  if (route === "administration") return import("../features/administration");
   if (route === "analytics") return import("../features/analytics");
   if (route === "arc") return import("../features/arc");
   if (route === "audit") return import("../features/audit");
@@ -246,7 +223,6 @@ function loadRouteModule(route: AppRoute): Promise<unknown> {
   if (route === "proposals") return import("../features/proposals");
   if (route === "relationships") return import("../features/relationships");
   if (route === "sessions") return import("../features/sessions");
-  if (route === "service-tools") return import("../features/service-tools");
   if (route === "settings") return import("../features/settings");
   if (route === "tenant-work") return import("../features/tenant-work");
   return import("../features/workspaces");
@@ -254,7 +230,6 @@ function loadRouteModule(route: AppRoute): Promise<unknown> {
 
 function routeUsesIdentity(route: AppRoute): boolean {
   return (
-    route === "administration" ||
     route === "arc" ||
     route === "catalog" ||
     route === "context-lab" ||
@@ -263,7 +238,6 @@ function routeUsesIdentity(route: AppRoute): boolean {
     route === "proposals" ||
     route === "relationships" ||
     route === "sessions" ||
-    route === "service-tools" ||
     route === "settings" ||
     route === "tenant-work" ||
     route === "workspaces"
@@ -666,40 +640,32 @@ export function App() {
   const activeHref =
     route === "overview"
       ? "/"
-      : route === "administration"
-        ? "/administration"
-        : route === "analytics"
-          ? "/analytics"
-          : route === "arc"
-            ? "/arc"
-            : route === "audit"
-              ? "/audit"
-              : route === "context-lab"
-                ? "/context-lab"
-                : route === "memory"
-                  ? "/memory"
-                  : route === "proposals"
-                    ? "/proposals"
-                    : route === "relationships"
-                      ? "/relationships"
-                      : route === "sessions"
-                        ? "/sessions"
-                        : route === "service-tools"
-                          ? "/service-tools"
-                          : route === "tenant-work"
-                            ? "/tenant-work"
-                            : route === "settings"
-                              ? "/settings"
-                              : route === "workspaces"
-                                ? "/workspaces"
-                                : "/catalog";
+      : route === "analytics"
+        ? "/analytics"
+        : route === "arc"
+          ? "/arc"
+          : route === "audit"
+            ? "/audit"
+            : route === "context-lab"
+              ? "/context-lab"
+              : route === "memory"
+                ? "/memory"
+                : route === "proposals"
+                  ? "/proposals"
+                  : route === "relationships"
+                    ? "/relationships"
+                    : route === "sessions"
+                      ? "/sessions"
+                      : route === "tenant-work"
+                        ? "/tenant-work"
+                        : route === "settings"
+                          ? "/settings"
+                          : route === "workspaces"
+                            ? "/workspaces"
+                            : "/catalog";
   const navigationPending = routeNavigationPending || tenantChangePending;
   const userRole =
-    route === "administration" ||
-    route === "analytics" ||
-    route === "arc" ||
-    route === "sessions" ||
-    route === "settings"
+    route === "analytics" || route === "arc" || route === "sessions" || route === "settings"
       ? "Administrator"
       : route === "audit"
         ? "Auditor"
@@ -750,13 +716,6 @@ export function App() {
                 activeTenantName={activeTenantName}
                 client={apiClient}
               />
-            ) : route === "administration" ? (
-              <AdminPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
             ) : route === "audit" ? (
               <AuditPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
@@ -792,13 +751,6 @@ export function App() {
                 client={apiClient}
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
-              />
-            ) : route === "service-tools" ? (
-              <TenantServicePage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
               />
             ) : route === "tenant-work" ? (
               <TenantWorkPage
