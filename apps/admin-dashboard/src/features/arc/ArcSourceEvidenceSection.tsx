@@ -7,6 +7,7 @@ import { Button, Notice, StatusBadge } from "@repo/ui/primitives";
 
 import type {
   AdmitArcConnectorFetchInput,
+  AdmitArcGraphPromotionInput,
   AdmitArcSourceUploadInput,
   ArcApprovalProof,
   ArcSourceApprovalClaim,
@@ -17,16 +18,18 @@ import { formatArcDate, formatArcLabel } from "./arcModel";
 
 interface ArcSourceEvidenceSectionProps {
   onAdmitConnector: (input: AdmitArcConnectorFetchInput) => Promise<ArcSourceEvidence>;
+  onAdmitGraphPromotion: (input: AdmitArcGraphPromotionInput) => Promise<ArcSourceEvidence>;
   onAdmitUpload: (input: AdmitArcSourceUploadInput) => Promise<ArcSourceEvidence>;
   onLookup: (sourceEvidenceId: string) => Promise<ArcSourceEvidence>;
   onSelect: (source: ArcSourceEvidence) => void;
   selectedSource: ArcSourceEvidence | null;
 }
 
-type EvidenceMode = "connector" | "existing" | "upload";
+type EvidenceMode = "connector" | "existing" | "promotion" | "upload";
 
 interface SourceEvidenceFormValues {
   approvalLocator: string;
+  claimId: string;
   approvalScope: string;
   approvedAt: string;
   approvingAuthorityIssuer: string;
@@ -38,6 +41,7 @@ interface SourceEvidenceFormValues {
   policyId: string;
   proofMethod: "detached_signature" | "verifier_attestation";
   providerId: string;
+  reviewExpiresAt: string;
   signatureBase64: string;
   sourceContentDigest: string;
   sourceContentType: string;
@@ -103,6 +107,7 @@ function sourceProof(values: SourceEvidenceFormValues): ArcApprovalProof {
 
 export function ArcSourceEvidenceSection({
   onAdmitConnector,
+  onAdmitGraphPromotion,
   onAdmitUpload,
   onLookup,
   onSelect,
@@ -120,6 +125,7 @@ export function ArcSourceEvidenceSection({
   } = useForm<SourceEvidenceFormValues>({
     defaultValues: {
       approvalLocator: "",
+      claimId: "",
       approvalScope: "",
       approvedAt: "",
       approvingAuthorityIssuer: "",
@@ -131,6 +137,7 @@ export function ArcSourceEvidenceSection({
       policyId: "",
       proofMethod: "detached_signature",
       providerId: "",
+      reviewExpiresAt: "",
       signatureBase64: "",
       sourceContentDigest: "",
       sourceContentType: "text/plain",
@@ -154,8 +161,20 @@ export function ArcSourceEvidenceSection({
         return;
       }
 
-      const proof = sourceProof(values);
       const idempotencyKey = crypto.randomUUID();
+      if (mode === "promotion") {
+        onSelect(
+          await onAdmitGraphPromotion({
+            claimId: values.claimId.trim(),
+            idempotencyKey,
+            reviewExpiresAt: new Date(values.reviewExpiresAt).toISOString(),
+            sourceSystem: values.sourceSystem.trim(),
+          }),
+        );
+        return;
+      }
+
+      const proof = sourceProof(values);
       if (mode === "upload") {
         if (!uploadFile) {
           setError("root.file", { message: "Choose the approved source file." });
@@ -261,9 +280,10 @@ export function ArcSourceEvidenceSection({
 
       <fieldset>
         <legend className="text-xs font-medium text-muted">Evidence source</legend>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {(
             [
+              ["promotion", "Cite a promoted graph claim"],
               ["existing", "Use admitted evidence"],
               ["upload", "Admit an upload"],
               ["connector", "Fetch through connector"],
@@ -304,7 +324,76 @@ export function ArcSourceEvidenceSection({
           </Notice>
         ) : null}
 
-        {mode === "existing" ? (
+        {mode === "promotion" ? (
+          <>
+            <Notice title="Approval comes from the promotion, not a signature" variant="info">
+              The claim must already be promoted onto the canonical graph by someone other than its
+              author. The service reads the approving actor, the approval time, and the upstream
+              revision from that promotion, and refuses one that was reversed.
+            </Notice>
+
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+              <label className={`${labelClassName} sm:col-span-2`} htmlFor="arc-promoted-claim-id">
+                Promoted claim ID
+                <input
+                  aria-describedby="arc-promoted-claim-id-error"
+                  aria-invalid={errors.claimId ? "true" : undefined}
+                  className={`${inputClassName} font-mono`}
+                  id="arc-promoted-claim-id"
+                  placeholder="UUID"
+                  {...register("claimId", {
+                    required: mode === "promotion" ? "Enter a promoted claim ID." : false,
+                  })}
+                />
+                <FieldErrorMessage
+                  id="arc-promoted-claim-id-error"
+                  message={errors.claimId?.message}
+                />
+              </label>
+
+              <label className={labelClassName} htmlFor="arc-promotion-source-system">
+                Upstream system
+                <input
+                  aria-describedby="arc-promotion-source-system-error"
+                  aria-invalid={errors.sourceSystem ? "true" : undefined}
+                  className={inputClassName}
+                  id="arc-promotion-source-system"
+                  placeholder="bitbucket.org/acme/adr"
+                  {...register("sourceSystem", {
+                    required: mode === "promotion" ? "Enter the upstream system." : false,
+                  })}
+                />
+                <FieldErrorMessage
+                  id="arc-promotion-source-system-error"
+                  message={errors.sourceSystem?.message}
+                />
+              </label>
+
+              <label className={labelClassName} htmlFor="arc-promotion-review-expires">
+                Review by
+                <input
+                  aria-describedby="arc-promotion-review-expires-error"
+                  aria-invalid={errors.reviewExpiresAt ? "true" : undefined}
+                  className={inputClassName}
+                  id="arc-promotion-review-expires"
+                  type="datetime-local"
+                  {...register("reviewExpiresAt", {
+                    required:
+                      mode === "promotion" ? "Choose when this citation is revisited." : false,
+                  })}
+                />
+                <FieldErrorMessage
+                  id="arc-promotion-review-expires-error"
+                  message={errors.reviewExpiresAt?.message}
+                />
+              </label>
+            </div>
+
+            <Button disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Admitting\u2026" : "Admit promoted claim"}
+            </Button>
+          </>
+        ) : mode === "existing" ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className={`${labelClassName} min-w-0 flex-1`} htmlFor="arc-source-evidence-id">
               Source evidence ID

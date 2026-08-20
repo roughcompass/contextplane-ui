@@ -2236,6 +2236,32 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/arc/sources/graph-promotions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Admit Source Graph Promotion
+     * @description Admit a claim the canonical graph already carries.
+     *
+     *     The caller names a promoted claim, the upstream system its evidence
+     *     points into, and a review deadline. It supplies no proof: the approving
+     *     authority is the promotion journal row, which this service reads and
+     *     re-checks — including whether the promotion was since reversed, and
+     *     whether the promoting actor was someone other than the claim's author.
+     */
+    post: operations["admit_source_graph_promotion_v1_arc_sources_graph_promotions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/arc/sources/uploads": {
     parameters: {
       query?: never;
@@ -2973,7 +2999,7 @@ export interface paths {
      *     is the same one `create_entity` uses and this handler adds nothing to it but
      *     the subject.
      */
-    patch: operations["update_entity_v1_entities__entity_id__patch"];
+    patch: operations["update_entity"];
     trace?: never;
   };
   "/v1/entities/{entity_id}/external-ids": {
@@ -4706,7 +4732,7 @@ export interface paths {
      *     An observation that could amend a canonical edge directly would be a way
      *     around the intent split, so this adds nothing to the routing but the subject.
      */
-    patch: operations["update_relationship_v1_relationships__relationship_id__patch"];
+    patch: operations["update_relationship"];
     trace?: never;
   };
   "/v1/relationships:query": {
@@ -5218,7 +5244,7 @@ export interface components {
      * @description How a source's bytes entered the system.
      * @enum {string}
      */
-    AdmissionMethod: "connector_fetch" | "authorized_upload";
+    AdmissionMethod: "connector_fetch" | "authorized_upload" | "graph_promotion";
     /** AdoptionCreate */
     AdoptionCreate: {
       /** Intent */
@@ -8274,6 +8300,34 @@ export interface components {
       resolver_version: string;
       /** Role */
       role: string;
+    };
+    /**
+     * GraphPromotionRequest
+     * @description Body for `POST /v1/arc/sources/graph-promotions`: admits a claim the
+     *     canonical graph already carries, vouched for by its promotion rather
+     *     than by a signature over bytes this deployment fetched.
+     *
+     *     No `claim`, `verifier_id`, or `proof`: every field those carry is read
+     *     from the promotion itself. Accepting them from the caller would let a
+     *     request assert an approving authority the graph does not record.
+     */
+    GraphPromotionRequest: {
+      /**
+       * Claim Id
+       * Format: uuid
+       */
+      claim_id: string;
+      /**
+       * Review Expires At
+       * Format: date-time
+       * @description When this citation must be revisited. A graph fact carries no deadline of its own, and every source evidence row has one.
+       */
+      review_expires_at: string;
+      /**
+       * Source System
+       * @description The upstream system the promoted claim's evidence points into, e.g. `bitbucket.org/acme/adr`. Not derived: an evidence ref names a revision, not the system that issued it.
+       */
+      source_system: string;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -11770,11 +11824,16 @@ export interface components {
     };
     /**
      * VerificationMethod
-     * @description How an `ApprovalProof` is checked: a detached signature or a
-     *     trusted provider's attestation.
+     * @description How a source's approval is checked.
+     *
+     *     Two of these three name an `ApprovalProof` variant. `GRAPH_PROMOTION`
+     *     does not, and deliberately has no variant in that union: the authority
+     *     is a promotion journal row this service reads itself, so there is no
+     *     proof for a caller to supply and no way for one to assert this method
+     *     on a request.
      * @enum {string}
      */
-    VerificationMethod: "detached_signature" | "verifier_attestation";
+    VerificationMethod: "detached_signature" | "verifier_attestation" | "graph_promotion";
     /**
      * VerifierAttestationProof
      * @description The other `ApprovalProof` variant: a trusted provider's own
@@ -15318,6 +15377,41 @@ export interface operations {
       };
     };
   };
+  admit_source_graph_promotion_v1_arc_sources_graph_promotions_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "Idempotency-Key"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GraphPromotionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SourceEvidenceResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   admit_source_upload_v1_arc_sources_uploads_post: {
     parameters: {
       query?: never;
@@ -16605,7 +16699,7 @@ export interface operations {
       };
     };
   };
-  update_entity_v1_entities__entity_id__patch: {
+  update_entity: {
     parameters: {
       query?: never;
       header?: never;
@@ -19169,7 +19263,7 @@ export interface operations {
       };
     };
   };
-  update_relationship_v1_relationships__relationship_id__patch: {
+  update_relationship: {
     parameters: {
       query?: never;
       header?: never;
