@@ -1,9 +1,13 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import { parseArcProposalVersion, type ArcProposalVersion } from "./contextplane";
 
-export type ArcVerificationMethod = "detached_signature" | "verifier_attestation";
+// `graph_promotion` is response-only. The service reads the approving
+// authority off the promotion journal, so there is no proof variant for a
+// caller to send and none is declared in `ArcApprovalProof`.
+export type ArcVerificationMethod =
+  "detached_signature" | "graph_promotion" | "verifier_attestation";
 export type ArcSignatureAlgorithm = "Ed25519";
-export type ArcSourceAdmissionMethod = "authorized_upload" | "connector_fetch";
+export type ArcSourceAdmissionMethod = "authorized_upload" | "connector_fetch" | "graph_promotion";
 export type ArcSourceEvidenceStatus = "current" | "expired" | "overdue" | "revoked" | "unknown";
 
 export interface ArcDetachedSignatureProof {
@@ -42,7 +46,7 @@ export interface ArcSourceEvidence {
   connector_id: string | null;
   expires_at: string;
   next_check_at: string | null;
-  policy_id: string;
+  policy_id: string | null;
   source_content_bytes: number;
   source_content_digest: string;
   source_content_type: string;
@@ -74,6 +78,19 @@ export interface AdmitArcSourceUploadInput extends ArcSourceAdmissionBase {
 export interface AdmitArcConnectorFetchInput extends ArcSourceAdmissionBase {
   connectorId: string;
   sourceRevisionLocator: string;
+}
+
+/**
+ * Deliberately not an `ArcSourceAdmissionBase`: a promotion carries no
+ * claim, verifier, or proof for the caller to supply. Sending any of them
+ * would let a request assert an approving authority the graph does not
+ * record, so the service reads all three off the promotion journal.
+ */
+export interface AdmitArcGraphPromotionInput {
+  claimId: string;
+  idempotencyKey: string;
+  reviewExpiresAt: string;
+  sourceSystem: string;
 }
 
 export interface ArcSemanticTest {
@@ -324,12 +341,13 @@ function parseSourceEvidence(value: unknown): ArcSourceEvidence {
     admission_method: enumValue(record, "admission_method", [
       "authorized_upload",
       "connector_fetch",
+      "graph_promotion",
     ]),
     admitted_at: requiredString(record, "admitted_at"),
     connector_id: nullableString(record, "connector_id"),
     expires_at: requiredString(record, "expires_at"),
     next_check_at: nullableString(record, "next_check_at"),
-    policy_id: requiredString(record, "policy_id"),
+    policy_id: nullableString(record, "policy_id"),
     source_content_bytes: requiredNumber(record, "source_content_bytes"),
     source_content_digest: requiredString(record, "source_content_digest"),
     source_content_type: requiredString(record, "source_content_type"),
@@ -340,6 +358,7 @@ function parseSourceEvidence(value: unknown): ArcSourceEvidence {
     status_checked_at: requiredString(record, "status_checked_at"),
     verification_method: enumValue(record, "verification_method", [
       "detached_signature",
+      "graph_promotion",
       "verifier_attestation",
     ]),
     verified_at: requiredString(record, "verified_at"),
@@ -602,6 +621,25 @@ export async function admitArcConnectorFetch(
       proof: input.proof,
       source_revision_locator: input.sourceRevisionLocator,
       verifier_id: input.verifierId,
+    },
+    headers: { "Idempotency-Key": input.idempotencyKey },
+    method: "POST",
+  });
+  return parseSourceEvidence(payload);
+}
+
+export async function admitArcGraphPromotion(
+  client: ContextplaneClient,
+  input: AdmitArcGraphPromotionInput,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<ArcSourceEvidence> {
+  const payload = await client.request("/v1/arc/sources/graph-promotions", {
+    ...requestOptions(context, signal),
+    body: {
+      claim_id: input.claimId,
+      review_expires_at: input.reviewExpiresAt,
+      source_system: input.sourceSystem,
     },
     headers: { "Idempotency-Key": input.idempotencyKey },
     method: "POST",

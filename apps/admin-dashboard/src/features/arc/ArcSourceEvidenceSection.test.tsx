@@ -28,6 +28,7 @@ const evidence: ArcSourceEvidence = {
 function renderSection(overrides: Partial<ComponentProps<typeof ArcSourceEvidenceSection>> = {}) {
   const props = {
     onAdmitConnector: vi.fn(async () => evidence),
+    onAdmitGraphPromotion: vi.fn(async () => evidence),
     onAdmitUpload: vi.fn(async () => evidence),
     onLookup: vi.fn(async () => evidence),
     onSelect: vi.fn(),
@@ -155,5 +156,54 @@ describe("ArcSourceEvidenceSection", () => {
       }),
     );
     expect(onSelect).toHaveBeenCalledWith(evidence);
+  });
+
+  it("admits a promoted graph claim without asking for a proof", async () => {
+    const { onAdmitGraphPromotion, onSelect } = renderSection();
+    fireEvent.click(screen.getByLabelText("Cite a promoted graph claim"));
+
+    // The proof block belongs to the two signature-backed authorities. A
+    // promotion is vouched for by the journal, so asking for one here would
+    // be asking the author to invent an approval the graph does not record.
+    expect(screen.queryByLabelText("Verification method")).toBeNull();
+    expect(screen.queryByLabelText(/Verifier ID/)).toBeNull();
+
+    change("Promoted claim ID", "c0000000-0000-4000-8000-00000000000c");
+    change("Upstream system", "bitbucket.org/acme/adr");
+    change("Review by", "2026-12-01T09:00");
+    fireEvent.click(screen.getByRole("button", { name: "Admit promoted claim" }));
+
+    await waitFor(() => expect(onAdmitGraphPromotion).toHaveBeenCalledOnce());
+    expect(onAdmitGraphPromotion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        claimId: "c0000000-0000-4000-8000-00000000000c",
+        sourceSystem: "bitbucket.org/acme/adr",
+      }),
+    );
+    expect(onSelect).toHaveBeenCalledWith(evidence);
+  });
+
+  it("requires the promoted claim's own fields before submitting", async () => {
+    const { onAdmitGraphPromotion } = renderSection();
+    fireEvent.click(screen.getByLabelText("Cite a promoted graph claim"));
+    fireEvent.click(screen.getByRole("button", { name: "Admit promoted claim" }));
+
+    expect(await screen.findByText("Enter a promoted claim ID.")).toBeVisible();
+    expect(screen.getByText("Enter the upstream system.")).toBeVisible();
+    expect(onAdmitGraphPromotion).not.toHaveBeenCalled();
+  });
+
+  it("reports a refusal without inventing a reason for it", async () => {
+    const onAdmitGraphPromotion = vi.fn(async () => {
+      throw new Error("refused");
+    });
+    renderSection({ onAdmitGraphPromotion });
+    fireEvent.click(screen.getByLabelText("Cite a promoted graph claim"));
+    change("Promoted claim ID", "c0000000-0000-4000-8000-00000000000c");
+    change("Upstream system", "bitbucket.org/acme/adr");
+    change("Review by", "2026-12-01T09:00");
+    fireEvent.click(screen.getByRole("button", { name: "Admit promoted claim" }));
+
+    expect(await screen.findByText(/did not accept this evidence/)).toBeVisible();
   });
 });
