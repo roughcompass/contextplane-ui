@@ -29,10 +29,12 @@ import {
 
 import {
   admitArcConnectorFetch,
+  admitArcGraphPromotion,
   admitArcSourceUpload,
   getArcReceiptDetail,
   getArcSourceEvidence,
   type AdmitArcConnectorFetchInput,
+  type AdmitArcGraphPromotionInput,
   type AdmitArcSourceUploadInput,
   type ArcReceiptDetail,
   type ArcSourceEvidence,
@@ -717,6 +719,12 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
     return admitArcConnectorFetch(client, input, requestContext);
   }
 
+  async function admitGraphPromotion(
+    input: AdmitArcGraphPromotionInput,
+  ): Promise<ArcSourceEvidence> {
+    return admitArcGraphPromotion(client, input, requestContext);
+  }
+
   async function loadReceipt() {
     const value = receiptInput.trim();
     if (!value) return;
@@ -974,6 +982,7 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
               {activeStep === "evidence" && isAdmin && activeArtifact ? (
                 <ArcSourceEvidenceSection
                   onAdmitConnector={admitConnector}
+                  onAdmitGraphPromotion={admitGraphPromotion}
                   onAdmitUpload={admitUpload}
                   onLookup={lookupSource}
                   onSelect={(source) => {
