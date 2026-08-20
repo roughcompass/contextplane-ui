@@ -22,8 +22,10 @@ import {
 
 import {
   ContextplaneApiError,
+  catalogEntityTypes,
   listCapabilities,
   type CatalogCapabilitySummary,
+  type CatalogEntityType,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
@@ -35,6 +37,19 @@ interface CatalogPageProps {
   client: ContextplaneClient;
   searchRef: RefObject<HTMLInputElement | null>;
 }
+
+/**
+ * "All types" is the default and is not a synonym for capability: `GET
+ * /v1/capabilities` has always returned every type the tenant holds, so a page
+ * that showed the unfiltered list under the heading "Capabilities" was
+ * mislabelling concepts and operations rather than hiding them.
+ */
+const entityTypeOptions = [
+  { label: "All types", value: "all" },
+  { label: "Capability", value: "capability" },
+  { label: "Concept", value: "concept" },
+  { label: "Operation", value: "operation" },
+] as const;
 
 const lifecycleOptions = [
   { label: "All lifecycle states", value: "all" },
@@ -49,8 +64,13 @@ function readParameter(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? "";
 }
 
+function creatableType(value: string): CatalogEntityType | null {
+  return catalogEntityTypes.find((entityType) => entityType === value) ?? null;
+}
+
 function readTarget(): CapabilityDialogTarget | null {
-  if (readParameter("create") === "capability") return { mode: "create" };
+  const creating = creatableType(readParameter("create"));
+  if (creating) return { entityType: creating, mode: "create" };
   const capabilityId = readParameter("capability");
   return capabilityId ? { capabilityId, mode: "detail" } : null;
 }
@@ -77,12 +97,12 @@ function requestFailure(error: unknown): { description: string; requestId: strin
     return {
       description:
         error.status === 403
-          ? "The current credential cannot browse capabilities in this tenant."
-          : "Capabilities could not be loaded from the service.",
+          ? "The current credential cannot browse catalog entities in this tenant."
+          : "Catalog entities could not be loaded from the service.",
       requestId: error.requestId,
     };
   }
-  return { description: "Capabilities could not be loaded from the service.", requestId: null };
+  return { description: "Catalog entities could not be loaded from the service.", requestId: null };
 }
 
 export function CatalogPage({
@@ -94,6 +114,7 @@ export function CatalogPage({
   const requestContext: ContextplaneRequestOptions = apiTenantId ? { tenantId: apiTenantId } : {};
   const [query, setQuery] = useState(() => readParameter("q"));
   const [lifecycle, setLifecycle] = useState(() => readParameter("lifecycle") || "all");
+  const [entityType, setEntityType] = useState(() => readParameter("type") || "all");
   const [asOf, setAsOf] = useState(() => readParameter("as_of"));
   const [cursor, setCursor] = useState(() => readParameter("cursor"));
   const [target, setTarget] = useState<CapabilityDialogTarget | null>(readTarget);
@@ -106,6 +127,7 @@ export function CatalogPage({
         {
           ...(asOf ? { asOf } : {}),
           ...(cursor ? { cursor } : {}),
+          ...(entityType !== "all" ? { entityType } : {}),
           ...(lifecycle !== "all" ? { lifecycle } : {}),
           pageSize: 100,
         },
@@ -116,7 +138,8 @@ export function CatalogPage({
       "contextplane",
       apiTenantId ?? "credential-default",
       "catalog",
-      "capabilities",
+      "entities",
+      entityType,
       lifecycle,
       asOf,
       cursor,
@@ -127,6 +150,7 @@ export function CatalogPage({
     function restoreLocation() {
       setQuery(readParameter("q"));
       setLifecycle(readParameter("lifecycle") || "all");
+      setEntityType(readParameter("type") || "all");
       setAsOf(readParameter("as_of"));
       setCursor(readParameter("cursor"));
       setTarget(readTarget());
@@ -145,16 +169,23 @@ export function CatalogPage({
     );
   }, [capabilities.data?.items, query]);
 
-  function updateFilters(nextQuery: string, nextLifecycle: string, nextAsOf: string) {
+  function updateFilters(
+    nextQuery: string,
+    nextLifecycle: string,
+    nextAsOf: string,
+    nextEntityType: string = entityType,
+  ) {
     updateLocation({
       as_of: nextAsOf || null,
       cursor: null,
       lifecycle: nextLifecycle === "all" ? null : nextLifecycle,
       q: nextQuery || null,
+      type: nextEntityType === "all" ? null : nextEntityType,
     });
     setQuery(nextQuery);
     setLifecycle(nextLifecycle);
     setAsOf(nextAsOf);
+    setEntityType(nextEntityType);
     setCursor("");
   }
 
@@ -162,7 +193,7 @@ export function CatalogPage({
     setTarget(nextTarget);
     updateLocation(
       nextTarget.mode === "create"
-        ? { capability: null, create: "capability", panel: null }
+        ? { capability: null, create: nextTarget.entityType, panel: null }
         : { capability: nextTarget.capabilityId, create: null, panel: "overview" },
       true,
     );
@@ -173,7 +204,7 @@ export function CatalogPage({
     updateLocation({ capability: null, create: null, panel: null });
   }
 
-  function selectCreatedCapability(capability: CatalogCapabilitySummary) {
+  function selectCreatedEntity(capability: CatalogCapabilitySummary) {
     const nextTarget: CapabilityDialogTarget = {
       capabilityId: capability.entityId,
       mode: "detail",
@@ -190,14 +221,14 @@ export function CatalogPage({
       <PageContainer>
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Catalog" }]}
-          description="Discover and maintain canonical capabilities and their governed service records."
+          description="Discover and maintain canonical catalog entities and their governed service records."
           eyebrow="Canonical catalog"
           title="Catalog"
         />
         <RequestFailure
           onRetry={() => void capabilities.refetch()}
           requestId={failure.requestId}
-          title="Capabilities unavailable"
+          title="Catalog entities unavailable"
         >
           {failure.description}
         </RequestFailure>
@@ -205,20 +236,28 @@ export function CatalogPage({
     );
   }
 
-  const hasFilters = Boolean(query || asOf || lifecycle !== "all");
+  const hasFilters = Boolean(query || asOf || lifecycle !== "all" || entityType !== "all");
   const resultCount = capabilities.data.items.length;
 
   return (
     <PageContainer>
       <PageHeader
         actions={
-          <Button onClick={() => openTarget({ mode: "create" })}>
-            <Plus aria-hidden="true" className="size-4" />
-            Create capability
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {catalogEntityTypes.map((creatable, index) => (
+              <Button
+                key={creatable}
+                onClick={() => openTarget({ entityType: creatable, mode: "create" })}
+                {...(index === 0 ? {} : { variant: "secondary" as const })}
+              >
+                <Plus aria-hidden="true" className="size-4" />
+                Create {creatable}
+              </Button>
+            ))}
+          </div>
         }
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Catalog" }]}
-        description="Discover canonical capabilities, inspect ownership and impact, and maintain lifecycle, interfaces, artifacts, adoptions, and subscriptions in one workflow."
+        description="Discover canonical capabilities, concepts and operations, inspect ownership and impact, and maintain lifecycle, interfaces, artifacts, adoptions, and subscriptions in one workflow."
         eyebrow="Canonical catalog"
         metadata={
           <>
@@ -241,7 +280,7 @@ export function CatalogPage({
           {
             detail: "Records returned on this service page",
             id: "page-count",
-            label: "Capabilities on page",
+            label: "Entities on page",
             value: resultCount,
           },
           {
@@ -257,6 +296,15 @@ export function CatalogPage({
             value: lifecycle === "all" ? "All" : lifecycle,
           },
           {
+            detail:
+              entityType === "all"
+                ? "Every entity type this tenant holds"
+                : `Filtered to ${entityType} records`,
+            id: "entity-type",
+            label: "Type scope",
+            value: entityType === "all" ? "All" : entityType,
+          },
+          {
             detail: capabilities.data.nextCursor
               ? "The service has more records"
               : "No next cursor returned",
@@ -269,11 +317,20 @@ export function CatalogPage({
       />
 
       <TableSection
-        description="Comparable capability records from the selected tenant. Open a record to work with its governed state and related evidence."
+        description="Comparable catalog records from the selected tenant. Open a record to work with its governed state and related evidence."
         filters={
           <DataToolbar
             filters={
               <>
+                <SearchableSelect
+                  allowEmpty={false}
+                  className="w-full sm:w-52"
+                  label="Entity type"
+                  onValueChange={(value) => updateFilters(query, lifecycle, asOf, value)}
+                  options={entityTypeOptions}
+                  searchPlaceholder="Search entity types"
+                  value={entityType}
+                />
                 <SearchableSelect
                   allowEmpty={false}
                   className="w-full sm:w-52"
@@ -301,32 +358,34 @@ export function CatalogPage({
                 ref={searchRef}
                 label="Search current page"
                 onChange={(event) => updateFilters(event.target.value, lifecycle, asOf)}
-                placeholder="Capability, type, external ID, or UUID"
+                placeholder="Name, type, external ID, or UUID"
                 value={query}
               />
             }
           />
         }
-        title="Capabilities"
+        title="Catalog entities"
       >
         {filtered.length === 0 ? (
           <EmptyState
             action={
               hasFilters ? (
-                <Button onClick={() => updateFilters("", "all", "")} variant="secondary">
+                <Button onClick={() => updateFilters("", "all", "", "all")} variant="secondary">
                   Clear filters
                 </Button>
               ) : (
-                <Button onClick={() => openTarget({ mode: "create" })}>Create capability</Button>
+                <Button onClick={() => openTarget({ entityType: "capability", mode: "create" })}>
+                  Create capability
+                </Button>
               )
             }
             description={
               hasFilters
-                ? "Adjust the text, lifecycle, or historical-time filter."
-                : "Create the first canonical capability for this tenant."
+                ? "Adjust the text, type, lifecycle, or historical-time filter."
+                : "Create the first canonical entity for this tenant."
             }
             {...(hasFilters ? { icon: SearchX } : {})}
-            title={hasFilters ? "No capability matches" : "No capabilities yet"}
+            title={hasFilters ? "No entity matches" : "No catalog entities yet"}
           />
         ) : (
           <>
@@ -365,7 +424,7 @@ export function CatalogPage({
                     variant="secondary"
                   >
                     <Settings2 aria-hidden="true" className="size-4" />
-                    Open capability
+                    Open entity
                   </Button>
                 </li>
               ))}
@@ -373,12 +432,12 @@ export function CatalogPage({
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[820px] border-collapse text-left text-sm">
                 <caption className="sr-only">
-                  Service-backed capability records for {activeTenantName}
+                  Service-backed catalog records for {activeTenantName}
                 </caption>
                 <thead>
                   <tr className="border-y border-border bg-surface-muted text-xs text-muted">
                     <th className="px-6 py-3 font-medium" scope="col">
-                      Capability
+                      Entity
                     </th>
                     <th className="px-4 py-3 font-medium" scope="col">
                       Type
@@ -477,7 +536,7 @@ export function CatalogPage({
           {...(apiTenantId ? { apiTenantId } : {})}
           client={client}
           onClose={closeTarget}
-          onCreated={selectCreatedCapability}
+          onCreated={selectCreatedEntity}
           target={target}
           tenantName={activeTenantName}
         />

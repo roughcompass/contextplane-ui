@@ -73,7 +73,8 @@ export {
 } from "./audit";
 export {
   changeCapabilityLifecycle,
-  createCapability,
+  catalogEntityTypes,
+  createCatalogEntity,
   createCapabilityAdoption,
   createCapabilityArtifact,
   createCapabilitySubscription,
@@ -101,11 +102,13 @@ export {
   type CatalogCapabilityDetail,
   type CatalogCapabilityPage,
   type CatalogCapabilitySummary,
+  type CatalogEntityType,
   type CatalogSubscription,
   type ChangeCapabilityLifecycleInput,
   type CreateCapabilityAdoptionInput,
   type CreateCapabilityArtifactInput,
   type CreateCapabilityInput,
+  type CreateCatalogEntityInput,
   type CreateCapabilitySubscriptionInput,
   type ListCapabilitiesParameters,
   type PreviewCapabilityVersionInput,
