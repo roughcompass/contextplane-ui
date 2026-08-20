@@ -66,6 +66,10 @@ import {
   type RelationshipView,
 } from "./relationshipModel";
 import { RelationshipGraph } from "./RelationshipGraph";
+import {
+  RelationshipAuthoringDialog,
+  type RelationshipAuthoringTarget,
+} from "./RelationshipAuthoringDialog";
 
 interface RelationshipsPageProps {
   activeTenantName: string;
@@ -253,10 +257,13 @@ function versionAgreement(
 function RelationshipRows({
   edges,
   entities = [],
+  onEdit,
   traversal = null,
 }: {
   edges: readonly RelationshipEdge[];
   entities?: readonly RelationshipEntity[];
+  /** Absent on the projection tables, which page over rows this tenant does not own. */
+  onEdit?: (relationshipId: string) => void;
   traversal?: RelationshipTraversalResult | null;
 }) {
   const nodes = relationshipNodeLookup(entities);
@@ -282,9 +289,14 @@ function RelationshipRows({
             <th className="px-4 py-3 font-medium" scope="col">
               Published conditions
             </th>
-            <th className="w-40 px-6 py-3 font-medium" scope="col">
+            <th className="w-40 px-4 py-3 font-medium" scope="col">
               Version agreement
             </th>
+            {onEdit ? (
+              <th className="w-28 px-6 py-3 text-right font-medium" scope="col">
+                Action
+              </th>
+            ) : null}
           </tr>
         </thead>
         {groups.map(([relation, edges]) => (
@@ -292,7 +304,7 @@ function RelationshipRows({
             <tr className="border-t border-border bg-surface-muted/60">
               <th
                 className="px-6 py-2 text-xs font-semibold text-foreground"
-                colSpan={4}
+                colSpan={onEdit ? 5 : 4}
                 scope="rowgroup"
               >
                 {humanizeRelationship(relation)}
@@ -314,7 +326,7 @@ function RelationshipRows({
                   <td className="break-words px-4 py-4 align-top text-xs leading-5 text-muted">
                     {relationshipPropertiesSummary(edge.properties)}
                   </td>
-                  <td className="px-6 py-4 align-top">
+                  <td className="px-4 py-4 align-top">
                     {agreement === "satisfied" ? (
                       <StatusBadge tone="success">Satisfied</StatusBadge>
                     ) : agreement === "unresolved" ? (
@@ -323,6 +335,17 @@ function RelationshipRows({
                       <span className="text-xs text-muted">Not evaluated</span>
                     )}
                   </td>
+                  {onEdit ? (
+                    <td className="px-6 py-4 text-right align-top">
+                      <Button
+                        onClick={() => onEdit(edge.edge_id)}
+                        size="compact"
+                        variant="secondary"
+                      >
+                        Supersede
+                      </Button>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}
@@ -373,9 +396,11 @@ function ResultsLoading() {
 }
 
 function Results({
+  onEdit,
   query,
   state,
 }: {
+  onEdit: (relationshipId: string) => void;
   query: ReturnType<typeof useRelationshipQuery>;
   state: RelationshipUrlState;
 }) {
@@ -424,6 +449,7 @@ function Results({
     <RelationshipRows
       edges={query.data.edges}
       entities={traversal?.nodes ?? []}
+      onEdit={onEdit}
       traversal={traversal}
     />
   );
@@ -970,6 +996,7 @@ function RelationshipExplorer({
   const [state, setState] = useState(readRelationshipUrlState);
   const [draft, setDraft] = useState(readRelationshipUrlState);
   const [validation, setValidation] = useState<RelationshipValidation>({});
+  const [authoring, setAuthoring] = useState<RelationshipAuthoringTarget | null>(null);
   const context = useMemo(() => requestContext(apiTenantId), [apiTenantId]);
   const query = useRelationshipQuery(client, context, tenantQueryKey(apiTenantId), state);
   const projectionQuery = useProjectionQuery(client, context, tenantQueryKey(apiTenantId), state);
@@ -1148,19 +1175,24 @@ function RelationshipExplorer({
             <TableSection
               action={
                 state.root ? (
-                  <ViewToggle
-                    onChange={(view) => {
-                      const next = { ...state, view };
-                      window.history.replaceState(
-                        window.history.state,
-                        "",
-                        `/relationships${relationshipSearch(next)}`,
-                      );
-                      setDraft((current) => ({ ...current, view }));
-                      setState(next);
-                    }}
-                    view={state.view}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button onClick={() => setAuthoring({ mode: "create" })} size="compact">
+                      Create relationship
+                    </Button>
+                    <ViewToggle
+                      onChange={(view) => {
+                        const next = { ...state, view };
+                        window.history.replaceState(
+                          window.history.state,
+                          "",
+                          `/relationships${relationshipSearch(next)}`,
+                        );
+                        setDraft((current) => ({ ...current, view }));
+                        setState(next);
+                      }}
+                      view={state.view}
+                    />
+                  </div>
                 ) : undefined
               }
               description={
@@ -1170,11 +1202,29 @@ function RelationshipExplorer({
               }
               title={state.root ? relationshipQuestionLabel(state.question) : "Traversal results"}
             >
-              <Results query={query} state={state} />
+              <Results
+                onEdit={(id) => setAuthoring({ mode: "edit", relationshipId: id })}
+                query={query}
+                state={state}
+              />
             </TableSection>
           </div>
         )}
       </div>
+
+      {authoring ? (
+        <RelationshipAuthoringDialog
+          {...(apiTenantId ? { apiTenantId } : {})}
+          client={client}
+          onClose={() => setAuthoring(null)}
+          onWritten={() => {
+            setAuthoring(null);
+            void query.refetch();
+          }}
+          target={authoring}
+          tenantName={identityName(identity)}
+        />
+      ) : null}
     </PageContainer>
   );
 }
