@@ -1,5 +1,5 @@
 import { CircleHelp, Menu, Moon, Sun } from "lucide-react";
-import type { HTMLAttributes, Ref } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 
 import { Brand } from "../brand/Brand";
 import { Button } from "../primitives/actions/Button";
@@ -18,6 +18,8 @@ export interface AppHeaderProps extends HTMLAttributes<HTMLElement> {
   onTenantChange?: (tenantId: string) => void;
   onThemeToggle?: () => void;
   ref?: Ref<HTMLElement>;
+  /** A shell-wide search surface, rendered between the tenant picker and the actions. */
+  search?: ReactNode;
   tenants: readonly TenantOption[];
   theme?: ColorTheme;
   user: UserSummary;
@@ -33,6 +35,7 @@ export function AppHeader({
   onTenantChange,
   onThemeToggle,
   ref,
+  search,
   tenants,
   theme = "light",
   user,
@@ -69,7 +72,7 @@ export function AppHeader({
         </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 sm:justify-between sm:px-4 lg:px-6">
-          <div className="hidden min-w-0 items-center gap-3 sm:flex">
+          <div className="hidden min-w-0 flex-1 items-center gap-3 sm:flex">
             <SearchableSelect
               allowEmpty={false}
               className="w-48"
@@ -81,6 +84,7 @@ export function AppHeader({
               searchPlaceholder="Search tenants"
               value={activeTenantId}
             />
+            {search}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">

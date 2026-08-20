@@ -180,6 +180,13 @@ export {
   type RelationshipWriteResult,
 } from "./relationships";
 export {
+  IDENTITY_AMBIGUOUS,
+  qualifiedHandle,
+  resolveEntity,
+  type EntityIdentity,
+  type EntityResolution,
+} from "./entityResolution";
+export {
   contextBlockNames,
   contextBlockStates,
   contextEnvelopeStates,

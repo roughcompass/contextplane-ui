@@ -17,6 +17,8 @@ export interface AppShellProps extends HTMLAttributes<HTMLDivElement> {
   onTenantChange?: (tenantId: string) => void;
   onThemeToggle?: () => void;
   ref?: Ref<HTMLDivElement>;
+  /** A shell-wide search surface, rendered in the header beside the tenant picker. */
+  search?: ReactNode;
   tenants: readonly TenantOption[];
   theme?: ColorTheme;
   user: UserSummary;
@@ -34,6 +36,7 @@ export function AppShell({
   onTenantChange,
   onThemeToggle,
   ref,
+  search,
   tenants,
   theme = "light",
   user,
@@ -62,6 +65,7 @@ export function AppShell({
         tenants={tenants}
         theme={theme}
         user={user}
+        {...(search ? { search } : {})}
         {...(gettingStartedButtonRef ? { gettingStartedButtonRef } : {})}
         {...(onOpenGettingStarted ? { onOpenGettingStarted } : {})}
         {...(onTenantChange ? { onTenantChange } : {})}
