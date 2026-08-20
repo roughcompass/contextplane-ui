@@ -66,6 +66,7 @@ describe("relationship model", () => {
       projection: "provider",
       question: "blast-radius",
       root: "identity",
+      view: "table",
     });
     expect(readRelationshipUrlState("?question=unknown&depth=9&direction=sideways")).toEqual(
       defaultRelationshipState,
@@ -85,6 +86,7 @@ describe("relationship model", () => {
         projection: "provider",
         question: "blast-radius",
         root: "identity platform",
+        view: "table",
       }),
     ).toBe(
       "?root=identity+platform&question=blast-radius&depth=5&direction=forward&relations=depends_on%2C+requires&as_of=2026-08-13T10%3A00%3A00Z&version=2.4.0",

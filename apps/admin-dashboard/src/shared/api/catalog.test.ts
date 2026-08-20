@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import {
   changeCapabilityLifecycle,
-  createCapability,
+  createCatalogEntity,
   createCapabilityAdoption,
   createCapabilityArtifact,
   createCapabilitySubscription,
@@ -165,9 +165,9 @@ describe("catalog API", () => {
     });
     const context = { tenantId: "tenant-a" };
 
-    await createCapability(
+    await createCatalogEntity(
       client,
-      { entity_type: "capability", name: "Policy evaluation" },
+      { entityType: "capability", name: "Policy evaluation" },
       context,
     );
     await updateCapability(client, "capability/a", { updates: { owner: "Platform" } }, context);
@@ -254,5 +254,45 @@ describe("catalog API", () => {
     await expect(
       listCapabilitySubscriptions(malformedSubscriptions, "capability-a"),
     ).rejects.toThrow("Subscription event_kinds was not a list.");
+  });
+
+  it("sends each creatable entity type to its own route", async () => {
+    const client = clientFor(() => capability);
+
+    await createCatalogEntity(client, { entityType: "capability", name: "Policy evaluation" });
+    await createCatalogEntity(client, {
+      entityType: "concept",
+      name: "Settlement window",
+      parentCapabilityId: "51485c54-ed69-459b-8dd8-30d80f62d835",
+    });
+    await createCatalogEntity(client, { entityType: "operation", name: "Reprice order" });
+
+    expect(client.request.mock.calls.map(([path]) => path)).toEqual([
+      "/v1/capabilities",
+      "/v1/concepts",
+      "/v1/operations",
+    ]);
+    expect(client.request.mock.calls[1]?.[1]?.body).toEqual({
+      attributes: {},
+      entity_type: "concept",
+      name: "Settlement window",
+      parent_capability_id: "51485c54-ed69-459b-8dd8-30d80f62d835",
+    });
+    const keys = client.request.mock.calls.map(
+      ([, options]) => options?.headers?.["Idempotency-Key"],
+    );
+    expect(new Set(keys).size).toBe(3);
+  });
+
+  it("omits the optional fields a caller did not supply", async () => {
+    const client = clientFor(() => capability);
+
+    await createCatalogEntity(client, { entityType: "capability", name: "Policy evaluation" });
+
+    expect(client.request.mock.calls[0]?.[1]?.body).toEqual({
+      attributes: {},
+      entity_type: "capability",
+      name: "Policy evaluation",
+    });
   });
 });

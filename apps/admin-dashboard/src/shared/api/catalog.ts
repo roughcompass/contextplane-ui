@@ -1,6 +1,42 @@
 import type { components } from "./generated/contextplane";
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 
+/**
+ * The entity types the service gives a dedicated create route. `GET
+ * /v1/capabilities` returns every type a tenant holds regardless of this list —
+ * it is named for its first caller, not for what it lists — so a tenant whose
+ * profile declares some other type still sees it under "All types" and named in
+ * the Type column. These three are what can be *created* from here.
+ */
+export const catalogEntityTypes = ["capability", "concept", "operation"] as const;
+export type CatalogEntityType = (typeof catalogEntityTypes)[number];
+
+const createPathByEntityType: Readonly<Record<CatalogEntityType, string>> = {
+  capability: "/v1/capabilities",
+  concept: "/v1/concepts",
+  operation: "/v1/operations",
+};
+
+interface CreateCatalogEntityFields {
+  attributes?: Readonly<Record<string, unknown>>;
+  externalId?: string;
+  name: string;
+  validFrom?: string;
+}
+
+/**
+ * A discriminated union rather than an optional `parentCapabilityId`, because
+ * only a concept and an operation have a parent: the service links them to it
+ * with a `concept_of` or `operation_of` edge, and a capability has no such
+ * field to send.
+ */
+export type CreateCatalogEntityInput =
+  | (CreateCatalogEntityFields & { entityType: "capability" })
+  | (CreateCatalogEntityFields & {
+      entityType: "concept" | "operation";
+      parentCapabilityId?: string;
+    });
+
 export type CreateCapabilityInput = components["schemas"]["CreateCapabilityRequest"];
 export type UpdateCapabilityInput = components["schemas"]["UpdateEntityRequest"];
 export type SetCapabilityVisibilityInput = components["schemas"]["SetVisibilityRequest"];
@@ -246,15 +282,24 @@ export async function getCapability(
   return parseCapabilityDetail(value);
 }
 
-export async function createCapability(
+export async function createCatalogEntity(
   client: ContextplaneClient,
-  input: CreateCapabilityInput,
+  input: CreateCatalogEntityInput,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
 ): Promise<CatalogCapabilityDetail> {
-  const value = await client.request("/v1/capabilities", {
+  const value = await client.request(createPathByEntityType[input.entityType], {
     ...context,
-    body: input,
+    body: {
+      attributes: input.attributes ? { ...input.attributes } : {},
+      entity_type: input.entityType,
+      ...(input.externalId ? { external_id: input.externalId } : {}),
+      name: input.name,
+      ...(input.entityType !== "capability" && input.parentCapabilityId
+        ? { parent_capability_id: input.parentCapabilityId }
+        : {}),
+      ...(input.validFrom ? { valid_from: input.validFrom } : {}),
+    },
     headers: { "Idempotency-Key": crypto.randomUUID() },
     method: "POST",
     signal,
