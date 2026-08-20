@@ -56,13 +56,16 @@ import {
   relationshipQuestionLabel,
   relationshipQuestions,
   relationshipSearch,
+  relationshipViews,
   shortRelationshipIdentifier,
   unsatisfiedRelationshipEdges,
   validateRelationshipState,
   type RelationshipUrlState,
   type RelationshipArea,
   type RelationshipValidation,
+  type RelationshipView,
 } from "./relationshipModel";
+import { RelationshipGraph } from "./RelationshipGraph";
 
 interface RelationshipsPageProps {
   activeTenantName: string;
@@ -330,6 +333,35 @@ function RelationshipRows({
   );
 }
 
+/**
+ * The table and the graph are two readings of one answer, so this switches
+ * between them rather than replacing one with the other. The design standard is
+ * explicit that a graph never replaces a discovery or impact list.
+ */
+function ViewToggle({
+  onChange,
+  view,
+}: {
+  onChange: (view: RelationshipView) => void;
+  view: RelationshipView;
+}) {
+  return (
+    <div aria-label="Result view" className="flex gap-1" role="group">
+      {relationshipViews.map((option) => (
+        <Button
+          key={option.id}
+          aria-pressed={view === option.id}
+          onClick={() => onChange(option.id)}
+          size="compact"
+          {...(view === option.id ? {} : { variant: "secondary" as const })}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function ResultsLoading() {
   return (
     <div className="space-y-3 px-6 py-5">
@@ -374,6 +406,20 @@ function Results({
     );
   }
   const traversal = isTraversal(query.data) ? query.data : null;
+  if (state.view === "graph") {
+    return (
+      <RelationshipGraph
+        asOf={state.asOf}
+        direction={state.question === "blast-radius" ? state.direction : "reverse"}
+        edges={query.data.edges}
+        entities={traversal?.nodes ?? []}
+        question={relationshipQuestionLabel(state.question)}
+        rootEntityId={traversal?.root_entity_id ?? query.data.root_entity_id}
+        traversal={traversal}
+        version={state.asOfVersion}
+      />
+    );
+  }
   return (
     <RelationshipRows
       edges={query.data.edges}
@@ -1100,6 +1146,23 @@ function RelationshipExplorer({
             ) : null}
 
             <TableSection
+              action={
+                state.root ? (
+                  <ViewToggle
+                    onChange={(view) => {
+                      const next = { ...state, view };
+                      window.history.replaceState(
+                        window.history.state,
+                        "",
+                        `/relationships${relationshipSearch(next)}`,
+                      );
+                      setDraft((current) => ({ ...current, view }));
+                      setState(next);
+                    }}
+                    view={state.view}
+                  />
+                ) : undefined
+              }
               description={
                 state.root
                   ? `${relationshipQuestionDescription(state.question)} Results preserve the traversal order returned by the service.`
