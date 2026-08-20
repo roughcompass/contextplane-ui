@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@repo/ui/primitives";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
+import { clientFromRequest } from "../../shared/api";
 import { CatalogPage } from "./CatalogPage";
 
 const concept = {
@@ -31,11 +32,9 @@ const capability = {
 function clientFor(
   resolver: (path: string, options?: ContextplaneRequestOptions) => unknown | Promise<unknown>,
 ) {
-  return {
-    request: vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
-      resolver(path, options),
-    ),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions) => resolver(path, options)),
+  );
 }
 
 function renderCatalog(client: ContextplaneClient) {

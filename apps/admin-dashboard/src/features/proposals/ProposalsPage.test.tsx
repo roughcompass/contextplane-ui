@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ContextplaneApiError,
+  clientFromRequest,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type PromotionProposal,
@@ -57,11 +58,11 @@ const lowImpactProposal: PromotionProposal = {
 function clientFor(
   resolver: (path: string, options?: ContextplaneRequestOptions) => unknown | Promise<unknown>,
 ) {
-  return {
-    request: vi.fn(async (path: string, options?: ContextplaneRequestOptions): Promise<unknown> =>
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions): Promise<unknown> =>
       resolver(path, options),
     ),
-  } satisfies ContextplaneClient;
+  );
 }
 
 function renderPage(

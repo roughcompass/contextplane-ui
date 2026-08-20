@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient } from "./client";
+import { clientFromRequest } from "./client";
 import {
   createArcArtifactFamily,
   editArcProposalVersion,
@@ -54,9 +54,7 @@ import {
 } from "./contextplane";
 
 function stubClient(payload: unknown) {
-  return {
-    request: vi.fn(async (): Promise<unknown> => payload),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(vi.fn(async (): Promise<unknown> => payload));
 }
 
 const identity = {

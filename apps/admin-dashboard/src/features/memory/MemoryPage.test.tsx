@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ContextplaneApiError,
+  clientFromRequest,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
@@ -94,11 +95,9 @@ const historyItem = {
 function clientFor(
   resolver: (path: string, options?: ContextplaneRequestOptions) => unknown | Promise<unknown>,
 ) {
-  return {
-    request: vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
-      resolver(path, options),
-    ),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions) => resolver(path, options)),
+  );
 }
 
 function fixtureResolver(path: string): unknown {

@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@repo/ui/primitives";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api/client";
-import { ContextplaneApiError } from "../../shared/api/client";
+import type { ContextplaneRequestOptions } from "../../shared/api/client";
+import { ContextplaneApiError, clientFromRequest } from "../../shared/api/client";
 import { ArcPage } from "./ArcPage";
 
 const identity = {
@@ -162,7 +162,7 @@ function createClient({
     if (path === `/v1/arc/receipts/${receipt.receipt_id}/detail`) return receiptDetail;
     throw new Error(`Unexpected request: ${path}`);
   });
-  return { request } satisfies ContextplaneClient;
+  return clientFromRequest(request);
 }
 
 function renderPage(client = createClient()) {

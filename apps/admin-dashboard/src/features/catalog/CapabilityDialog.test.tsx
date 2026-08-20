@@ -6,6 +6,7 @@ import { ToastProvider } from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
+  clientFromRequest,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
@@ -122,7 +123,7 @@ function testClient() {
     if (path.startsWith("/v1/capabilities/capability-a?")) return capability;
     throw new Error(`Unexpected path: ${path}`);
   });
-  return { request } satisfies ContextplaneClient;
+  return clientFromRequest(request);
 }
 
 function renderDialog(client: ContextplaneClient) {
@@ -243,7 +244,7 @@ describe("CapabilityDialog", () => {
       }
       throw new Error(`Unexpected path: ${path}`);
     });
-    renderDialog({ request });
+    renderDialog(clientFromRequest(request));
 
     const dialog = await screen.findByRole("dialog", { name: "Policy evaluation" });
     expect(within(dialog).getAllByText("Not assigned")).toHaveLength(1);
@@ -351,7 +352,7 @@ describe("CapabilityDialog", () => {
       }
       throw new Error(`Unexpected path: ${path}`);
     });
-    renderDialog({ request });
+    renderDialog(clientFromRequest(request));
     const dialog = await screen.findByRole("dialog", { name: "Policy evaluation" });
     fireEvent.click(within(dialog).getByRole("tab", { name: "Adoption & subscriptions" }));
 

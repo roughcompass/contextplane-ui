@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import type { ContextplaneRequestOptions } from "./client";
+import { clientFromRequest } from "./client";
 import {
   addVocabularyValue,
   changeAutopromotePredicate,
@@ -36,11 +37,9 @@ import {
 function clientFor(
   resolver: (path: string, options?: ContextplaneRequestOptions) => unknown | Promise<unknown>,
 ) {
-  return {
-    request: vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
-      resolver(path, options),
-    ),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions) => resolver(path, options)),
+  );
 }
 
 const source = {

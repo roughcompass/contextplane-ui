@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient } from "./client";
+import { clientFromRequest } from "./client";
 import {
   acceptArcQualification,
   activateArcRevision,
@@ -19,8 +19,8 @@ import {
   submitArcProposal,
 } from "./arcAuthoring";
 
-function stubClient(payload: unknown): ContextplaneClient & { request: ReturnType<typeof vi.fn> } {
-  return { request: vi.fn().mockResolvedValue(payload) };
+function stubClient(payload: unknown) {
+  return clientFromRequest(vi.fn().mockResolvedValue(payload));
 }
 
 const sourceEvidence = {

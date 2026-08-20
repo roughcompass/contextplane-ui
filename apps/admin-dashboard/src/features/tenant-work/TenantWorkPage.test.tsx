@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@repo/ui/primitives";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
+import { clientFromRequest } from "../../shared/api";
 import { TenantWorkPage } from "./TenantWorkPage";
 
 const notification = {
@@ -104,7 +105,7 @@ function testClient() {
     if (path.startsWith("/v1/profiles/")) return { state: "accepted" };
     throw new Error(`Unexpected path: ${path}`);
   });
-  return { request } satisfies ContextplaneClient;
+  return clientFromRequest(request);
 }
 
 function renderPage(client: ContextplaneClient) {
@@ -206,7 +207,7 @@ describe("TenantWorkPage", () => {
       if (path === "/v1/signals") return { ...testSignalReceipt, replayed: true };
       throw new Error(`Unexpected path: ${path}`);
     });
-    renderPage({ request });
+    renderPage(clientFromRequest(request));
 
     expect(await screen.findByText(/No prior version/u)).toBeVisible();
     expect(screen.getByText(/No reported version/u)).toBeVisible();
@@ -454,7 +455,7 @@ describe("TenantWorkPage", () => {
       if (path.includes("/checkpoints/")) return sparseCheckpoint;
       throw new Error(`Unexpected path: ${path}`);
     });
-    renderPage({ request });
+    renderPage(clientFromRequest(request));
 
     fireEvent.change(screen.getByLabelText("Intent UUID"), { target: { value: "intent-a" } });
     fireEvent.click(screen.getByRole("button", { name: "Load intent" }));
@@ -473,7 +474,7 @@ describe("TenantWorkPage", () => {
     const request = vi.fn(async () => {
       throw new Error("service unavailable");
     });
-    renderPage({ request });
+    renderPage(clientFromRequest(request));
 
     expect(await screen.findByText("Notifications unavailable")).toBeVisible();
     expect(await screen.findByText("Learning evidence unavailable")).toBeVisible();

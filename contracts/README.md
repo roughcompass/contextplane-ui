@@ -4,7 +4,7 @@
 from. `pnpm generate:api` reads **only this file** — never a sibling checkout — and CI fails if
 regeneration from it produces a diff.
 
-Current pin: contextplane commit `de3728dbfdce09e584a2ab83f24dfbbc9dfa7e07`.
+Current pin: contextplane commit `06f00525ca30dac8daf193cf277d62d28867b546`.
 
 To bump the contract: copy the new committed `openapi.json` from the contextplane repository, update
 the pin hash above, run `pnpm generate:api`, and land pin + regenerated client together in **one

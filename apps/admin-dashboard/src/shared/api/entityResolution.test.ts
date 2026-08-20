@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ContextplaneApiError, type ContextplaneClient } from "./client";
+import { ContextplaneApiError, clientFromRequest } from "./client";
 import type { ContextplaneRequestOptions } from "./client";
 import { qualifiedHandle, resolveEntity } from "./entityResolution";
 
@@ -8,7 +8,7 @@ function clientFor(handler: (path: string, options?: ContextplaneRequestOptions)
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
     handler(path, options),
   );
-  return { client: { request } satisfies ContextplaneClient, request };
+  return { client: clientFromRequest(request), request };
 }
 
 const identity = {

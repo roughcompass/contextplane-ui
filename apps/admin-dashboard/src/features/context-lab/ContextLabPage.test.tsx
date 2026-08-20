@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@repo/ui/primitives";
 
-import { ContextplaneApiError, type ContextplaneClient } from "../../shared/api";
+import { ContextplaneApiError, clientFromRequest } from "../../shared/api";
 import { ContextLabPage } from "./ContextLabPage";
 
 const actorId = "a0000000-0000-4000-8000-000000000001";
@@ -197,9 +197,7 @@ function renderPage(
     options?: { body?: unknown; method?: string; tenantId?: string },
   ) => unknown = defaultHandler,
 ) {
-  const client = {
-    request: vi.fn(async (path: string, options) => handler(path, options)),
-  } satisfies ContextplaneClient;
+  const client = clientFromRequest(vi.fn(async (path: string, options) => handler(path, options)));
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });

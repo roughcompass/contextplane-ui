@@ -1,13 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ContextplaneApiError, type ContextplaneClient } from "./client";
+import { ContextplaneApiError, clientFromRequest } from "./client";
 import type { ContextplaneRequestOptions } from "./client";
 import {
   createRelationship,
   queryRelationships,
+  getRelationship,
   updateRelationship,
   type RelationshipWriteInput,
 } from "./relationships";
+
+function clientWithEtag(etag: string | null, value: unknown) {
+  const requestWithEtag = vi.fn(async () => ({ etag, value }));
+  const request = vi.fn(async () => value);
+  return { client: { request, requestWithEtag }, request, requestWithEtag };
+}
 
 function omit<T extends Record<string, unknown>>(source: T, key: keyof T): Record<string, unknown> {
   return Object.fromEntries(Object.entries(source).filter(([name]) => name !== key));
@@ -17,7 +24,7 @@ function clientFor(handler: (path: string, options?: ContextplaneRequestOptions)
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
     handler(path, options),
   );
-  return { client: { request } satisfies ContextplaneClient, request };
+  return { client: clientFromRequest(request), request };
 }
 
 const writeInput: RelationshipWriteInput = {
@@ -412,5 +419,90 @@ describe("relationship traversal adapter", () => {
     }));
 
     await expect(queryRelationships(client, { entityId: "entity-1" })).rejects.toThrow(message);
+  });
+});
+
+describe("relationship detail read", () => {
+  const stored = {
+    endpoints: {
+      destination_entity_id: "8f9e1b3c-0000-4000-8000-000000000002",
+      source_entity_id: "8f9e1b3c-0000-4000-8000-000000000001",
+    },
+    is_inverse: false,
+    profile: writeResult.profile,
+    properties: {},
+    provenance: {
+      authority: null,
+      confidence: null,
+      external_record_id: null,
+      external_revision: null,
+      freshness_state: null,
+      source_system: null,
+    },
+    readiness_state: "ready",
+    relationship_id: "c1000000-0000-4000-8000-000000000001",
+    relationship_type: "depends_on",
+    temporal: { effective_from: "2026-08-19T00:00:00Z", effective_to: null, recorded_at: null },
+    validation: { mode: "enforcing", valid: true },
+  };
+
+  it("keeps the validator the response carried, beside the row", async () => {
+    const { client, requestWithEtag } = clientWithEtag('W/"abc"', stored);
+
+    const read = await getRelationship(client, "c100/0001", { tenantId: "tenant-a" });
+
+    expect(requestWithEtag).toHaveBeenCalledWith(
+      "/v1/relationships/c100%2F0001",
+      expect.objectContaining({ tenantId: "tenant-a" }),
+    );
+    expect(read.etag).toBe('W/"abc"');
+    expect(read.relationship.relationship_id).toBe(stored.relationship_id);
+  });
+
+  it("reports a missing validator as absent rather than inventing one", async () => {
+    const { client } = clientWithEtag(null, stored);
+
+    await expect(getRelationship(client, "c1")).resolves.toMatchObject({ etag: null });
+  });
+});
+
+describe("optimistic concurrency on an update", () => {
+  it("sends the validator the caller was handed", async () => {
+    const { client, request } = clientFor(() => writeResult);
+
+    await updateRelationship(client, "c1", writeInput, {}, undefined, 'W/"abc"');
+
+    expect(request.mock.calls[0]?.[1]?.headers).toEqual({ "If-Match": 'W/"abc"' });
+  });
+
+  it("sends no precondition when the caller has none, rather than a fabricated one", async () => {
+    const { client, request } = clientFor(() => writeResult);
+
+    await updateRelationship(client, "c1", writeInput);
+
+    expect(request.mock.calls[0]?.[1]?.headers).toBeUndefined();
+  });
+
+  it("surfaces a stale precondition by its code, for a caller that must keep the draft", async () => {
+    const { client } = clientFor(() => {
+      throw new ContextplaneApiError({
+        errors: [
+          {
+            code: "precondition_failed",
+            message: "relationship changed since the If-Match ETag was issued.",
+            path: null,
+          },
+        ],
+        requestId: "req-2",
+        status: 412,
+      });
+    });
+
+    const error = await updateRelationship(client, "c1", writeInput, {}, undefined, 'W/"old"').catch(
+      (caught: unknown) => caught,
+    );
+
+    expect((error as ContextplaneApiError).code).toBe("precondition_failed");
+    expect((error as ContextplaneApiError).status).toBe(412);
   });
 });
