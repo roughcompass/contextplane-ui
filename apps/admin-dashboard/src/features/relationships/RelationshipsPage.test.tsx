@@ -315,4 +315,40 @@ describe("RelationshipsPage", () => {
     );
     expect(screen.getByText("Request ID:")).toBeVisible();
   });
+
+  it("switches the same answer between table and graph, and keeps the view in the URL", async () => {
+    window.history.replaceState({}, "", "/relationships?root=entity-identity&depth=3");
+    const client = clientFor((path) => {
+      if (path === "/v1/whoami") return identity;
+      if (path.startsWith("/v1/capabilities/entity-identity/dependents?")) return traversal;
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(client);
+
+    expect(await screen.findByRole("table")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Graph" }));
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /^Relationship graph focused on/ })).toBeVisible();
+    expect(window.location.search).toContain("view=graph");
+
+    fireEvent.click(screen.getByRole("button", { name: "Table" }));
+    expect(screen.getByRole("table")).toBeVisible();
+    expect(window.location.search).not.toContain("view=graph");
+  });
+
+  it("opens straight into the graph when the address says so", async () => {
+    window.history.replaceState({}, "", "/relationships?root=entity-identity&depth=3&view=graph");
+    const client = clientFor((path) => {
+      if (path === "/v1/whoami") return identity;
+      if (path.startsWith("/v1/capabilities/entity-identity/dependents?")) return traversal;
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(client);
+
+    expect(
+      await screen.findByRole("group", { name: /^Relationship graph focused on/ }),
+    ).toBeVisible();
+  });
 });

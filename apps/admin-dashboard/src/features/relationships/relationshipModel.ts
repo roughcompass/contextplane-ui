@@ -32,6 +32,17 @@ export const relationshipAreas = [
 ] as const;
 export type RelationshipArea = (typeof relationshipAreas)[number]["id"];
 
+/**
+ * Explore renders the same traversal two ways. A view is part of the address
+ * because the design standard requires graph focus to survive reload and
+ * sharing: a copied link has to come back as the view the sender was looking at.
+ */
+export const relationshipViews = [
+  { id: "table", label: "Table" },
+  { id: "graph", label: "Graph" },
+] as const;
+export type RelationshipView = (typeof relationshipViews)[number]["id"];
+
 export const relationshipProjections = [
   { id: "provider", label: "What this tenant ships" },
   { id: "consumer", label: "What this tenant consumes" },
@@ -49,6 +60,7 @@ export interface RelationshipUrlState {
   projection: RelationshipProjection;
   question: RelationshipQuestion;
   root: string;
+  view: RelationshipView;
 }
 
 export interface RelationshipValidation {
@@ -67,6 +79,7 @@ export const defaultRelationshipState: RelationshipUrlState = {
   projection: "provider",
   question: "dependents",
   root: "",
+  view: "table",
 };
 
 export function isRelationshipQuestion(value: string | null): value is RelationshipQuestion {
@@ -87,6 +100,10 @@ export function isRelationshipDepth(value: number): value is RelationshipDepth {
 
 export function isRelationshipDirection(value: string | null): value is RelationshipDirection {
   return value === "forward" || value === "reverse";
+}
+
+export function isRelationshipView(value: string | null): value is RelationshipView {
+  return value === "table" || value === "graph";
 }
 
 export function readRelationshipUrlState(search = window.location.search): RelationshipUrlState {
@@ -110,6 +127,9 @@ export function readRelationshipUrlState(search = window.location.search): Relat
       : defaultRelationshipState.projection,
     question: isRelationshipQuestion(question) ? question : defaultRelationshipState.question,
     root: parameters.get("root") ?? "",
+    view: isRelationshipView(parameters.get("view"))
+      ? (parameters.get("view") as RelationshipView)
+      : defaultRelationshipState.view,
   };
 }
 
@@ -147,6 +167,7 @@ export function relationshipSearch(state: RelationshipUrlState): string {
   if (state.question !== "dependencies" && asOfVersion) {
     parameters.set("version", asOfVersion);
   }
+  if (state.view !== defaultRelationshipState.view) parameters.set("view", state.view);
 
   const query = parameters.toString();
   return query ? `?${query}` : "";
