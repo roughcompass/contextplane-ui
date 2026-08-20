@@ -235,7 +235,7 @@ function ContextPlaneStep() {
 const representativeMcpTools = [
   "search_capabilities",
   "get_capability",
-  "traverse_dependencies",
+  "get_dependencies",
   "search_claims",
   "add_workspace_entry",
 ] as const;
@@ -263,7 +263,7 @@ function AgentAccessStep() {
       </div>
       <section aria-labelledby="representative-tools-title">
         <h4 id="representative-tools-title" className="text-sm font-semibold text-foreground">
-          Representative tools reported by {BRAND.name} usage data
+          Representative {BRAND.name} MCP tools
         </h4>
         <div className="mt-3 flex flex-wrap gap-2">
           {representativeMcpTools.map((tool) => (
