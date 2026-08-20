@@ -106,9 +106,9 @@ describe("App", () => {
 
     const expectedSections = [
       ["Discover", ["Overview", "Catalog", "Relationships", "Living memory"]],
-      ["Work with context", ["Context Lab", "Workspaces", "Tenant work", "Service tools"]],
+      ["Work with context", ["Context Lab", "Workspaces", "Tenant work"]],
       ["Monitor usage", ["Sessions", "Analytics"]],
-      ["Governance", ["Governed policies", "Proposals", "Audit log", "Administration", "Settings"]],
+      ["Governance", ["Governed policies", "Proposals", "Audit log", "Settings"]],
     ] as const;
     const primaryNavigation = screen.getByRole("navigation", { name: "Primary" });
 
@@ -374,38 +374,6 @@ describe("App", () => {
       "true",
     );
     expect(await screen.findByText("No sync sources are configured")).toBeVisible();
-  });
-
-  it("routes the complete service surface through Administration", async () => {
-    window.history.replaceState({}, "", "/administration");
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const path =
-        typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
-      if (path === "/v1/whoami") {
-        return Response.json({
-          actor_display_name: "Morgan Morris",
-          actor_email: null,
-          actor_id: "a0000000-0000-4000-8000-000000000001",
-          roles: ["admin"],
-          tenant_display_name: "Northstar Systems",
-          tenant_id: "b0000000-0000-4000-8000-000000000001",
-          tenant_slug: "northstar",
-        });
-      }
-      return Response.json(
-        { errors: [{ code: "not_found", message: "not found", path: null }] },
-        { status: 404 },
-      );
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole("heading", { level: 1, name: "Administration" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Administration" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByText("72")).toBeVisible();
   });
 
   it("routes Living Memory through the shell and opens claim evidence without reloading", async () => {

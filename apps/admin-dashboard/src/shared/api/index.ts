@@ -65,11 +65,6 @@ export {
   type VocabularyValue,
 } from "./admin";
 export {
-  executeAdminOperation,
-  type AdminOperationMethod,
-  type AdminOperationRequest,
-} from "./adminOperations";
-export {
   queryAuditRecords,
   type AuditRecord,
   type AuditRecordPage,

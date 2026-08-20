@@ -1,8 +1,8 @@
-import { Bell, Network, ShieldCheck, SquareTerminal } from "lucide-react";
+import { Bell, Network, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { PageContainer, PageHeader } from "@repo/ui/layouts";
-import { Button, Notice } from "@repo/ui/primitives";
+import { Notice } from "@repo/ui/primitives";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { ActivityPanel } from "./ActivityPanel";
@@ -62,27 +62,15 @@ export function TenantWorkPage({ activeTenantName, apiTenantId, client }: Tenant
   return (
     <PageContainer>
       <PageHeader
-        actions={
-          <Button
-            onClick={() => {
-              window.location.href = "/service-tools?group=activity";
-            }}
-            variant="secondary"
-          >
-            <SquareTerminal aria-hidden="true" className="size-4" />
-            Exact service tools
-          </Button>
-        }
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Tenant work" }]}
         description="Act on tenant-scoped activity, ownership governance, profile bindings, participants, and checkpoint evidence through guided workflows."
         eyebrow="Tenant operations"
         title="Tenant work"
       />
 
-      <Notice title="Guided workflows first, exact contract always available" variant="info">
+      <Notice title="Guided workflows for tenant operations" variant="info">
         These workspaces cover frequent operational jobs with service-validated forms and explicit
-        receipts. Service tools remains the complete fallback for every tenant-focused OpenAPI
-        operation and specialist fields.
+        receipts.
       </Notice>
 
       <div className="grid gap-3 md:grid-cols-3" role="tablist" aria-label="Tenant work tasks">
