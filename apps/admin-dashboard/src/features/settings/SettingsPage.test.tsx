@@ -6,6 +6,7 @@ import { ToastProvider } from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
+  clientFromRequest,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
@@ -48,11 +49,9 @@ const sourcePolicy = {
 function clientFor(
   resolver: (path: string, options?: ContextplaneRequestOptions) => unknown | Promise<unknown>,
 ) {
-  return {
-    request: vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
-      resolver(path, options),
-    ),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions) => resolver(path, options)),
+  );
 }
 
 function renderPage(client: ContextplaneClient) {

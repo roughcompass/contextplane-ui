@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import type { ContextplaneRequestOptions } from "./client";
+import { clientFromRequest } from "./client";
 import {
   changeCapabilityLifecycle,
   createCatalogEntity,
@@ -65,7 +66,7 @@ function clientFor(handler: (path: string, options?: ContextplaneRequestOptions)
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
     handler(path, options),
   );
-  return { request } satisfies ContextplaneClient;
+  return clientFromRequest(request);
 }
 
 describe("catalog API", () => {

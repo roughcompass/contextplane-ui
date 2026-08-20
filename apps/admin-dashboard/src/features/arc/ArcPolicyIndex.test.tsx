@@ -4,7 +4,7 @@ import { createRef, type ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ContextplaneClient } from "../../shared/api/client";
-import { ContextplaneApiError } from "../../shared/api/client";
+import { ContextplaneApiError, clientFromRequest } from "../../shared/api/client";
 import type { ArcArtifactFamily } from "../../shared/api/contextplane";
 import { ArcPolicyIndex } from "./ArcPolicyIndex";
 
@@ -50,9 +50,7 @@ function renderIndex(
 }
 
 function pageClient(items: ArcArtifactFamily[] = [tenantPolicy, globalStandard]) {
-  return {
-    request: vi.fn(async () => ({ items, next_cursor: null })),
-  } satisfies ContextplaneClient;
+  return clientFromRequest(vi.fn(async () => ({ items, next_cursor: null })));
 }
 
 function chooseOption(controlName: string, optionName: string) {
@@ -185,7 +183,7 @@ describe("ArcPolicyIndex", () => {
       .fn()
       .mockRejectedValueOnce(error)
       .mockResolvedValueOnce({ items: [], next_cursor: null });
-    renderIndex({ request });
+    renderIndex(clientFromRequest(request));
 
     expect(await screen.findByText(new RegExp(expected))).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Retry request" }));

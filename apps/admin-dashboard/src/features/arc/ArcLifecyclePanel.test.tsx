@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api/client";
+import type { ContextplaneRequestOptions } from "../../shared/api/client";
+import { clientFromRequest } from "../../shared/api/client";
 import type { ArcProposalVersion } from "../../shared/api/contextplane";
 import { ArcLifecyclePanel } from "./ArcLifecyclePanel";
 
@@ -131,7 +132,7 @@ function createClient() {
     }
     throw new Error(`Unexpected request: ${path}`);
   });
-  return { request } satisfies ContextplaneClient;
+  return clientFromRequest(request);
 }
 
 function renderPanel(client = createClient()) {

@@ -4739,6 +4739,12 @@ export interface paths {
     /**
      * Read one governed relationship with the governance that accepted it.
      * @description Return the stored row together with its profile, provenance and readiness.
+     *
+     *     Emits an `ETag` over the row id and the later of its `recorded_at` and
+     *     `effective_to`. `effective_to` is in the inputs because a supersession does
+     *     not touch the row it ends except to close it: an ETag over the transaction
+     *     time alone would be unchanged by the one event a concurrent editor most
+     *     needs to hear about.
      */
     get: operations["get_relationship_v1_relationships__relationship_id__get"];
     put?: never;
@@ -4748,10 +4754,16 @@ export interface paths {
     head?: never;
     /**
      * Supersede a relationship through the generic surface.
-     * @description Update by the same three routes a create takes.
+     * @description Supersede the named assertion, by the same three routes a create takes.
      *
      *     An observation that could amend a canonical edge directly would be a way
      *     around the intent split, so this adds nothing to the routing but the subject.
+     *
+     *     Only the canonical route supersedes. The staged routes mint a claim id and
+     *     a review-entry id and persist neither — they are placeholders for a staging
+     *     surface that does not exist yet — so an observation or a request against
+     *     this path records nothing that names the edge it was about. That is the
+     *     behaviour a create already has, unchanged here rather than quietly widened.
      */
     patch: operations["update_relationship"];
     trace?: never;
@@ -19301,6 +19313,8 @@ export interface operations {
       /** @description Successful Response */
       200: {
         headers: {
+          /** @description Weak validator for this row's current version. Echo it as `If-Match` on a subsequent update to be refused with 412 rather than superseding a row that changed after it was read. */
+          ETag?: string;
           [name: string]: unknown;
         };
         content: {
@@ -19321,7 +19335,10 @@ export interface operations {
   update_relationship: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description The `ETag` from this relationship's detail read. When present and stale the update is refused with 412; when absent the update proceeds, which is the advisory mode the rest of this API uses. */
+        "If-Match"?: string | null;
+      };
       path: {
         relationship_id: string;
       };

@@ -1,10 +1,12 @@
 export {
   ContextplaneApiError,
+  clientFromRequest,
   createContextplaneClient,
   type ContextplaneClient,
   type ContextplaneClientOptions,
   type ContextplaneErrorItem,
   type ContextplaneRequestOptions,
+  type ContextplaneResponse,
 } from "./client";
 export {
   addVocabularyValue,
@@ -157,13 +159,16 @@ export {
   type TenantNotificationPage,
 } from "./tenantWork";
 export {
+  PRECONDITION_FAILED,
   createRelationship,
+  getRelationship,
   queryRelationships,
   relationshipQueryDirections,
   relationshipWriteIntents,
   updateRelationship,
   type GovernedRelationship,
   type GovernedRelationshipPage,
+  type GovernedRelationshipRead,
   type RelationshipEndpoints,
   type RelationshipProfileAttribution,
   type RelationshipProvenanceInput,

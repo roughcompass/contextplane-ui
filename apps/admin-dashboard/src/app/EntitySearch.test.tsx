@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ContextplaneApiError, type ContextplaneClient } from "../shared/api";
+import { ContextplaneApiError, clientFromRequest } from "../shared/api";
 import type { ContextplaneRequestOptions } from "../shared/api";
 import { EntitySearch } from "./EntitySearch";
 
@@ -34,7 +34,7 @@ function renderSearch(
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
     resolver(path, options),
   );
-  const client = { request } satisfies ContextplaneClient;
+  const client = clientFromRequest(request);
   render(<EntitySearch apiTenantId="tenant-a" client={client} onResolved={onResolved} />);
   return { onResolved, request };
 }

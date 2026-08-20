@@ -7,6 +7,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { clientFromRequest } from "../../shared/api";
 import { OverviewPage } from "./OverviewPage";
 
 const identity = {
@@ -104,7 +105,7 @@ function renderOverview(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
   });
-  const client: ContextplaneClient = { request: vi.fn(request) };
+  const client: ContextplaneClient = clientFromRequest(vi.fn(request));
   render(
     <QueryClientProvider client={queryClient}>
       <OverviewPage activeTenantName="Northstar Systems" apiTenantId="tenant-a" client={client} />

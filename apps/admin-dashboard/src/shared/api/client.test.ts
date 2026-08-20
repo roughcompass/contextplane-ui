@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ContextplaneApiError, createContextplaneClient } from "./client";
+import {
+  ContextplaneApiError,
+  clientFromRequest,
+  createContextplaneClient,
+  type ContextplaneRequestOptions,
+} from "./client";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -216,5 +221,74 @@ describe("createContextplaneClient", () => {
       code: "network_error",
       status: 0,
     });
+  });
+});
+
+describe("requestWithEtag", () => {
+  it("returns the validator beside the body, and request returns the body alone", async () => {
+    // A fresh Response per call: a body can only be read once, so a shared one
+    // would make the second assertion fail for a reason unrelated to the client.
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ ok: true }, { headers: { ETag: 'W/"abc"' } }));
+    const client = createContextplaneClient({ fetchImplementation });
+
+    await expect(client.requestWithEtag("/v1/thing")).resolves.toEqual({
+      etag: 'W/"abc"',
+      value: { ok: true },
+    });
+    await expect(client.request("/v1/thing")).resolves.toEqual({ ok: true });
+  });
+
+  it("reports no validator as null rather than as a missing field", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ok: true }));
+    const client = createContextplaneClient({ fetchImplementation });
+
+    await expect(client.requestWithEtag("/v1/thing")).resolves.toEqual({
+      etag: null,
+      value: { ok: true },
+    });
+  });
+
+  it("still raises the structured error, so neither method swallows a refusal", async () => {
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse({ errors: [{ code: "permission_denied", message: "no" }] }, { status: 403 }),
+      );
+    const client = createContextplaneClient({ fetchImplementation });
+
+    await expect(client.requestWithEtag("/v1/thing")).rejects.toMatchObject({
+      code: "permission_denied",
+    });
+  });
+});
+
+describe("clientFromRequest", () => {
+  it("answers both methods from one request, reporting no validator", async () => {
+    const request = vi.fn(async (path: string) => ({ ok: true, path }));
+    const client = clientFromRequest(request);
+
+    await expect(client.request("/v1/thing")).resolves.toEqual({
+      ok: true,
+      path: "/v1/thing",
+    });
+    await expect(client.requestWithEtag("/v1/thing")).resolves.toEqual({
+      etag: null,
+      value: { ok: true, path: "/v1/thing" },
+    });
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes the caller's options through both ways", async () => {
+    const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => ({
+      options,
+      path,
+    }));
+    const client = clientFromRequest(request);
+
+    await client.requestWithEtag("/v1/thing", { tenantId: "tenant-a" });
+
+    expect(request).toHaveBeenCalledWith("/v1/thing", { tenantId: "tenant-a" });
   });
 });

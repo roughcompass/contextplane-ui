@@ -115,6 +115,15 @@ export interface GovernedRelationshipPage {
   offset: number;
 }
 
+/** A relationship together with the validator its read carried. */
+export interface GovernedRelationshipRead {
+  etag: string | null;
+  relationship: GovernedRelationship;
+}
+
+/** The refusal code a stale `If-Match` comes back with. */
+export const PRECONDITION_FAILED = "precondition_failed";
+
 export interface RelationshipQueryInput {
   at?: string;
   direction?: RelationshipQueryDirection;
@@ -371,16 +380,50 @@ export async function createRelationship(
   return parseWriteResult(payload);
 }
 
+/**
+ * Read one relationship, keeping the `ETag` the response carried.
+ *
+ * The validator is returned rather than cached here, because whoever holds the
+ * draft is who must send it back. A client that remembered the last ETag it saw
+ * would send a precondition for a read some other part of the app had made.
+ */
+export async function getRelationship(
+  client: ContextplaneClient,
+  relationshipId: string,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<GovernedRelationshipRead> {
+  const { etag, value } = await client.requestWithEtag(
+    `/v1/relationships/${encodeURIComponent(relationshipId)}`,
+    requestOptions(context, signal),
+  );
+  return { etag, relationship: parseGovernedRelationship(value) };
+}
+
+/**
+ * Supersede the named relationship.
+ *
+ * `ifMatch` is the `ETag` from the detail read the draft was composed against.
+ * Sending it turns a row that moved underneath into a `412` the caller can act
+ * on — keep the draft, refetch, show the newer state — instead of a
+ * supersession landing on something the operator never saw.
+ *
+ * Optional rather than required, because the service accepts its absence: an
+ * adapter that forced one would have callers inventing a value to satisfy it,
+ * and a fabricated precondition is worse than none.
+ */
 export async function updateRelationship(
   client: ContextplaneClient,
   relationshipId: string,
   input: RelationshipWriteInput,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
+  ifMatch?: string,
 ): Promise<RelationshipWriteResult> {
   const payload = await client.request(`/v1/relationships/${encodeURIComponent(relationshipId)}`, {
     ...requestOptions(context, signal),
     body: writeBody(input),
+    ...(ifMatch ? { headers: { "If-Match": ifMatch } } : {}),
     method: "PATCH",
   });
   return parseWriteResult(payload);

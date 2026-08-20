@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import type { ContextplaneRequestOptions } from "./client";
+import { clientFromRequest } from "./client";
 import { queryAuditRecords } from "./audit";
 
 const row = {
@@ -18,8 +19,8 @@ const row = {
 
 describe("queryAuditRecords", () => {
   it("passes opaque cursors unchanged and expands date-only boundaries", async () => {
-    const client = {
-      request: vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
+    const client = clientFromRequest(
+      vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
         void path;
         void options;
         return {
@@ -27,7 +28,7 @@ describe("queryAuditRecords", () => {
           next_cursor: "opaque+/cursor==",
         };
       }),
-    } satisfies ContextplaneClient;
+    );
 
     const result = await queryAuditRecords(
       client,
@@ -65,9 +66,9 @@ describe("queryAuditRecords", () => {
   });
 
   it("rejects malformed service payloads at the API boundary", async () => {
-    const client = {
-      request: vi.fn(async () => ({ items: [{ audit_id: 42 }], next_cursor: null })),
-    } satisfies ContextplaneClient;
+    const client = clientFromRequest(
+      vi.fn(async () => ({ items: [{ audit_id: 42 }], next_cursor: null })),
+    );
 
     await expect(queryAuditRecords(client, {})).rejects.toThrow("Invalid audit response");
   });
