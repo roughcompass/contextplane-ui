@@ -11,12 +11,86 @@ import {
   deleteCapabilitySubscription,
   listCapabilityAdoptions,
   listCapabilitySubscriptions,
+  queryRelationships,
   updateCapabilitySubscription,
   type CatalogCapabilityDetail,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
+  type GovernedRelationship,
 } from "../../shared/api";
 import { catalogInputClassName, catalogLabelClassName } from "./CapabilityDialog";
+
+/**
+ * A readiness or validation state, coloured by whether it needs attention.
+ *
+ * `readiness_state` and the validation verdict are the two things this view has
+ * that the Explore area does not, so they are the two the eye should land on.
+ */
+function toneFor(ready: boolean): "danger" | "success" {
+  return ready ? "success" : "danger";
+}
+
+function GovernedRelationshipRow({
+  entityId,
+  relationship,
+}: {
+  entityId: string;
+  relationship: GovernedRelationship;
+}) {
+  const { endpoints, profile, provenance, temporal, validation } = relationship;
+  // Which end this entity sits on, said in the operator's terms. `is_inverse`
+  // is the service's word for "you asked from the destination", and reading it
+  // as a direction rather than a flag is the difference between a row that
+  // explains itself and one that needs the contract open beside it.
+  const other = endpoints.source_entity_id === entityId ? endpoints.destination_entity_id : endpoints.source_entity_id;
+  const outgoing = endpoints.source_entity_id === entityId;
+
+  return (
+    <li className="p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge>{relationship.relationship_type}</StatusBadge>
+        <StatusBadge tone="info">{outgoing ? "outgoing" : "incoming"}</StatusBadge>
+        <StatusBadge tone={toneFor(validation.valid)}>
+          {validation.valid ? "valid" : "invalid"}
+        </StatusBadge>
+        <StatusBadge tone={toneFor(relationship.readiness_state === "ready")}>
+          {relationship.readiness_state}
+        </StatusBadge>
+      </div>
+      <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
+        <dt className="text-muted">{outgoing ? "Destination" : "Source"}</dt>
+        <dd className="break-all font-mono text-xs text-foreground">{other}</dd>
+        <dt className="text-muted">Enforcement</dt>
+        <dd className="text-foreground">{profile.enforcement_mode}</dd>
+        <dt className="text-muted">Profile revision</dt>
+        <dd className="break-all font-mono text-xs text-foreground">
+          {profile.profile_revision_id ?? "Not attributed"}
+        </dd>
+        <dt className="text-muted">Asserted by</dt>
+        <dd className="text-foreground">
+          {provenance.source_system ?? "Unrecorded"}
+          {provenance.freshness_state ? ` · ${provenance.freshness_state}` : ""}
+        </dd>
+        <dt className="text-muted">Effective</dt>
+        <dd className="text-foreground">
+          {temporal.effective_from ?? "Unbounded"} → {temporal.effective_to ?? "open"}
+        </dd>
+      </dl>
+      {validation.violations.length > 0 ? (
+        <div className="mt-3 rounded-md border border-danger/40 bg-danger-subtle p-3">
+          <p className="text-xs font-medium text-foreground">
+            Validation violations{validation.truncated ? " (truncated by the service)" : ""}
+          </p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-foreground">
+            {validation.violations.map((violation) => (
+              <li key={violation}>{violation}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </li>
+  );
+}
 
 interface CapabilityConnectionsPanelProps {
   capability: CatalogCapabilityDetail;
@@ -58,6 +132,17 @@ export function CapabilityConnectionsPanel({
     queryFn: ({ signal }) =>
       listCapabilityAdoptions(client, capability.entityId, requestContext, signal),
     queryKey: adoptionsKey,
+  });
+  // The governed edge read. Distinct from the dependency, dependents and
+  // blast-radius endpoints the Explore area uses: those return bare edges, and
+  // this returns the governance on them -- which profile revision the assertion
+  // was composed against, whether it validates under that profile, whether the
+  // service considers it ready, and who asserted it. Same edges, different
+  // question, which is why this is an addition here and not a swap there.
+  const relationships = useQuery({
+    queryFn: ({ signal }) =>
+      queryRelationships(client, { entityId: capability.entityId }, requestContext, signal),
+    queryKey: ["contextplane", tenantKey, "catalog", capability.entityId, "governed-relationships"],
   });
   const subscriptions = useQuery({
     queryFn: ({ signal }) =>
@@ -153,6 +238,59 @@ export function CapabilityConnectionsPanel({
 
   return (
     <div className="space-y-8 p-6">
+      <section aria-labelledby="governed-relationships-title">
+        <h3 id="governed-relationships-title" className="text-base font-semibold text-foreground">
+          Governed relationships
+        </h3>
+        <p className="mt-1 text-sm text-muted">
+          Edges touching this entity, with the governance the traversal views omit: the profile
+          revision each assertion was composed against, whether it still validates under that
+          profile, and who asserted it.
+        </p>
+        {relationships.isPending ? (
+          <div
+            className="mt-4 h-28 animate-pulse rounded-lg bg-surface-muted"
+            aria-label="Loading governed relationships"
+            role="status"
+          />
+        ) : relationships.isError ? (
+          <div className="mt-4">
+            <RequestFailure
+              onRetry={() => void relationships.refetch()}
+              title="Governed relationships unavailable"
+            >
+              The governed relationship query could not be completed. Traversal views elsewhere read
+              a different surface and may still work.
+            </RequestFailure>
+          </div>
+        ) : relationships.data.items.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-border bg-surface-muted p-5 text-sm text-muted">
+            No governed relationship touches this entity.
+          </p>
+        ) : (
+          <>
+            <ul className="mt-4 divide-y divide-border-subtle rounded-lg border border-border">
+              {relationships.data.items.map((relationship) => (
+                <GovernedRelationshipRow
+                  key={relationship.relationship_id}
+                  entityId={capability.entityId}
+                  relationship={relationship}
+                />
+              ))}
+            </ul>
+            {relationships.data.has_more ? (
+              // Said rather than paged. A "load more" here would be a second
+              // pagination model in a dialog that has none, and the honest
+              // thing an operator needs first is to know the list is partial.
+              <p className="mt-2 text-sm text-muted">
+                Showing the first {relationships.data.items.length}. More edges exist; the
+                Relationships page lists them in full.
+              </p>
+            ) : null}
+          </>
+        )}
+      </section>
+
       <section aria-labelledby="adoptions-title">
         <h3 id="adoptions-title" className="text-base font-semibold text-foreground">
           Active adoptions

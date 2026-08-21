@@ -380,4 +380,212 @@ describe("CatalogPage", () => {
     ).toBeVisible();
     expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
   });
+  // --- E19-T7: the governed read and the governed edit ------------------------
+
+  const governedBinding = {
+    binding: {
+      binding_id: "b-1",
+      extension_set_digest: "sha256:d-1",
+      profile_revision_id: "r-1",
+      state: "active",
+    },
+    bound: true,
+  };
+
+  const governedEdge = {
+    endpoints: {
+      destination_entity_id: "9c2c8d1e-1111-4a3b-8f2d-000000000002",
+      source_entity_id: capability.entity_id,
+    },
+    is_inverse: false,
+    profile: { binding_id: "b-1", enforcement_mode: "mandatory", profile_revision_id: "r-1" },
+    properties: {},
+    provenance: {
+      authority: null,
+      confidence: null,
+      external_record_id: null,
+      external_revision: null,
+      freshness_state: "fresh",
+      source_system: "admin-dashboard",
+    },
+    readiness_state: "ready",
+    relationship_id: "rel-1",
+    relationship_type: "depends_on",
+    temporal: { effective_from: "2026-08-01T00:00:00Z", effective_to: null, recorded_at: null },
+    validation: { mode: "mandatory", truncated: false, valid: true, violations: [] },
+  };
+
+  async function openConnections(client: ContextplaneClient) {
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+    // The dialog opens on a loading skeleton; the tabs appear once the detail
+    // read resolves, so wait for the tab rather than racing it.
+    fireEvent.click(await within(dialog).findByRole("tab", { name: "Connections" }));
+    return dialog;
+  }
+
+  it("shows the governance on an edge, which the traversal views do not carry", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/relationships:query" && options?.method === "POST") {
+        return { has_more: false, items: [governedEdge], limit: 50, offset: 0 };
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    const dialog = await openConnections(client);
+
+    expect(await within(dialog).findByText("depends_on")).toBeVisible();
+    // The four things this surface has and a bare edge does not.
+    expect(within(dialog).getByText("mandatory")).toBeVisible();
+    expect(within(dialog).getByText("ready")).toBeVisible();
+    expect(within(dialog).getByText("valid")).toBeVisible();
+    expect(within(dialog).getByText("r-1")).toBeVisible();
+    expect(client.request).toHaveBeenCalledWith(
+      "/v1/relationships:query",
+      expect.objectContaining({
+        body: expect.objectContaining({ entity_id: capability.entity_id }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("names an edge that fails its profile rather than listing it as any other", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/relationships:query" && options?.method === "POST") {
+        return {
+          has_more: false,
+          limit: 50,
+          offset: 0,
+          items: [
+            {
+              ...governedEdge,
+              readiness_state: "blocked",
+              validation: {
+                mode: "mandatory",
+                truncated: false,
+                valid: false,
+                violations: ["destination is not a declared endpoint type"],
+              },
+            },
+          ],
+        };
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    const dialog = await openConnections(client);
+
+    expect(await within(dialog).findByText("invalid")).toBeVisible();
+    expect(within(dialog).getByText("blocked")).toBeVisible();
+    expect(
+      within(dialog).getByText("destination is not a declared endpoint type"),
+    ).toBeVisible();
+  });
+
+  it("routes a governed attribute change to the generic surface, keyed by entity id", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/profiles/conformance") return governedBinding;
+      if (path === "/v1/entities" && options?.method === "POST") {
+        return {
+          effect: "review_entry",
+          entity_id: null,
+          intent: "request",
+          profile: { binding_id: "b-1", enforcement_mode: "mandatory", profile_revision_id: "r-1" },
+          review_entry_id: "re-1",
+          staged_claim_id: null,
+          validation: { mode: "mandatory", valid: true },
+        };
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(
+      await within(dialog).findByRole("combobox", {
+        name: /How this change reaches the catalog/,
+      }),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: /^Request/ }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Submit change" })).toBeEnabled(),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Submit change" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/entities",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            // The entity exists, so the identity names it rather than minting a
+            // handle. This is what separates the edit from the create.
+            identity: { subject_id: capability.entity_id },
+            intent: "request",
+            subject_type: "core:capability",
+            target_revision: { binding_revision: "sha256:d-1", profile_revision: "r-1" },
+          }),
+          method: "POST",
+        }),
+      ),
+    );
+    // Not "were updated": a review entry has not changed the attributes, and a
+    // receipt claiming otherwise is the failure the effect wording exists for.
+    expect(await within(dialog).findByText(/routed as review entry/)).toBeVisible();
+  });
+
+  it("keeps the direct PATCH as the default edit", async () => {
+    const client = clientFor((path, options) => {
+      if (path === `/v1/capabilities/${capability.entity_id}` && options?.method === "PATCH") {
+        return capability;
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Save attributes" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        `/v1/capabilities/${capability.entity_id}`,
+        expect.objectContaining({ method: "PATCH" }),
+      ),
+    );
+    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
+  });
+
+  it("will not send a governed attribute change for a tenant bound to nothing", async () => {
+    const client = clientFor((path) => {
+      if (path === "/v1/profiles/conformance") return { binding: null, bound: false };
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(
+      await within(dialog).findByRole("combobox", {
+        name: /How this change reaches the catalog/,
+      }),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: /^Observation/ }));
+
+    expect(await within(dialog).findByText("No profile is bound")).toBeVisible();
+    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
+  });
 });

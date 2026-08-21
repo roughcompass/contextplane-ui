@@ -1,19 +1,49 @@
 import { AlertTriangle, Save, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
 import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
+  assertEntity,
   changeCapabilityLifecycle,
   deleteCapability,
+  entityWriteIntents,
+  getGoverningBinding,
   setCapabilityVisibility,
   updateCapability,
   type CatalogCapabilityDetail,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
+  type EntityWriteIntent,
 } from "../../shared/api";
 import { catalogInputClassName, catalogLabelClassName } from "./CapabilityDialog";
+
+/**
+ * How an attribute change reaches the catalog. The create's question, asked
+ * again for the edit.
+ *
+ * `direct` is `PATCH /v1/capabilities/{id}`, which the contract describes as a
+ * bag of attribute updates applied bi-temporally. Nothing reviews it.
+ *
+ * The other three are the generic `POST /v1/entities`, which routes by intent:
+ * an observation stages a claim, a request opens an owner review entry, and only
+ * an authorized approval writes canon. Which one is right depends on whether the
+ * change should be reviewed, and that is a fact about the operator's situation
+ * rather than something the form can infer.
+ */
+const editRouteOptions: readonly { label: string; value: string }[] = [
+  { label: "Update directly — merges the change, unreviewed", value: "direct" },
+  { label: "Observation — stages a claim for review", value: "observation" },
+  { label: "Request — opens an owner review entry", value: "request" },
+  { label: "Authorized approval — writes canon", value: "authorized_approval" },
+];
+
+type EditRoute = "direct" | "observation" | "request" | "authorized_approval";
+
+function isGoverned(route: EditRoute): route is EntityWriteIntent {
+  return (entityWriteIntents as readonly string[]).includes(route);
+}
 
 interface CapabilityOverviewPanelProps {
   capability: CatalogCapabilityDetail;
@@ -52,6 +82,8 @@ export function CapabilityOverviewPanel({
   const [successor, setSuccessor] = useState("none");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [route, setRoute] = useState<EditRoute>("direct");
+  const [approvalReference, setApprovalReference] = useState("");
 
   function refresh(message: string) {
     setReceipt(`${message} · ${new Date().toISOString()}`);
@@ -59,10 +91,73 @@ export function CapabilityOverviewPanel({
     showToast({ message, title: capability.name, variant: "success" });
   }
 
+  const binding = useQuery({
+    enabled: isGoverned(route),
+    queryFn: ({ signal }) => getGoverningBinding(client, requestContext, signal),
+    queryKey: [
+      "contextplane",
+      requestContext.tenantId ?? "credential-default",
+      "governing-binding",
+    ],
+  });
+
   const updateMutation = useMutation({
-    mutationFn: (updates: Record<string, unknown>) =>
-      updateCapability(client, capability.entityId, { updates }, requestContext),
-    onSuccess: () => refresh("Capability attributes were updated."),
+    mutationFn: async (attributes: Record<string, unknown>) => {
+      if (!isGoverned(route)) {
+        await updateCapability(
+          client,
+          capability.entityId,
+          { updates: attributes },
+          requestContext,
+        );
+        return { effect: "updated" as const };
+      }
+      const governing = binding.data;
+      // Unreachable from the form, which will not submit until the binding has
+      // resolved. Stated rather than assumed, for the same reason the create
+      // states it: a governed write with no revision to attest to is the thing
+      // the attestation exists to prevent.
+      if (!governing) throw new Error("no governing binding to attest to");
+      const result = await assertEntity(
+        client,
+        {
+          ...(approvalReference.trim() ? { approvalReference: approvalReference.trim() } : {}),
+          // The entity already exists, so the identity is its id rather than a
+          // handle to mint. This is the difference between the create's call
+          // and this one.
+          identity: { subjectId: capability.entityId },
+          idempotencyKey: crypto.randomUUID(),
+          intent: route,
+          properties: attributes,
+          provenance: {
+            externalRecordId: capability.externalId ?? "operator-authored",
+            observedTime: new Date().toISOString(),
+            sourceNamespace: "internal",
+            sourceSystem: "admin-dashboard",
+          },
+          // Whatever type the entity actually is, not one of the three the
+          // create offers: the catalog lists every type a tenant holds, and an
+          // edit has to work on the one in front of the operator.
+          subjectType: `core:${capability.entityType}`,
+          targetRevision: {
+            bindingRevision: governing.extensionSetDigest,
+            profileRevision: governing.profileRevisionId,
+          },
+          validFrom: new Date().toISOString(),
+        },
+        requestContext,
+      );
+      return { effect: result.effect };
+    },
+    onSuccess: (outcome) => {
+      // A staged or reviewed change has not been applied, so the receipt names
+      // what happened instead of claiming the attributes moved.
+      refresh(
+        outcome.effect === "updated"
+          ? "Capability attributes were updated."
+          : `The attribute change was routed as ${outcome.effect.replaceAll("_", " ")}.`,
+      );
+    },
   });
   const visibilityMutation = useMutation({
     mutationFn: () =>
@@ -109,6 +204,18 @@ export function CapabilityOverviewPanel({
 
   function submitAttributes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (route === "authorized_approval" && !approvalReference.trim()) {
+      setAttributesError("An authorized approval must name the approval it rests on.");
+      return;
+    }
+    if (isGoverned(route) && !binding.data) {
+      setAttributesError(
+        binding.isPending
+          ? "Still reading which profile governs this tenant. Try again in a moment."
+          : "This tenant is not bound to a profile revision, so there is no governance to write against.",
+      );
+      return;
+    }
     try {
       const value: unknown = JSON.parse(attributesText);
       if (!isRecord(value)) {
@@ -183,6 +290,42 @@ export function CapabilityOverviewPanel({
         <p className="mt-1 text-sm text-muted">
           Update only the structured properties governed by this capability's active profile.
         </p>
+
+        <div className={`${catalogLabelClassName} mt-4`}>
+          <SearchableSelect
+            allowEmpty={false}
+            label="How this change reaches the catalog"
+            onValueChange={(value) => setRoute(value as EditRoute)}
+            options={editRouteOptions}
+            value={route}
+          />
+          <span className="mt-1 block font-normal text-muted">
+            {isGoverned(route)
+              ? "The governed surface asserts the whole property set against the tenant's profile revision, so a key you remove here is removed. The service decides whether the change becomes canon or waits for a review."
+              : "The direct route merges these keys into the existing attributes. A key you remove here is left as it was; nothing reviews the change."}
+          </span>
+        </div>
+
+        {isGoverned(route) && binding.data === null ? (
+          <Notice title="No profile is bound" variant="warning">
+            This tenant has no active or validating binding, so a governed change has no revision to
+            attest to and no governance to validate it. Update directly, or bind a profile first.
+          </Notice>
+        ) : null}
+
+        {route === "authorized_approval" ? (
+          <label className={`${catalogLabelClassName} mt-4`}>
+            Approval reference
+            <input
+              required
+              className={catalogInputClassName}
+              onChange={(event) => setApprovalReference(event.target.value)}
+              placeholder="The approval this write rests on"
+              value={approvalReference}
+            />
+          </label>
+        ) : null}
+
         <label className={`${catalogLabelClassName} mt-4`}>
           Attributes JSON
           <textarea
@@ -195,9 +338,20 @@ export function CapabilityOverviewPanel({
         </label>
         {attributesError ? <p className="mt-2 text-sm text-danger">{attributesError}</p> : null}
         <div className="mt-4 flex justify-end">
-          <Button disabled={updateMutation.isPending} type="submit">
+          {/* Disabled until the binding is known, so a governed change cannot be
+              sent with nothing to attest to. The create learned this the hard
+              way: it silently sent an unattested write while the query was in
+              flight. */}
+          <Button
+            disabled={updateMutation.isPending || (isGoverned(route) && binding.isPending)}
+            type="submit"
+          >
             <Save aria-hidden="true" className="size-4" />
-            {updateMutation.isPending ? "Saving…" : "Save attributes"}
+            {updateMutation.isPending
+              ? "Saving…"
+              : isGoverned(route)
+                ? "Submit change"
+                : "Save attributes"}
           </Button>
         </div>
       </form>
