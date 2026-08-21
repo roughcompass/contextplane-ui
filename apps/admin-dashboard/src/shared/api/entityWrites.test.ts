@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ContextplaneApiError, clientFromRequest } from "./client";
 import type { ContextplaneRequestOptions } from "./client";
-import { assertEntity, type EntityWriteInput } from "./entityWrites";
+import { assertEntity, updateEntity, type EntityWriteInput } from "./entityWrites";
 
 function clientFor(handler: (path: string, options?: ContextplaneRequestOptions) => unknown) {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
@@ -249,5 +249,27 @@ describe("the governed entity write", () => {
     await expect(assertEntity(client, writeInput)).rejects.toThrow(
       "entity write result is not an object",
     );
+  });
+  it("supersedes at the encoded entity id", async () => {
+    const { client, request } = clientFor(() => writeResult);
+
+    await updateEntity(client, "e100/0001", writeInput);
+
+    expect(request.mock.calls[0]?.[0]).toBe("/v1/entities/e100%2F0001");
+    expect(request.mock.calls[0]?.[1]?.method).toBe("PATCH");
+  });
+
+  it("keeps the subject in the path, where the service reads it", async () => {
+    // The distinction this adapter exists for. `assertEntity` posts to the
+    // collection and the handler runs with no entity id, so on the approval
+    // route it creates rather than updates -- a subject id in the body does not
+    // change that. An edit that reached the create surface would mint a second
+    // entity, which is what this pins against.
+    const { client, request } = clientFor(() => writeResult);
+
+    await updateEntity(client, "e-1", writeInput);
+
+    expect(request.mock.calls[0]?.[0]).toBe("/v1/entities/e-1");
+    expect(request.mock.calls[0]?.[0]).not.toBe("/v1/entities");
   });
 });

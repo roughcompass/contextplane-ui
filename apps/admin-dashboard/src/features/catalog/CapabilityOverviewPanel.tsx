@@ -5,13 +5,13 @@ import { useState, type FormEvent } from "react";
 import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
-  assertEntity,
   changeCapabilityLifecycle,
   deleteCapability,
   entityWriteIntents,
   getGoverningBinding,
   setCapabilityVisibility,
   updateCapability,
+  updateEntity,
   type CatalogCapabilityDetail,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
@@ -118,13 +118,20 @@ export function CapabilityOverviewPanel({
       // states it: a governed write with no revision to attest to is the thing
       // the attestation exists to prevent.
       if (!governing) throw new Error("no governing binding to attest to");
-      const result = await assertEntity(
+      // `updateEntity`, not `assertEntity`: the service reads the write target
+      // from the *path*, never from `identity.subject_id`. Posting an edit to
+      // the create surface with a subject id in the body does not update
+      // anything -- on the approval route it mints a second entity, because
+      // that handler is called with `entity_id=None` and falls through to
+      // `create_entity`. Caught by reading the handler; the mocked test that
+      // asserted the request body could not see it.
+      const result = await updateEntity(
         client,
+        capability.entityId,
         {
           ...(approvalReference.trim() ? { approvalReference: approvalReference.trim() } : {}),
-          // The entity already exists, so the identity is its id rather than a
-          // handle to mint. This is the difference between the create's call
-          // and this one.
+          // Carried anyway. The path is what the service routes on, and a body
+          // that disagreed with it would be a second answer to one question.
           identity: { subjectId: capability.entityId },
           idempotencyKey: crypto.randomUUID(),
           intent: route,

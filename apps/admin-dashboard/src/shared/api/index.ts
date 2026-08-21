@@ -196,6 +196,7 @@ export {
 export {
   assertEntity,
   entityWriteIntents,
+  updateEntity,
   type EntityProvenanceInput,
   type EntityTargetRevision,
   type EntityWriteIdentity,
