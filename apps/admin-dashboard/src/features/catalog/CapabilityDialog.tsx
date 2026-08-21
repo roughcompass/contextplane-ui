@@ -6,12 +6,16 @@ import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/
 
 import {
   ContextplaneApiError,
+  assertEntity,
   createCatalogEntity,
+  entityWriteIntents,
   getCapability,
+  getGoverningBinding,
   type CatalogCapabilitySummary,
   type CatalogEntityType,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
+  type EntityWriteIntent,
 } from "../../shared/api";
 import { CapabilityConnectionsPanel } from "./CapabilityConnectionsPanel";
 import { CapabilityEvidencePanel } from "./CapabilityEvidencePanel";
@@ -21,6 +25,32 @@ export type CapabilityDialogTarget =
   { entityType: CatalogEntityType; mode: "create" } | { capabilityId: string; mode: "detail" };
 
 /** What each creatable type is called in the copy the operator reads. */
+/**
+ * How the write reaches the catalog.
+ *
+ * `direct` is the dedicated create route — `POST /v1/capabilities`,
+ * `/v1/concepts`, `/v1/operations` — which takes a name and mints a row. It is
+ * the right surface for a producer registering something they own outright, and
+ * it is ungoverned: nothing reviews it.
+ *
+ * The other three are the generic `POST /v1/entities`, which routes by intent:
+ * an observation stages a claim, a request opens an owner review entry, and only
+ * an authorized approval writes canon. Both surfaces write the same table; which
+ * one an operator wants depends on whether the write should be reviewed, so the
+ * form asks rather than choosing.
+ */
+const routeOptions = [
+  { id: "direct", label: "Register directly — writes the row, unreviewed" },
+  { id: "observation", label: "Observation — stages a claim for review" },
+  { id: "request", label: "Request — opens an owner review entry" },
+  { id: "authorized_approval", label: "Authorized approval — writes canon" },
+] as const;
+type WriteRoute = (typeof routeOptions)[number]["id"];
+
+function isGoverned(route: WriteRoute): route is EntityWriteIntent {
+  return (entityWriteIntents as readonly string[]).includes(route);
+}
+
 const entityTypeLabels: Readonly<Record<CatalogEntityType, string>> = {
   capability: "capability",
   concept: "concept",
@@ -87,27 +117,85 @@ function CreateEntityForm({
   const [name, setName] = useState("");
   const [externalId, setExternalId] = useState("");
   const [attributesText, setAttributesText] = useState("{}");
+  const [route, setRoute] = useState<WriteRoute>("direct");
+  const [approvalReference, setApprovalReference] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const binding = useQuery({
+    enabled: isGoverned(route),
+    queryFn: ({ signal }) => getGoverningBinding(client, requestContext, signal),
+    queryKey: [
+      "contextplane",
+      requestContext.tenantId ?? "credential-default",
+      "governing-binding",
+    ],
+  });
+
   const mutation = useMutation({
-    mutationFn: (attributes: Record<string, unknown>) =>
-      createCatalogEntity(
+    mutationFn: async (attributes: Record<string, unknown>) => {
+      if (!isGoverned(route)) {
+        const created = await createCatalogEntity(
+          client,
+          {
+            attributes,
+            entityType,
+            ...(externalId.trim() ? { externalId: externalId.trim() } : {}),
+            name: name.trim(),
+          },
+          requestContext,
+        );
+        return { created, effect: "registered" as const };
+      }
+      const governing = binding.data;
+      // Unreachable from the form, which will not submit until the binding has
+      // resolved. Stated rather than assumed: a governed write with no revision
+      // to attest to is the thing this whole task exists to stop sending.
+      if (!governing) throw new Error("no governing binding to attest to");
+      const result = await assertEntity(
         client,
         {
-          attributes,
-          entityType,
-          ...(externalId.trim() ? { externalId: externalId.trim() } : {}),
-          name: name.trim(),
+          ...(approvalReference.trim() ? { approvalReference: approvalReference.trim() } : {}),
+          identity: { handle: `core:${entityType}/${name.trim()}` },
+          // A fresh key per user-initiated write; a retry of the identical body
+          // is the operator pressing submit again, which is a new intent.
+          idempotencyKey: crypto.randomUUID(),
+          intent: route,
+          properties: attributes,
+          provenance: {
+            externalRecordId: externalId.trim() || "operator-authored",
+            observedTime: new Date().toISOString(),
+            sourceNamespace: "internal",
+            sourceSystem: "admin-dashboard",
+          },
+          subjectType: `core:${entityType}`,
+          targetRevision: {
+            bindingRevision: governing.extensionSetDigest,
+            profileRevision: governing.profileRevisionId,
+          },
+          validFrom: new Date().toISOString(),
         },
         requestContext,
-      ),
-    onSuccess: (entity) => {
+      );
+      return { effect: result.effect, result };
+    },
+    onSuccess: (outcome) => {
       void queryClient.invalidateQueries({ queryKey: ["contextplane"] });
+      if ("created" in outcome) {
+        showToast({
+          message: `${outcome.created.name} is now available in the canonical catalog.`,
+          title: `${label.charAt(0).toUpperCase()}${label.slice(1)} registered`,
+          variant: "success",
+        });
+        onCreated(outcome.created);
+        return;
+      }
+      // A staged or reviewed write has no row to open yet, so the toast names
+      // the effect rather than claiming the entity exists.
       showToast({
-        message: `${entity.name} is now available in the canonical catalog.`,
-        title: `${label.charAt(0).toUpperCase()}${label.slice(1)} created`,
+        message: `The write was routed as ${outcome.effect.replaceAll("_", " ")}.`,
+        title: `${label.charAt(0).toUpperCase()}${label.slice(1)} submitted`,
         variant: "success",
       });
-      onCreated(entity);
     },
   });
 
@@ -115,6 +203,18 @@ function CreateEntityForm({
     event.preventDefault();
     if (!name.trim()) {
       setError(`Enter a ${label} name.`);
+      return;
+    }
+    if (route === "authorized_approval" && !approvalReference.trim()) {
+      setError("An authorized approval must name the approval it rests on.");
+      return;
+    }
+    if (isGoverned(route) && !binding.data) {
+      setError(
+        binding.isPending
+          ? "Still reading which profile governs this tenant. Try again in a moment."
+          : "This tenant is not bound to a profile revision, so there is no governance to write against.",
+      );
       return;
     }
     try {
@@ -136,6 +236,45 @@ function CreateEntityForm({
         This form sends a new {label} to {tenantName}. The service applies entity-type, identity,
         uniqueness, and authorization rules before accepting it.
       </Notice>
+
+      <label className={catalogLabelClassName}>
+        How this write reaches the catalog
+        <select
+          className={catalogInputClassName}
+          onChange={(event) => setRoute(event.target.value as WriteRoute)}
+          value={route}
+        >
+          {routeOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block font-normal text-muted">
+          {isGoverned(route)
+            ? "The governed surface routes by intent, so the service decides whether this becomes canon or waits for a review."
+            : "The dedicated create route writes the row immediately. Nothing reviews it."}
+        </span>
+      </label>
+
+      {isGoverned(route) && binding.data === null ? (
+        <Notice title="No profile is bound" variant="warning">
+          This tenant has no active or validating binding, so a governed write has no revision to
+          attest to and no governance to validate it. Register directly, or bind a profile first.
+        </Notice>
+      ) : null}
+
+      {route === "authorized_approval" ? (
+        <label className={catalogLabelClassName}>
+          Approval reference
+          <input
+            className={catalogInputClassName}
+            onChange={(event) => setApprovalReference(event.target.value)}
+            placeholder="The review this write rests on"
+            value={approvalReference}
+          />
+        </label>
+      ) : null}
       <label className={catalogLabelClassName} htmlFor={nameId}>
         {label.charAt(0).toUpperCase()}
         {label.slice(1)} name
@@ -187,7 +326,10 @@ function CreateEntityForm({
         </RequestFailure>
       ) : null}
       <div className="flex justify-end border-t border-border-subtle pt-5">
-        <Button disabled={mutation.isPending} type="submit">
+        <Button
+          disabled={mutation.isPending || (isGoverned(route) && binding.isPending)}
+          type="submit"
+        >
           <Plus aria-hidden="true" className="size-4" />
           {mutation.isPending ? "Creating…" : `Create ${label}`}
         </Button>

@@ -194,6 +194,17 @@ export {
   type EntityResolution,
 } from "./entityResolution";
 export {
+  assertEntity,
+  entityWriteIntents,
+  updateEntity,
+  type EntityProvenanceInput,
+  type EntityTargetRevision,
+  type EntityWriteIdentity,
+  type EntityWriteInput,
+  type EntityWriteIntent,
+  type EntityWriteResult,
+} from "./entityWrites";
+export {
   contextBlockNames,
   contextBlockStates,
   contextEnvelopeStates,

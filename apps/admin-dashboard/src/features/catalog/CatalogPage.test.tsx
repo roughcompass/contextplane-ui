@@ -239,4 +239,145 @@ describe("CatalogPage", () => {
     expect(await within(dialog).findByText("The capability was not created")).toBeVisible();
     expect(name).toHaveValue("Draft remains");
   });
+
+  it("registers directly by default, on the dedicated create route", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/capabilities" && options?.method === "POST") return capability;
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
+    const dialog = screen.getByRole("dialog", { name: "Create capability" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Capability name/ }), {
+      target: { value: "Policy evaluation" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create capability" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/capabilities",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
+
+  it("routes a governed write to the generic surface, attesting to the binding", async () => {
+    const client = clientFor((path, options) => {
+      if (path === "/v1/profiles/conformance") {
+        return {
+          binding: {
+            binding_id: "b-1",
+            extension_set_digest: "sha256:d-1",
+            profile_revision_id: "r-1",
+            state: "active",
+          },
+          bound: true,
+        };
+      }
+      if (path === "/v1/entities" && options?.method === "POST") {
+        return {
+          effect: "staged_claim",
+          entity_id: null,
+          intent: "observation",
+          profile: { binding_id: "b-1", enforcement_mode: "mandatory", profile_revision_id: "r-1" },
+          review_entry_id: null,
+          staged_claim_id: "s-1",
+          validation: { mode: "mandatory", valid: true },
+        };
+      }
+      return { items: [], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
+    const dialog = screen.getByRole("dialog", { name: "Create capability" });
+    fireEvent.change(
+      within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
+      { target: { value: "observation" } },
+    );
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Capability name/ }), {
+      target: { value: "Policy evaluation" },
+    });
+    // The form will not submit a governed write until it knows what governs the
+    // tenant, so wait for that rather than racing it.
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Create capability" })).toBeEnabled(),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create capability" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/entities",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            intent: "observation",
+            subject_kind: "entity",
+            target_revision: { binding_revision: "sha256:d-1", profile_revision: "r-1" },
+          }),
+          method: "POST",
+        }),
+      ),
+    );
+  });
+
+  it("will not send a governed write for a tenant bound to nothing", async () => {
+    const client = clientFor((path) => {
+      if (path === "/v1/profiles/conformance") return { binding: null, bound: false };
+      return { items: [], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
+    const dialog = screen.getByRole("dialog", { name: "Create capability" });
+    fireEvent.change(
+      within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
+      { target: { value: "request" } },
+    );
+
+    expect(await within(dialog).findByText("No profile is bound")).toBeVisible();
+    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
+  });
+
+  it("requires an authorized approval to name the approval it rests on", async () => {
+    const client = clientFor((path) => {
+      if (path === "/v1/profiles/conformance") {
+        return {
+          binding: {
+            binding_id: "b-1",
+            extension_set_digest: "sha256:d-1",
+            profile_revision_id: "r-1",
+            state: "active",
+          },
+          bound: true,
+        };
+      }
+      return { items: [], next_cursor: null };
+    });
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
+    const dialog = screen.getByRole("dialog", { name: "Create capability" });
+    fireEvent.change(
+      within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
+      { target: { value: "authorized_approval" } },
+    );
+    fireEvent.change(within(dialog).getByRole("textbox", { name: /Capability name/ }), {
+      target: { value: "Policy evaluation" },
+    });
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Create capability" })).toBeEnabled(),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create capability" }));
+
+    expect(
+      await within(dialog).findByText("An authorized approval must name the approval it rests on."),
+    ).toBeVisible();
+    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
+  });
 });

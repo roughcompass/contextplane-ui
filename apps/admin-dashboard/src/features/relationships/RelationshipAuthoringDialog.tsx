@@ -90,11 +90,11 @@ function draftFrom(relationship: GovernedRelationship): Draft {
  * discarded the draft on a conflict would punish the person who lost a race
  * they could not see.
  *
- * **`target_revision` sends the bound `profile_revision_id`.** That is the only
- * revision identifier a client can read, and the field is required. It is also
- * read by nothing on the service — see E19-T5 — so this is what a caller can
- * truthfully attest to rather than the `"1.0.0"` the integration suite happens
- * to send.
+ * **`target_revision` attests to the binding, both halves.** `profile_revision`
+ * carries the bound `profile_revision_id` and `binding_revision` carries the
+ * `extension_set_digest`, which is what E19-T5 decided the field means and what
+ * the service now reads. The revision alone would be silent about a rebind that
+ * changed only the extension set.
  */
 export function RelationshipAuthoringDialog({
   apiTenantId,
@@ -255,7 +255,15 @@ export function RelationshipAuthoringDialog({
         sourceSystem: "admin-dashboard",
       },
       subjectType: values.subjectType.trim(),
-      targetRevision: { profileRevision: revision },
+      targetRevision: {
+        // Both halves. The revision id alone is silent about a rebind that
+        // changed only the extension set, which is the case the field exists
+        // for -- see E19-T5.
+        ...(binding.data?.extensionSetDigest
+          ? { bindingRevision: binding.data.extensionSetDigest }
+          : {}),
+        profileRevision: revision,
+      },
       temporal: values.validFrom.trim()
         ? { validFrom: values.validFrom.trim() }
         : { validFrom: new Date().toISOString() },
