@@ -345,7 +345,10 @@ const panels: readonly { id: CapabilityPanel; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "evidence", label: "Artifacts" },
   { id: "interface", label: "Interface" },
-  { id: "connections", label: "Adoption & subscriptions" },
+  // "Adoption & subscriptions" until this panel also listed the entity's
+  // governed edges. An operator asking what a thing is connected to should not
+  // have to know that adoptions and relationships live under different words.
+  { id: "connections", label: "Connections" },
   { id: "impact", label: "Version impact" },
 ];
 

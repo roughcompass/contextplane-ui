@@ -174,7 +174,7 @@ describe("CapabilityDialog", () => {
     ).toBeVisible();
     expect(await within(dialog).findByText("json_schema")).toBeVisible();
 
-    fireEvent.click(within(dialog).getByRole("tab", { name: "Adoption & subscriptions" }));
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Connections" }));
     expect(await within(dialog).findByText("Production policy checks")).toBeVisible();
     expect(within(dialog).getByText("interface.changed")).toBeVisible();
     fireEvent.click(within(dialog).getByRole("button", { name: "Remove adoption adoption-a" }));
@@ -260,7 +260,7 @@ describe("CapabilityDialog", () => {
     fireEvent.click(within(dialog).getByRole("tab", { name: "Interface" }));
     expect(await within(dialog).findByText("No interface published")).toBeVisible();
 
-    fireEvent.click(within(dialog).getByRole("tab", { name: "Adoption & subscriptions" }));
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Connections" }));
     expect(
       await within(dialog).findByText("No active adoption has been recorded for this capability."),
     ).toBeVisible();
@@ -355,7 +355,7 @@ describe("CapabilityDialog", () => {
     });
     renderDialog(clientFromRequest(request));
     const dialog = await screen.findByRole("dialog", { name: "Policy evaluation" });
-    fireEvent.click(within(dialog).getByRole("tab", { name: "Adoption & subscriptions" }));
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Connections" }));
 
     expect(await within(dialog).findByText("Adoptions unavailable")).toBeVisible();
     expect(await within(dialog).findByText("Subscriptions unavailable")).toBeVisible();
