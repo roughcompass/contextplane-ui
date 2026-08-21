@@ -486,10 +486,10 @@ describe("CatalogPage", () => {
     ).toBeVisible();
   });
 
-  it("routes a governed attribute change to the generic surface, keyed by entity id", async () => {
+  it("routes a governed attribute change to the update surface, subject in the path", async () => {
     const client = clientFor((path, options) => {
       if (path === "/v1/profiles/conformance") return governedBinding;
-      if (path === "/v1/entities" && options?.method === "POST") {
+      if (path === `/v1/entities/${capability.entity_id}` && options?.method === "PATCH") {
         return {
           effect: "review_entry",
           entity_id: null,
@@ -522,20 +522,24 @@ describe("CatalogPage", () => {
 
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith(
-        "/v1/entities",
+        `/v1/entities/${capability.entity_id}`,
         expect.objectContaining({
           body: expect.objectContaining({
-            // The entity exists, so the identity names it rather than minting a
-            // handle. This is what separates the edit from the create.
             identity: { subject_id: capability.entity_id },
             intent: "request",
             subject_type: "core:capability",
             target_revision: { binding_revision: "sha256:d-1", profile_revision: "r-1" },
           }),
-          method: "POST",
+          method: "PATCH",
         }),
       ),
     );
+    // The assertion that matters, and the one whose absence let the first
+    // attempt ship: the service takes the write target from the path and never
+    // from `identity.subject_id`, so an edit posted to the create surface does
+    // not update anything -- on the approval route it mints a second entity.
+    // A test that only checked the body was satisfied by the broken call.
+    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
     // Not "were updated": a review entry has not changed the attributes, and a
     // receipt claiming otherwise is the failure the effect wording exists for.
     expect(await within(dialog).findByText(/routed as review entry/)).toBeVisible();
@@ -586,6 +590,9 @@ describe("CatalogPage", () => {
     fireEvent.click(await screen.findByRole("option", { name: /^Observation/ }));
 
     expect(await within(dialog).findByText("No profile is bound")).toBeVisible();
-    expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
+    expect(client.request).not.toHaveBeenCalledWith(
+      `/v1/entities/${capability.entity_id}`,
+      expect.anything(),
+    );
   });
 });

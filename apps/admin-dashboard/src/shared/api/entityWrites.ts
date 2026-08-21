@@ -213,6 +213,35 @@ function writeBody(input: EntityWriteInput): Record<string, unknown> {
 }
 
 /**
+ * Supersede an entity's properties through the governed surface.
+ *
+ * The subject is in the path, and that is the whole difference from
+ * `assertEntity`: the service reads the write target from the route, never from
+ * `identity.subject_id`, so posting to the create surface with a subject id in
+ * the body does not update anything -- on the approval route it mints a second
+ * entity. The contract calls this handler "the same three routes a create takes,
+ * adding nothing to it but the subject", and the subject is exactly what a
+ * caller cannot supply any other way.
+ *
+ * Removed once for having no caller and restored here with one.
+ */
+export async function updateEntity(
+  client: ContextplaneClient,
+  entityId: string,
+  input: EntityWriteInput,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<EntityWriteResult> {
+  const payload = await client.request(`/v1/entities/${encodeURIComponent(entityId)}`, {
+    ...(signal ? { signal } : {}),
+    ...(context.tenantId ? { tenantId: context.tenantId } : {}),
+    body: writeBody(input),
+    method: "PATCH",
+  });
+  return parseResult(payload);
+}
+
+/**
  * Assert an entity through the governed surface.
  *
  * The caller owns `idempotencyKey`: a fresh one per user-initiated write, the
