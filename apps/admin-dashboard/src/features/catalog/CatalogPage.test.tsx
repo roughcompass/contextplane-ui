@@ -295,10 +295,10 @@ describe("CatalogPage", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
     const dialog = screen.getByRole("dialog", { name: "Create capability" });
-    fireEvent.change(
+    fireEvent.click(
       within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
-      { target: { value: "observation" } },
     );
+    fireEvent.click(await screen.findByRole("option", { name: /^Observation/ }));
     fireEvent.change(within(dialog).getByRole("textbox", { name: /Capability name/ }), {
       target: { value: "Policy evaluation" },
     });
@@ -334,10 +334,10 @@ describe("CatalogPage", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
     const dialog = screen.getByRole("dialog", { name: "Create capability" });
-    fireEvent.change(
+    fireEvent.click(
       within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
-      { target: { value: "request" } },
     );
+    fireEvent.click(await screen.findByRole("option", { name: /^Request/ }));
 
     expect(await within(dialog).findByText("No profile is bound")).toBeVisible();
     expect(client.request).not.toHaveBeenCalledWith("/v1/entities", expect.anything());
@@ -363,10 +363,10 @@ describe("CatalogPage", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Create capability" })[0]!);
     const dialog = screen.getByRole("dialog", { name: "Create capability" });
-    fireEvent.change(
+    fireEvent.click(
       within(dialog).getByRole("combobox", { name: /How this write reaches the catalog/ }),
-      { target: { value: "authorized_approval" } },
     );
+    fireEvent.click(await screen.findByRole("option", { name: /^Authorized approval/ }));
     fireEvent.change(within(dialog).getByRole("textbox", { name: /Capability name/ }), {
       target: { value: "Policy evaluation" },
     });

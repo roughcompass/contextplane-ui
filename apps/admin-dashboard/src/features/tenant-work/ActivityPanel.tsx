@@ -2,7 +2,14 @@ import { Bell, Check, RadioTower, RefreshCw, Send } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   getTenantLearningAggregates,
@@ -24,6 +31,28 @@ interface ActivityPanelProps {
 const inputClassName =
   "mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent";
 const labelClassName = "block text-xs font-medium text-muted";
+
+const notificationStatusOptions = [
+  { label: "Unread", value: "unread" },
+  { label: "Read", value: "read" },
+  { label: "All", value: "all" },
+];
+const learningWindowOptions = [
+  { label: "7 days", value: "7" },
+  { label: "30 days", value: "30" },
+  { label: "90 days", value: "90" },
+];
+const producerTypeOptions = [
+  { label: "Human", value: "human" },
+  { label: "Agent", value: "agent" },
+  { label: "External", value: "external" },
+];
+const signalClassificationOptions = [
+  { label: "Public", value: "public" },
+  { label: "Internal", value: "internal" },
+  { label: "Confidential", value: "confidential" },
+  { label: "Restricted", value: "restricted" },
+];
 
 function localDateTimeNow(): string {
   const now = new Date();
@@ -173,20 +202,14 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
               Version and lifecycle events delivered to this tenant's active subscriptions.
             </p>
           </div>
-          <label className="text-xs font-medium text-muted">
-            Status
-            <select
-              className={`${inputClassName} min-w-36`}
-              onChange={(event) =>
-                setNotificationStatus(event.target.value as "all" | "read" | "unread")
-              }
-              value={notificationStatus}
-            >
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-              <option value="all">All</option>
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            className="min-w-36"
+            label="Status"
+            onValueChange={(value) => setNotificationStatus(value as "all" | "read" | "unread")}
+            options={notificationStatusOptions}
+            value={notificationStatus}
+          />
         </div>
         {notifications.isPending ? (
           <div className="m-6 h-32 animate-pulse rounded-lg bg-surface-muted" role="status" />
@@ -268,18 +291,14 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
               cells.
             </p>
           </div>
-          <label className="text-xs font-medium text-muted">
-            Window
-            <select
-              className={`${inputClassName} min-w-36`}
-              onChange={(event) => setWindowDays(Number(event.target.value))}
-              value={windowDays}
-            >
-              <option value={7}>7 days</option>
-              <option value={30}>30 days</option>
-              <option value={90}>90 days</option>
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            className="min-w-36"
+            label="Window"
+            onValueChange={(value) => setWindowDays(Number(value))}
+            options={learningWindowOptions}
+            value={String(windowDays)}
+          />
         </div>
         {aggregates.isPending || metrics.isPending ? (
           <div className="mt-5 h-36 animate-pulse rounded-lg bg-surface-muted" role="status" />
@@ -365,33 +384,20 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
                 value={producerId}
               />
             </label>
-            <label className={labelClassName}>
-              Producer type
-              <select
-                className={inputClassName}
-                onChange={(event) =>
-                  setProducerType(event.target.value as "agent" | "external" | "human")
-                }
-                value={producerType}
-              >
-                <option value="human">Human</option>
-                <option value="agent">Agent</option>
-                <option value="external">External</option>
-              </select>
-            </label>
-            <label className={labelClassName}>
-              Classification
-              <select
-                className={inputClassName}
-                onChange={(event) => setClassification(event.target.value as typeof classification)}
-                value={classification}
-              >
-                <option value="public">Public</option>
-                <option value="internal">Internal</option>
-                <option value="confidential">Confidential</option>
-                <option value="restricted">Restricted</option>
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              label="Producer type"
+              onValueChange={(value) => setProducerType(value as "agent" | "external" | "human")}
+              options={producerTypeOptions}
+              value={producerType}
+            />
+            <SearchableSelect
+              allowEmpty={false}
+              label="Classification"
+              onValueChange={(value) => setClassification(value as typeof classification)}
+              options={signalClassificationOptions}
+              value={classification}
+            />
             <label className={labelClassName}>
               Event time
               <input

@@ -1,7 +1,9 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { Button, Notice } from "@repo/ui/primitives";
+import { Button, Notice, SearchableSelect } from "@repo/ui/primitives";
+
+import { arcArtifactKindOptions, arcOwningScopeOptions } from "./arcModel";
 
 import type {
   ArcArtifactKind,
@@ -44,8 +46,6 @@ export function ArcArtifactDialog({ defaultTenantId, onClose, onCreate }: ArcArt
   const titleRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const slugId = useId();
-  const kindId = useId();
-  const scopeId = useId();
   const tenantId = useId();
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -205,43 +205,28 @@ export function ArcArtifactDialog({ defaultTenantId, onClose, onCreate }: ArcArt
               ) : null}
             </label>
 
-            <label className={labelClassName} htmlFor={kindId}>
-              Artifact kind
-              <select
-                className={inputClassName}
-                id={kindId}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  if (isArcArtifactKind(value)) setKind(value);
-                }}
-                value={kind}
-              >
-                <option value="policy">Policy</option>
-                <option value="standard">Standard</option>
-                <option value="adr">Architecture decision</option>
-                <option value="runbook">Runbook</option>
-                <option value="capability_contract">Capability contract</option>
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              label="Artifact kind"
+              onValueChange={(value) => {
+                if (isArcArtifactKind(value)) setKind(value);
+              }}
+              options={arcArtifactKindOptions}
+              value={kind}
+            />
 
-            <label className={labelClassName} htmlFor={scopeId}>
-              Owning scope
-              <select
-                className={inputClassName}
-                id={scopeId}
-                onChange={(event) => {
-                  const nextScope = event.currentTarget.value;
-                  if (!isArcOwningScope(nextScope)) return;
-                  setScope(nextScope);
-                  if (nextScope === "tenant" && !targetTenantId) setTargetTenantId(defaultTenantId);
-                  if (tenantError) setTenantError("");
-                }}
-                value={scope}
-              >
-                <option value="tenant">Tenant</option>
-                <option value="global">Global</option>
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              label="Owning scope"
+              onValueChange={(nextScope) => {
+                if (!isArcOwningScope(nextScope)) return;
+                setScope(nextScope);
+                if (nextScope === "tenant" && !targetTenantId) setTargetTenantId(defaultTenantId);
+                if (tenantError) setTenantError("");
+              }}
+              options={arcOwningScopeOptions}
+              value={scope}
+            />
 
             {scope === "tenant" ? (
               <label className={labelClassName} htmlFor={tenantId}>

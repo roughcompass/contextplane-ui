@@ -186,9 +186,8 @@ describe("RelationshipAuthoringDialog — creating", () => {
     const { calls } = renderDialog({ mode: "create" }, { detail: () => stored() });
     await screen.findByRole("heading", { level: 2, name: "Create relationship" });
 
-    fireEvent.change(screen.getByRole("combobox", { name: /Intent/ }), {
-      target: { value: "authorized_approval" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: /^Intent/ }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Authorized approval/ }));
     fireEvent.change(screen.getByRole("textbox", { name: /Relationship type/ }), {
       target: { value: "core:depends_on" },
     });

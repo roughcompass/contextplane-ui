@@ -9,7 +9,7 @@ describe("DataToolbar", () => {
       <DataToolbar
         actions={<button type="button">Save view</button>}
         className="custom-toolbar"
-        filters={<select aria-label="Owner" />}
+        filters={<input aria-label="Owner" />}
         resultSummary="4 records shown"
         search={<input aria-label="Search records" />}
       />,
@@ -19,7 +19,7 @@ describe("DataToolbar", () => {
     const resultSummary = screen.getByText("4 records shown");
 
     expect(action).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Owner" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Owner" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "Search records" })).toBeVisible();
     expect(resultSummary).toHaveAttribute("aria-live", "polite");
     expect(resultSummary.parentElement).toContainElement(action);

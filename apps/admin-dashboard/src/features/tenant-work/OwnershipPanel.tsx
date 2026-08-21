@@ -2,7 +2,14 @@ import { BadgeCheck, Search, ShieldCheck, UserRoundCog } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   assignTenantOwnership,
@@ -30,6 +37,18 @@ interface OwnershipPanelProps {
 const inputClassName =
   "mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent";
 const labelClassName = "block text-xs font-medium text-muted";
+
+const compatibilityOptions = [
+  { label: "Backward compatible", value: "backward_compatible" },
+  { label: "Breaking", value: "breaking" },
+  { label: "Deprecating", value: "deprecating" },
+];
+const bindingActionOptions = [
+  { label: "Validate", value: "validate" },
+  { label: "Activate", value: "activate" },
+  { label: "Begin rollback", value: "rollback" },
+  { label: "Complete rollback", value: "rollback/complete" },
+];
 
 function Receipt({ title, value }: { title: string; value: StructuredServiceResult }) {
   return (
@@ -696,18 +715,13 @@ function ProfileLifecyclePanel({
                 value={semanticVersion}
               />
             </label>
-            <label className={labelClassName}>
-              Compatibility
-              <select
-                className={inputClassName}
-                onChange={(event) => setCompatibility(event.target.value)}
-                value={compatibility}
-              >
-                <option value="backward_compatible">Backward compatible</option>
-                <option value="breaking">Breaking</option>
-                <option value="deprecating">Deprecating</option>
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              label="Compatibility"
+              onValueChange={setCompatibility}
+              options={compatibilityOptions}
+              value={compatibility}
+            />
           </div>
           <div className="flex justify-end">
             <Button disabled={revisionMutation.isPending} type="submit">
@@ -806,19 +820,13 @@ function ProfileLifecyclePanel({
               value={bindingId}
             />
           </label>
-          <label className={labelClassName}>
-            Action
-            <select
-              className={inputClassName}
-              onChange={(event) => setBindingAction(event.target.value as typeof bindingAction)}
-              value={bindingAction}
-            >
-              <option value="validate">Validate</option>
-              <option value="activate">Activate</option>
-              <option value="rollback">Begin rollback</option>
-              <option value="rollback/complete">Complete rollback</option>
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            label="Action"
+            onValueChange={(value) => setBindingAction(value as typeof bindingAction)}
+            options={bindingActionOptions}
+            value={bindingAction}
+          />
           <label className={labelClassName}>
             Reason
             <textarea

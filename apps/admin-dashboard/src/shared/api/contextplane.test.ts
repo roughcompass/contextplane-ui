@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { clientFromRequest } from "./client";
 import {
+  assertMemoryClaim,
   createArcArtifactFamily,
   editArcProposalVersion,
   explainArcResolutionReceipt,
@@ -34,6 +35,7 @@ import {
   getUsageSummary,
   getWhoAmI,
   getWorkspace,
+  listClaimPredicates,
   listSessionEvents,
   listSessions,
   listMemoryClaims,
@@ -188,6 +190,34 @@ const curationItem = {
   subject_entity_id: null,
   subject_reference: "system:github/identity-service",
   value: memoryClaim.value,
+};
+
+const assertionReceipt = {
+  claim_id: "claim-asserted",
+  is_contested: false,
+  owning_tenant_id: identity.tenant_id,
+  predicate: memoryClaim.predicate,
+  source_authority: "human_asserted",
+  status: "linked",
+  subject_entity_id: memoryClaim.subject_entity_id,
+  value: memoryClaim.value,
+  visibility: "tenant-shared",
+};
+
+const claimPredicate = {
+  claim_category: "ownership",
+  definition: "The team accountable for the subject.",
+  deprecated_at: null,
+  scope: "organization",
+  value: "owned_by_team",
+  value_type: "string",
+};
+
+const deprecatedClaimPredicate = {
+  ...claimPredicate,
+  definition: "Superseded by owned_by_team.",
+  deprecated_at: "2026-06-01T00:00:00Z",
+  value: "owned_by",
 };
 
 const workspacePayload = {
@@ -555,6 +585,106 @@ describe("Contextplane endpoint adapters", () => {
       counts: { contested: 2, unlinked: 3 },
     });
     expect(countsClient.request).toHaveBeenCalledWith("/v1/memory/curation-queue?counts=true", {});
+  });
+
+  it("asserts a claim under a caller-owned idempotency key and omits unset optional fields", async () => {
+    const client = stubClient(assertionReceipt);
+
+    await expect(
+      assertMemoryClaim(
+        client,
+        {
+          evidence: [
+            {
+              excerpt: "Confirmed in the August ownership review.",
+              kind: "curator",
+              ref: "review-114",
+            },
+            { kind: "commit", ref: "9f2c1ab" },
+          ],
+          idempotencyKey: "assert-1",
+          predicate: "owned_by_team",
+          subjectReference: "system:github/identity-service",
+          value: "trust-engineering",
+        },
+        { tenantId: "tenant-real" },
+      ),
+    ).resolves.toEqual(assertionReceipt);
+    expect(client.request).toHaveBeenCalledWith("/v1/memory/claims", {
+      body: {
+        evidence: [
+          {
+            excerpt: "Confirmed in the August ownership review.",
+            kind: "curator",
+            ref: "review-114",
+          },
+          { kind: "commit", ref: "9f2c1ab" },
+        ],
+        predicate: "owned_by_team",
+        subject_reference: "system:github/identity-service",
+        value: "trust-engineering",
+      },
+      headers: { "Idempotency-Key": "assert-1" },
+      method: "POST",
+      tenantId: "tenant-real",
+    });
+  });
+
+  it("keeps an explicitly cleared claim scope distinct from an unset one", async () => {
+    const client = stubClient(assertionReceipt);
+
+    await assertMemoryClaim(client, {
+      assertedValidFrom: "2026-08-01T00:00:00.000Z",
+      assertedValidTo: null,
+      evidence: [{ kind: "incident", ref: "INC-9" }],
+      idempotencyKey: "assert-2",
+      namespace: "platform.identity",
+      predicate: "owned_by_team",
+      subjectReference: "system:github/identity-service",
+      value: { team: "trust-engineering" },
+      visibility: "tenant-shared",
+    });
+    expect(client.request).toHaveBeenCalledWith(
+      "/v1/memory/claims",
+      expect.objectContaining({
+        body: {
+          asserted_valid_from: "2026-08-01T00:00:00.000Z",
+          asserted_valid_to: null,
+          evidence: [{ kind: "incident", ref: "INC-9" }],
+          namespace: "platform.identity",
+          predicate: "owned_by_team",
+          subject_reference: "system:github/identity-service",
+          value: { team: "trust-engineering" },
+          visibility: "tenant-shared",
+        },
+      }),
+    );
+  });
+
+  it("reports an assertion the service stored without resolving its subject", async () => {
+    const client = stubClient({ ...assertionReceipt, status: "unlinked", subject_entity_id: null });
+
+    await expect(
+      assertMemoryClaim(client, {
+        evidence: [{ kind: "curator", ref: "review-114" }],
+        idempotencyKey: "assert-3",
+        predicate: "owned_by_team",
+        subjectReference: "system:github/unknown-service",
+        value: "trust-engineering",
+      }),
+    ).resolves.toMatchObject({ status: "unlinked", subject_entity_id: null });
+  });
+
+  it("lists every organization predicate including deprecated ones", async () => {
+    const client = stubClient([claimPredicate, deprecatedClaimPredicate]);
+
+    await expect(listClaimPredicates(client, { tenantId: "tenant-real" })).resolves.toEqual([
+      claimPredicate,
+      deprecatedClaimPredicate,
+    ]);
+    expect(client.request).toHaveBeenCalledWith("/v1/operator/claim-predicates", {
+      tenantId: "tenant-real",
+    });
   });
 
   it("walks dependencies without sending filters the endpoint does not accept", async () => {

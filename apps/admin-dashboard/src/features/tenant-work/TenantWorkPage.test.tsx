@@ -185,7 +185,8 @@ describe("TenantWorkPage", () => {
     expect(await screen.findByText("Durable signal receipt")).toBeVisible();
     expect(screen.getByText("Signal ingested")).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "read" } });
+    fireEvent.click(screen.getByRole("combobox", { name: /^Status/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Read" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Mark read" })).toBeNull());
   });
 
@@ -229,7 +230,8 @@ describe("TenantWorkPage", () => {
     fireEvent.submit(form);
     expect(await screen.findByText("Signal replay recognized")).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "all" } });
+    fireEvent.click(screen.getByRole("combobox", { name: /^Status/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "All" }));
     expect(await screen.findByText(/No\s+notification is available/u)).toBeVisible();
   });
 
@@ -362,9 +364,8 @@ describe("TenantWorkPage", () => {
     fireEvent.change(within(actionForm).getByLabelText("Binding UUID"), {
       target: { value: "binding-a" },
     });
-    fireEvent.change(within(actionForm).getByLabelText("Action"), {
-      target: { value: "activate" },
-    });
+    fireEvent.click(within(actionForm).getByRole("combobox", { name: /^Action/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Activate" }));
     fireEvent.change(within(actionForm).getByLabelText("Reason"), {
       target: { value: "Validation passed" },
     });
