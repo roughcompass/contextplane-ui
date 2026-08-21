@@ -232,20 +232,3 @@ export async function assertEntity(
   });
   return parseResult(payload);
 }
-
-/** Supersede an entity through the same three routes a create takes. */
-export async function updateEntity(
-  client: ContextplaneClient,
-  entityId: string,
-  input: EntityWriteInput,
-  context: ContextplaneRequestOptions = {},
-  signal?: AbortSignal,
-): Promise<EntityWriteResult> {
-  const payload = await client.request(`/v1/entities/${encodeURIComponent(entityId)}`, {
-    ...(signal ? { signal } : {}),
-    ...(context.tenantId ? { tenantId: context.tenantId } : {}),
-    body: writeBody(input),
-    method: "PATCH",
-  });
-  return parseResult(payload);
-}

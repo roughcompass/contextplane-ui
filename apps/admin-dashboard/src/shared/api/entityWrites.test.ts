@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ContextplaneApiError, clientFromRequest } from "./client";
 import type { ContextplaneRequestOptions } from "./client";
-import { assertEntity, updateEntity, type EntityWriteInput } from "./entityWrites";
+import { assertEntity, type EntityWriteInput } from "./entityWrites";
 
 function clientFor(handler: (path: string, options?: ContextplaneRequestOptions) => unknown) {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) =>
@@ -127,15 +127,6 @@ describe("the governed entity write", () => {
     const body = request.mock.calls[0]?.[1]?.body as Record<string, unknown>;
     expect(body.target_revision).toEqual({ profile_revision: "r-1" });
     expect(body).not.toHaveProperty("approval_reference");
-  });
-
-  it("supersedes at the encoded entity id", async () => {
-    const { client, request } = clientFor(() => writeResult);
-
-    await updateEntity(client, "e100/0001", writeInput);
-
-    expect(request.mock.calls[0]?.[0]).toBe("/v1/entities/e100%2F0001");
-    expect(request.mock.calls[0]?.[1]?.method).toBe("PATCH");
   });
 
   it("branches on the error code rather than the message", async () => {
