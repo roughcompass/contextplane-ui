@@ -2,7 +2,14 @@ import { Plus, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
@@ -49,6 +56,9 @@ const intentLabels: Readonly<Record<RelationshipWriteIntent, string>> = {
   observation: "Observation — stages a claim",
   request: "Request — opens an owner review entry",
 };
+
+const relationshipIntentOptions: readonly { label: string; value: string }[] =
+  relationshipWriteIntents.map((intent) => ({ label: intentLabels[intent], value: intent }));
 
 const emptyDraft: Draft = {
   approvalReference: "",
@@ -335,27 +345,22 @@ export function RelationshipAuthoringDialog({
             </Notice>
           ) : null}
 
-          <label className={labelClassName}>
-            Intent
-            <select
-              className={inputClassName}
+          <div className={labelClassName}>
+            <SearchableSelect
+              allowEmpty={false}
               disabled={relationshipId !== null}
-              onChange={(event) => edit({ intent: event.target.value as RelationshipWriteIntent })}
+              label="Intent"
+              onValueChange={(value) => edit({ intent: value as RelationshipWriteIntent })}
+              options={relationshipIntentOptions}
               value={values.intent}
-            >
-              {relationshipWriteIntents.map((intent) => (
-                <option key={intent} value={intent}>
-                  {intentLabels[intent]}
-                </option>
-              ))}
-            </select>
+            />
             {relationshipId ? (
               <span className="mt-1 block font-normal text-muted">
                 A supersession is a canonical write. The staged routes record nothing naming this
                 edge, so they cannot amend it.
               </span>
             ) : null}
-          </label>
+          </div>
 
           <label className={labelClassName}>
             Relationship type

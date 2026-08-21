@@ -22,6 +22,7 @@ import {
   Button,
   Notice,
   RequestFailure,
+  SearchableSelect,
   Skeleton,
   StatusBadge,
   useToast,
@@ -66,6 +67,7 @@ import { ArcPolicyIndex } from "./ArcPolicyIndex";
 import { ArcSourceEvidenceSection } from "./ArcSourceEvidenceSection";
 import { ArcWalkthrough } from "./ArcWalkthrough";
 import {
+  arcDetailRequestKindOptions,
   formatArcCount,
   formatArcDate,
   formatArcLabel,
@@ -1366,28 +1368,21 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
                             </span>
                           ) : null}
                         </label>
-                        <label className={labelClassName} htmlFor="arc-detail-kind">
-                          Request kind
-                          <select
-                            className={`${inputClassName} mt-1.5`}
-                            id="arc-detail-kind"
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
-                              if (
-                                value === "directive" ||
-                                value === "query" ||
-                                value === "source_anchor"
-                              ) {
-                                setDetailRequestKind(value);
-                              }
-                            }}
-                            value={detailRequestKind}
-                          >
-                            <option value="directive">Directive</option>
-                            <option value="source_anchor">Source anchor</option>
-                            <option value="query">Query</option>
-                          </select>
-                        </label>
+                        <SearchableSelect
+                          allowEmpty={false}
+                          label="Request kind"
+                          onValueChange={(value) => {
+                            if (
+                              value === "directive" ||
+                              value === "query" ||
+                              value === "source_anchor"
+                            ) {
+                              setDetailRequestKind(value);
+                            }
+                          }}
+                          options={arcDetailRequestKindOptions}
+                          value={detailRequestKind}
+                        />
                         <label
                           className={`${labelClassName} sm:col-span-2 lg:col-span-3`}
                           htmlFor="arc-detail-selector"

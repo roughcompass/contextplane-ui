@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { GettingStartedDialog } from "./GettingStartedDialog";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 describe("GettingStartedDialog", () => {
   it("shows how DE Context Plane grounds autonomous delivery without claiming to execute it", () => {
     const onClose = vi.fn();
@@ -49,9 +54,7 @@ describe("GettingStartedDialog", () => {
     expect(within(dialog).getByText(/3\. Execute through delivery systems/)).toBeVisible();
     expect(within(dialog).getByText(/outside DE Context Plane/)).toBeVisible();
 
-    fireEvent.change(within(dialog).getByRole("combobox", { name: "Walkthrough section" }), {
-      target: { value: "5" },
-    });
+    chooseOption("Walkthrough section", "6. Ground a task");
     expect(within(dialog).getByText("Ground the next delivery task.")).toBeVisible();
     expect(within(dialog).getByText("You are exploring Northstar Systems")).toBeVisible();
     expect(

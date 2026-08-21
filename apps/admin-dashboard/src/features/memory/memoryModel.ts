@@ -20,6 +20,18 @@ export interface MemoryUrlState {
   tab: MemoryTab;
 }
 
+export const memoryConfidenceOptions: readonly { label: string; value: MemoryConfidenceFloor }[] = [
+  { label: "At least 50%", value: "0.5" },
+  { label: "At least 80%", value: "0.8" },
+];
+
+export const memoryPersonaOptions: readonly { label: string; value: MemoryClaimPersona }[] = [
+  { label: "Agent", value: "agent" },
+  { label: "Level 1 responder", value: "l1_responder" },
+  { label: "Level 3 engineer", value: "l3_engineer" },
+  { label: "Architect", value: "architect" },
+];
+
 export const defaultMemoryPersona: MemoryClaimPersona = "agent";
 export const memoryClaimLimit = 50;
 export const memoryCurationPageSize = 100;

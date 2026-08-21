@@ -17,7 +17,7 @@ import {
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { BRAND } from "@repo/ui/brand";
-import { Button, DetailsLink, Notice } from "@repo/ui/primitives";
+import { Button, DetailsLink, Notice, SearchableSelect } from "@repo/ui/primitives";
 
 interface GettingStartedDialogProps {
   activeTenantName: string;
@@ -74,6 +74,10 @@ const walkthroughSteps: readonly WalkthroughStep[] = [
     title: "Ground the next delivery task.",
   },
 ];
+
+const walkthroughStepOptions: readonly { label: string; value: string }[] = walkthroughSteps.map(
+  (step, index) => ({ label: `${index + 1}. ${step.label}`, value: String(index) }),
+);
 
 interface FeatureCardProps {
   children: ReactNode;
@@ -519,21 +523,13 @@ export function GettingStartedDialog({ activeTenantName, onClose }: GettingStart
         </header>
 
         <div className="border-b border-border px-5 py-3 md:hidden">
-          <label className="block text-xs font-medium text-muted" htmlFor={`${titleId}-step`}>
-            Walkthrough section
-          </label>
-          <select
-            className="mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent"
-            id={`${titleId}-step`}
-            onChange={(event) => goToStep(Number(event.currentTarget.value))}
-            value={activeIndex}
-          >
-            {walkthroughSteps.map((step, index) => (
-              <option key={step.id} value={index}>
-                {index + 1}. {step.label}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            allowEmpty={false}
+            label="Walkthrough section"
+            onValueChange={(value) => goToStep(Number(value))}
+            options={walkthroughStepOptions}
+            value={String(activeIndex)}
+          />
         </div>
 
         <div className="grid min-h-0 flex-1 md:grid-cols-[14rem_minmax(0,1fr)]">

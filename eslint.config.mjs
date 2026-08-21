@@ -20,4 +20,20 @@ export default tseslint.config(
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
+  {
+    // One dropdown across the product. A native <select> cannot carry the kit's
+    // label, search, keyboard, and popover behaviour, so it may only appear inside
+    // the primitive that implements them.
+    files: ["**/*.tsx"],
+    ignores: ["packages/ui/src/primitives/forms/SearchableSelect.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          message: "Use SearchableSelect from @repo/ui/primitives instead of a native <select>.",
+          selector: "JSXOpeningElement[name.name='select']",
+        },
+      ],
+    },
+  },
 );

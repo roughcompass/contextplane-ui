@@ -5,6 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArcSourceEvidence } from "../../shared/api/arcAuthoring";
 import { ArcSourceEvidenceSection } from "./ArcSourceEvidenceSection";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 const evidence: ArcSourceEvidence = {
   admission_method: "connector_fetch",
   admitted_at: "2026-08-12T10:02:00Z",
@@ -134,9 +139,7 @@ describe("ArcSourceEvidenceSection", () => {
     fillAdmissionFields();
     change("Registered connector ID", "policy-repository");
     change("Expected content digest", "a".repeat(64));
-    fireEvent.change(screen.getByLabelText("Verification method"), {
-      target: { value: "verifier_attestation" },
-    });
+    chooseOption("Verification method", "Verifier attestation");
     change("Provider ID", "approval-provider");
     change("Assertion format", "application/cose");
     change("Assertion (base64)", "YXNzZXJ0aW9u");

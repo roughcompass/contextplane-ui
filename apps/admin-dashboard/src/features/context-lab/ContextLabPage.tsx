@@ -32,6 +32,7 @@ import {
   Button,
   Notice,
   RequestFailure,
+  SearchableSelect,
   Skeleton,
   StatusBadge,
   useToast,
@@ -68,7 +69,7 @@ import {
   contextFreshnessOptions,
   contextItemSummary,
   contextItemTitle,
-  contextLimitOptions,
+  contextLimitSelectOptions,
   displayContextValue,
   formatContextTimestamp,
   humanizeContextField,
@@ -206,8 +207,6 @@ function PromptComposer({
   const intentIdsId = useId();
   const workspaceTermId = useId();
   const arcReceiptId = useId();
-  const limitId = useId();
-  const freshnessId = useId();
   const [promptError, setPromptError] = useState("");
   const [subjectEntityId, setSubjectEntityId] = useState("");
   const [intentIds, setIntentIds] = useState("");
@@ -377,36 +376,20 @@ function PromptComposer({
                 </span>
               ) : null}
             </label>
-            <label className="text-xs font-medium text-muted" htmlFor={limitId}>
-              Maximum items per source
-              <select
-                className={inputClassName}
-                id={limitId}
-                onChange={(event) => setLimit(Number(event.currentTarget.value) as ContextLimit)}
-                value={limit}
-              >
-                {contextLimitOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option} items
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-medium text-muted" htmlFor={freshnessId}>
-              Evidence freshness
-              <select
-                className={inputClassName}
-                id={freshnessId}
-                onChange={(event) => setMaxAgeSeconds(event.currentTarget.value)}
-                value={maxAgeSeconds}
-              >
-                {contextFreshnessOptions.map((option) => (
-                  <option key={option.value || "any"} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              label="Maximum items per source"
+              onValueChange={(value) => setLimit(Number(value) as ContextLimit)}
+              options={contextLimitSelectOptions}
+              value={String(limit)}
+            />
+            <SearchableSelect
+              allowEmpty={false}
+              label="Evidence freshness"
+              onValueChange={setMaxAgeSeconds}
+              options={contextFreshnessOptions}
+              value={maxAgeSeconds}
+            />
           </div>
         </details>
       </form>

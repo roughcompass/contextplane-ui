@@ -2,7 +2,14 @@ import { CheckCircle2, Link2, Plus, Search, Trash2, Users } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   addIntentParticipant,
@@ -24,6 +31,13 @@ interface CoordinationPanelProps {
 const inputClassName =
   "mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent";
 const labelClassName = "block text-xs font-medium text-muted";
+
+const participantRoleOptions = [
+  { label: "Owner", value: "owner" },
+  { label: "Contributor", value: "contributor" },
+  { label: "Reader", value: "reader" },
+  { label: "Auditor", value: "auditor" },
+];
 
 function commaValues(value: string): string[] {
   return value
@@ -334,19 +348,13 @@ export function CoordinationPanel({ client, requestContext }: CoordinationPanelP
                     value={actorId}
                   />
                 </label>
-                <label className={labelClassName}>
-                  Role
-                  <select
-                    className={inputClassName}
-                    onChange={(event) => setRole(event.target.value)}
-                    value={role}
-                  >
-                    <option value="owner">Owner</option>
-                    <option value="contributor">Contributor</option>
-                    <option value="reader">Reader</option>
-                    <option value="auditor">Auditor</option>
-                  </select>
-                </label>
+                <SearchableSelect
+                  allowEmpty={false}
+                  label="Role"
+                  onValueChange={setRole}
+                  options={participantRoleOptions}
+                  value={role}
+                />
                 <label className={labelClassName}>
                   Expires at
                   <input

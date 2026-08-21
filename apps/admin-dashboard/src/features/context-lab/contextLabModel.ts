@@ -14,6 +14,9 @@ export const contextBlockOrder = ["canonical", "arc", "observed_claims", "worksp
 export const contextLimitOptions = [10, 25, 50, 100] as const;
 export type ContextLimit = (typeof contextLimitOptions)[number];
 
+export const contextLimitSelectOptions: readonly { label: string; value: string }[] =
+  contextLimitOptions.map((option) => ({ label: `${option} items`, value: String(option) }));
+
 export const contextFreshnessOptions = [
   { label: "Any age", value: "" },
   { label: "Past hour", value: "3600" },

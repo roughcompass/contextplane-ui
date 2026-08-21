@@ -2,7 +2,7 @@ import { AlertTriangle, Save, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { Button, Notice, StatusBadge, useToast } from "@repo/ui/primitives";
+import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
   changeCapabilityLifecycle,
@@ -24,6 +24,11 @@ interface CapabilityOverviewPanelProps {
 
 const visibilityOptions = ["private", "tenant-shared", "public"] as const;
 const lifecycleOptions = ["alpha", "beta", "ga", "deprecated", "retired"] as const;
+const visibilitySelectOptions = visibilityOptions.map((option) => ({
+  label: option,
+  value: option,
+}));
+const lifecycleSelectOptions = lifecycleOptions.map((option) => ({ label: option, value: option }));
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -210,20 +215,14 @@ export function CapabilityOverviewPanel({
             Choose who may discover and use this capability. Current visibility is not included in
             the default detail response, so no value is inferred.
           </p>
-          <label className={`${catalogLabelClassName} mt-4`}>
-            New visibility
-            <select
-              className={catalogInputClassName}
-              onChange={(event) =>
-                setVisibility(event.target.value as (typeof visibilityOptions)[number])
-              }
-              value={visibility}
-            >
-              {visibilityOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            className="mt-4"
+            label="New visibility"
+            onValueChange={(value) => setVisibility(value as (typeof visibilityOptions)[number])}
+            options={visibilitySelectOptions}
+            value={visibility}
+          />
           {visibility === "tenant-shared" ? (
             <label className={`${catalogLabelClassName} mt-4`}>
               Shared tenant UUIDs
@@ -255,18 +254,14 @@ export function CapabilityOverviewPanel({
             The service evaluates progression rules and returns gate failures without changing the
             current state.
           </p>
-          <label className={`${catalogLabelClassName} mt-4`}>
-            New lifecycle state
-            <select
-              className={catalogInputClassName}
-              onChange={(event) => setLifecycle(event.target.value)}
-              value={lifecycle}
-            >
-              {lifecycleOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            className="mt-4"
+            label="New lifecycle state"
+            onValueChange={setLifecycle}
+            options={lifecycleSelectOptions}
+            value={lifecycle}
+          />
           <label className={`${catalogLabelClassName} mt-4`}>
             Successor capability UUID or “none”
             <input

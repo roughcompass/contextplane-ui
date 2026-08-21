@@ -3,7 +3,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
 import { EmptyState } from "@repo/ui/layouts";
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
+
+const bodyFormatOptions = [
+  { label: "Markdown", value: "markdown" },
+  { label: "Plain text", value: "plain" },
+  { label: "HTML", value: "html" },
+];
+const interfaceFormatOptions = [
+  { label: "JSON Schema", value: "json_schema" },
+  { label: "OpenAPI", value: "openapi" },
+  { label: "TypeScript", value: "typescript" },
+];
 
 import {
   ContextplaneApiError,
@@ -194,18 +212,13 @@ function ArtifactsPanel({
               value={category}
             />
           </label>
-          <label className={catalogLabelClassName}>
-            Body format
-            <select
-              className={catalogInputClassName}
-              onChange={(event) => setBodyFormat(event.target.value)}
-              value={bodyFormat}
-            >
-              <option value="markdown">Markdown</option>
-              <option value="plain">Plain text</option>
-              <option value="html">HTML</option>
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            label="Body format"
+            onValueChange={setBodyFormat}
+            options={bodyFormatOptions}
+            value={bodyFormat}
+          />
         </div>
         <label className={`${catalogLabelClassName} mt-5`}>
           Body
@@ -350,18 +363,14 @@ function InterfacePanel({
           Replacing an interface can affect consumers. Run the Version impact workflow before
           publishing a consequential change.
         </p>
-        <label className={`${catalogLabelClassName} mt-4`}>
-          Interface format
-          <select
-            className={catalogInputClassName}
-            onChange={(event) => setFormatDraft(event.target.value)}
-            value={format}
-          >
-            <option value="json_schema">JSON Schema</option>
-            <option value="openapi">OpenAPI</option>
-            <option value="typescript">TypeScript</option>
-          </select>
-        </label>
+        <SearchableSelect
+          allowEmpty={false}
+          className="mt-4"
+          label="Interface format"
+          onValueChange={setFormatDraft}
+          options={interfaceFormatOptions}
+          value={format}
+        />
         <label className={`${catalogLabelClassName} mt-4`}>
           Interface source
           <textarea
@@ -455,18 +464,13 @@ function ImpactPanel({
               value={version}
             />
           </label>
-          <label className={catalogLabelClassName}>
-            Interface format
-            <select
-              className={catalogInputClassName}
-              onChange={(event) => setFormat(event.target.value)}
-              value={format}
-            >
-              <option value="json_schema">JSON Schema</option>
-              <option value="openapi">OpenAPI</option>
-              <option value="typescript">TypeScript</option>
-            </select>
-          </label>
+          <SearchableSelect
+            allowEmpty={false}
+            label="Interface format"
+            onValueChange={setFormat}
+            options={interfaceFormatOptions}
+            value={format}
+          />
         </div>
         <label className={`${catalogLabelClassName} mt-5`}>
           Proposed interface

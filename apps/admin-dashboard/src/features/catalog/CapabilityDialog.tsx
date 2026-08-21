@@ -2,7 +2,14 @@ import { Plus, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
@@ -39,13 +46,14 @@ export type CapabilityDialogTarget =
  * one an operator wants depends on whether the write should be reviewed, so the
  * form asks rather than choosing.
  */
-const routeOptions = [
-  { id: "direct", label: "Register directly — writes the row, unreviewed" },
-  { id: "observation", label: "Observation — stages a claim for review" },
-  { id: "request", label: "Request — opens an owner review entry" },
-  { id: "authorized_approval", label: "Authorized approval — writes canon" },
-] as const;
-type WriteRoute = (typeof routeOptions)[number]["id"];
+const routeSelectOptions: readonly { label: string; value: string }[] = [
+  { label: "Register directly — writes the row, unreviewed", value: "direct" },
+  { label: "Observation — stages a claim for review", value: "observation" },
+  { label: "Request — opens an owner review entry", value: "request" },
+  { label: "Authorized approval — writes canon", value: "authorized_approval" },
+];
+
+type WriteRoute = "direct" | "observation" | "request" | "authorized_approval";
 
 function isGoverned(route: WriteRoute): route is EntityWriteIntent {
   return (entityWriteIntents as readonly string[]).includes(route);
@@ -237,25 +245,20 @@ function CreateEntityForm({
         uniqueness, and authorization rules before accepting it.
       </Notice>
 
-      <label className={catalogLabelClassName}>
-        How this write reaches the catalog
-        <select
-          className={catalogInputClassName}
-          onChange={(event) => setRoute(event.target.value as WriteRoute)}
+      <div className={catalogLabelClassName}>
+        <SearchableSelect
+          allowEmpty={false}
+          label="How this write reaches the catalog"
+          onValueChange={(value) => setRoute(value as WriteRoute)}
+          options={routeSelectOptions}
           value={route}
-        >
-          {routeOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        />
         <span className="mt-1 block font-normal text-muted">
           {isGoverned(route)
             ? "The governed surface routes by intent, so the service decides whether this becomes canon or waits for a review."
             : "The dedicated create route writes the row immediately. Nothing reviews it."}
         </span>
-      </label>
+      </div>
 
       {isGoverned(route) && binding.data === null ? (
         <Notice title="No profile is bound" variant="warning">
