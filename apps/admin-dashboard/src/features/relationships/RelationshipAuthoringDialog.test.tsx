@@ -13,9 +13,12 @@ import {
 const RELATIONSHIP_ID = "c1000000-0000-4000-8000-000000000001";
 const REVISION_ID = "r1000000-0000-4000-8000-000000000001";
 
+const EXTENSION_SET_DIGEST = "sha256:seeded-extension-set";
+
 const binding = {
   binding: {
     binding_id: "b1000000-0000-4000-8000-000000000001",
+    extension_set_digest: EXTENSION_SET_DIGEST,
     profile_revision_id: REVISION_ID,
     state: "active",
   },
@@ -153,7 +156,10 @@ describe("RelationshipAuthoringDialog — creating", () => {
       idempotency_key: "idem-key",
       intent: "observation",
       subject_type: "core:depends_on",
-      target_revision: { profile_revision: REVISION_ID },
+      target_revision: {
+        binding_revision: EXTENSION_SET_DIGEST,
+        profile_revision: REVISION_ID,
+      },
     });
   });
 

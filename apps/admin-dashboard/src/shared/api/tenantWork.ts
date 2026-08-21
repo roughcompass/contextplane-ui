@@ -588,6 +588,14 @@ export interface GoverningBinding {
   bindingId: string;
   bound: boolean;
   enforcementState: string;
+  /**
+   * The half of the governing vocabulary the revision id does not cover.
+   *
+   * A tenant can rebind to a different extension set at the same
+   * `profile_revision_id`, so a caller attesting only to the revision is silent
+   * about the change the binding lifecycle exists to make.
+   */
+  extensionSetDigest: string;
   profileRevisionId: string;
 }
 
@@ -606,6 +614,7 @@ export async function getGoverningBinding(
     bindingId: requiredString(binding, "binding_id"),
     bound: true,
     enforcementState: requiredString(binding, "state"),
+    extensionSetDigest: requiredString(binding, "extension_set_digest"),
     profileRevisionId: requiredString(binding, "profile_revision_id"),
   };
 }

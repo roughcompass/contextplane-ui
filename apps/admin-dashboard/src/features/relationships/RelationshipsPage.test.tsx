@@ -378,6 +378,7 @@ describe("RelationshipsPage", () => {
         return {
           binding: {
             binding_id: "b-1",
+            extension_set_digest: "sha256:d-1",
             profile_revision_id: "r-1",
             state: "active",
           },
