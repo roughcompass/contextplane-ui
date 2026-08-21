@@ -1,9 +1,18 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, SearchableSelect, StatusBadge } from "@repo/ui/primitives";
 
+import {
+  arcApplicabilityScopeOptions,
+  arcContentClassificationOptions,
+  arcDetailAudienceOptions,
+  arcDirectiveTypeOptions,
+  arcFreshnessBasisOptions,
+  arcSatisfactionModeOptions,
+  arcVisibilityOptions,
+} from "./arcModel";
 import type { ArcSourceEvidence } from "../../shared/api/arcAuthoring";
 import type {
   ArcArtifactFamily,
@@ -123,33 +132,48 @@ export function ArcDirectiveEditor({
           disabled={!editable}
         >
           <legend className="sr-only">Candidate governance</legend>
-          <label className={labelClassName} htmlFor="arc-visibility">
-            Visibility
-            <select className={inputClassName} id="arc-visibility" {...register("visibility")}>
-              <option value="standard">Standard</option>
-              <option value="restricted">Restricted</option>
-            </select>
-          </label>
-          <label className={labelClassName} htmlFor="arc-classification">
-            Content classification
-            <select
-              className={inputClassName}
-              id="arc-classification"
-              {...register("contentClassification")}
-            >
-              <option value="public">Public</option>
-              <option value="internal">Internal</option>
-              <option value="confidential">Confidential</option>
-            </select>
-          </label>
-          <label className={labelClassName} htmlFor="arc-audience">
-            Detail audience
-            <select className={inputClassName} id="arc-audience" {...register("detailAudience")}>
-              <option value="agent_and_human">Agents and people</option>
-              <option value="agent_only">Agents only</option>
-              <option value="human_only">People only</option>
-            </select>
-          </label>
+          <Controller
+            control={control}
+            name="visibility"
+            render={({ field }) => (
+              <SearchableSelect
+                allowEmpty={false}
+                disabled={!editable}
+                label="Visibility"
+                onValueChange={field.onChange}
+                options={arcVisibilityOptions}
+                value={field.value}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="contentClassification"
+            render={({ field }) => (
+              <SearchableSelect
+                allowEmpty={false}
+                disabled={!editable}
+                label="Content classification"
+                onValueChange={field.onChange}
+                options={arcContentClassificationOptions}
+                value={field.value}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="detailAudience"
+            render={({ field }) => (
+              <SearchableSelect
+                allowEmpty={false}
+                disabled={!editable}
+                label="Detail audience"
+                onValueChange={field.onChange}
+                options={arcDetailAudienceOptions}
+                value={field.value}
+              />
+            )}
+          />
           <label className={labelClassName} htmlFor="arc-review-expires">
             Review expires
             <input
@@ -185,22 +209,26 @@ export function ArcDirectiveEditor({
               message={errors.approvedRetentionFloorDays?.message}
             />
           </label>
-          <label className={labelClassName} htmlFor="arc-freshness">
-            Initial freshness basis
-            <select
-              aria-describedby="arc-freshness-help"
-              className={inputClassName}
-              id="arc-freshness"
-              {...register("freshnessBasis")}
-            >
-              <option value="revision_pinned_only">Revision pinned</option>
-              <option value="connector_verified">Connector verified</option>
-            </select>
+          <div>
+            <Controller
+              control={control}
+              name="freshnessBasis"
+              render={({ field }) => (
+                <SearchableSelect
+                  allowEmpty={false}
+                  disabled={!editable}
+                  label="Initial freshness basis"
+                  onValueChange={field.onChange}
+                  options={arcFreshnessBasisOptions}
+                  value={field.value}
+                />
+              )}
+            />
             <span className="mt-1.5 block text-xs leading-5 text-subtle" id="arc-freshness-help">
               Revision pinned always uses these source bytes. Connector verified rechecks the
               immutable revision through its registered source connector.
             </span>
-          </label>
+          </div>
           <label className={`${labelClassName} sm:col-span-2`} htmlFor="arc-source-approval-digest">
             Source approval evidence digest
             <input
@@ -277,17 +305,20 @@ export function ArcDirectiveEditor({
                     Directive {index + 1}
                   </legend>
                   <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-                    <label className={labelClassName} htmlFor={`arc-directive-${index}-type`}>
-                      Behavior
-                      <select
-                        className={inputClassName}
-                        id={`arc-directive-${index}-type`}
-                        {...register(`directives.${index}.directiveType`)}
-                      >
-                        <option value="citation_only">Provide as context</option>
-                        <option value="verify_before_action">Verify before action</option>
-                      </select>
-                    </label>
+                    <Controller
+                      control={control}
+                      name={`directives.${index}.directiveType`}
+                      render={({ field }) => (
+                        <SearchableSelect
+                          allowEmpty={false}
+                          disabled={!editable}
+                          label="Behavior"
+                          onValueChange={field.onChange}
+                          options={arcDirectiveTypeOptions}
+                          value={field.value}
+                        />
+                      )}
+                    />
                     <label className={labelClassName} htmlFor={`arc-directive-${index}-anchor`}>
                       Source anchor
                       <input
@@ -369,17 +400,20 @@ export function ArcDirectiveEditor({
                             </label>
                           );
                         })}
-                        <label className={labelClassName} htmlFor={`arc-directive-${index}-mode`}>
-                          Satisfaction mode
-                          <select
-                            className={inputClassName}
-                            id={`arc-directive-${index}-mode`}
-                            {...register(`directives.${index}.satisfactionMode`)}
-                          >
-                            <option value="authorized_retrieval">Authorized retrieval</option>
-                            <option value="signed_result">Signed result</option>
-                          </select>
-                        </label>
+                        <Controller
+                          control={control}
+                          name={`directives.${index}.satisfactionMode`}
+                          render={({ field }) => (
+                            <SearchableSelect
+                              allowEmpty={false}
+                              disabled={!editable}
+                              label="Satisfaction mode"
+                              onValueChange={field.onChange}
+                              options={arcSatisfactionModeOptions}
+                              value={field.value}
+                            />
+                          )}
+                        />
                         <label
                           className={labelClassName}
                           htmlFor={`arc-directive-${index}-max-age`}
@@ -498,20 +532,20 @@ export function ArcDirectiveEditor({
                     Rule {index + 1}
                   </legend>
                   <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-                    <label className={labelClassName} htmlFor={`arc-rule-${index}-scope`}>
-                      Scope
-                      <select
-                        className={inputClassName}
-                        id={`arc-rule-${index}-scope`}
-                        {...register(`applicability.${index}.scope`)}
-                      >
-                        <option value="tenant">Tenant</option>
-                        <option value="domain">Domain</option>
-                        <option value="capability">Capability</option>
-                        <option value="intent">Intent</option>
-                        <option value="global">Global</option>
-                      </select>
-                    </label>
+                    <Controller
+                      control={control}
+                      name={`applicability.${index}.scope`}
+                      render={({ field }) => (
+                        <SearchableSelect
+                          allowEmpty={false}
+                          disabled={!editable}
+                          label="Scope"
+                          onValueChange={field.onChange}
+                          options={arcApplicabilityScopeOptions}
+                          value={field.value}
+                        />
+                      )}
+                    />
                     {scope === "tenant" ? (
                       <label className={labelClassName} htmlFor={`arc-rule-${index}-tenant`}>
                         Target tenant ID

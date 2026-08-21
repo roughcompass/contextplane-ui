@@ -38,6 +38,24 @@ export const relationshipProjections = [
 ] as const;
 export type RelationshipProjection = (typeof relationshipProjections)[number]["id"];
 
+export const relationshipQuestionOptions: readonly { label: string; value: string }[] =
+  relationshipQuestions.map((question) => ({ label: question.label, value: question.id }));
+
+export const relationshipProjectionOptions: readonly { label: string; value: string }[] =
+  relationshipProjections.map((projection) => ({
+    label: projection.label,
+    value: projection.id,
+  }));
+
+export const relationshipDepthOptions: readonly { label: string; value: string }[] = [
+  1, 2, 3, 4, 5,
+].map((depth) => ({ label: String(depth), value: String(depth) }));
+
+export const relationshipDirectionOptions: readonly { label: string; value: string }[] = [
+  { label: "Toward dependents", value: "reverse" },
+  { label: "Toward dependencies", value: "forward" },
+];
+
 export interface RelationshipUrlState {
   area: RelationshipArea;
   asOf: string;

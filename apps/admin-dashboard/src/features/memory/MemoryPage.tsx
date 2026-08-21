@@ -4,6 +4,7 @@ import {
   Copy,
   Database,
   History,
+  PenLine,
   RefreshCw,
   RotateCcw,
   ShieldAlert,
@@ -34,6 +35,7 @@ import {
   DetailsLink,
   Notice,
   RequestFailure,
+  SearchableSelect,
   SearchField,
   Skeleton,
   StatusBadge,
@@ -56,6 +58,7 @@ import {
   type MemoryCurationItem,
   type WhoAmI,
 } from "../../shared/api";
+import { assertClaimHref } from "./claimAssertionModel";
 import {
   curationCountSummary,
   defaultMemoryPersona,
@@ -65,8 +68,10 @@ import {
   humanizeMemoryValue,
   memoryClaimHref,
   memoryClaimLimit,
+  memoryConfidenceOptions,
   memoryCurationPageSize,
   memoryListHref,
+  memoryPersonaOptions,
   memorySearch,
   memoryTabs,
   readMemoryUrlState,
@@ -89,6 +94,7 @@ interface MemoryPageProps {
 const inputClassName =
   "mt-1 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent";
 const labelClassName = "block min-w-48 flex-1 text-xs font-medium text-muted";
+const selectControlClassName = "min-w-48 flex-1";
 const controlLinkClassName =
   "inline-flex min-h-11 items-center gap-2 rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:border-accent hover:bg-accent-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
@@ -166,6 +172,12 @@ function identityName(identity: WhoAmI): string {
 function MemoryHeader({ identity }: { identity: WhoAmI }) {
   return (
     <PageHeader
+      actions={
+        <a className={controlLinkClassName} href={assertClaimHref()}>
+          <PenLine aria-hidden="true" className="size-4" />
+          Record claim
+        </a>
+      }
       breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Living Memory" }]}
       description="Inspect recalled claims with their confidence, evidence, time scope, and human-review state, then see what is waiting for curator attention."
       eyebrow="Observed context"
@@ -452,38 +464,24 @@ function ClaimFilters({
               value={state.namespacePrefix}
             />
           </label>
-          <label className={labelClassName}>
-            Minimum confidence
-            <select
-              className={inputClassName}
-              onChange={(event) =>
-                onChange({
-                  ...state,
-                  minConfidence: event.currentTarget.value as MemoryConfidenceFloor,
-                })
-              }
-              value={state.minConfidence}
-            >
-              <option value="">Any reported confidence</option>
-              <option value="0.5">At least 50%</option>
-              <option value="0.8">At least 80%</option>
-            </select>
-          </label>
-          <label className={labelClassName}>
-            Retrieval persona
-            <select
-              className={inputClassName}
-              onChange={(event) =>
-                onChange({ ...state, persona: event.currentTarget.value as MemoryClaimPersona })
-              }
-              value={state.persona}
-            >
-              <option value="agent">Agent</option>
-              <option value="l1_responder">Level 1 responder</option>
-              <option value="l3_engineer">Level 3 engineer</option>
-              <option value="architect">Architect</option>
-            </select>
-          </label>
+          <SearchableSelect
+            className={selectControlClassName}
+            emptyLabel="Any reported confidence"
+            label="Minimum confidence"
+            onValueChange={(value) =>
+              onChange({ ...state, minConfidence: value as MemoryConfidenceFloor })
+            }
+            options={memoryConfidenceOptions}
+            value={state.minConfidence}
+          />
+          <SearchableSelect
+            allowEmpty={false}
+            className={selectControlClassName}
+            label="Retrieval persona"
+            onValueChange={(value) => onChange({ ...state, persona: value as MemoryClaimPersona })}
+            options={memoryPersonaOptions}
+            value={state.persona}
+          />
         </>
       }
       search={

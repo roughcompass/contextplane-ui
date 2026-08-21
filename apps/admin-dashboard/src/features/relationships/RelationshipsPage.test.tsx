@@ -10,6 +10,11 @@ import {
 } from "../../shared/api";
 import { RelationshipsPage } from "./RelationshipsPage";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 const identity = {
   actor_display_name: "Morgan Morris",
   actor_email: "morgan@example.test",
@@ -173,12 +178,8 @@ describe("RelationshipsPage", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Capability UUID or slug" }), {
       target: { value: "identity/platform" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Question" }), {
-      target: { value: "dependencies" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: "Hops to follow" }), {
-      target: { value: "1" },
-    });
+    chooseOption("Question", "Depends on");
+    chooseOption("Hops to follow", "1");
     fireEvent.change(screen.getByRole("textbox", { name: /^As of \(optional\)/ }), {
       target: { value: "2026-08-13T10:00:00+02:00" },
     });
@@ -213,12 +214,8 @@ describe("RelationshipsPage", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Capability UUID or slug" }), {
       target: { value: "identity" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Question" }), {
-      target: { value: "blast-radius" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: "Direction" }), {
-      target: { value: "forward" },
-    });
+    chooseOption("Question", "Blast radius");
+    chooseOption("Direction", "Toward dependencies");
     fireEvent.change(screen.getByRole("textbox", { name: "Relationship types" }), {
       target: { value: "depends_on, depends_on requires" },
     });
@@ -268,9 +265,7 @@ describe("RelationshipsPage", () => {
     expect(await screen.findByText("Token contract")).toBeVisible();
     expect(screen.getByText("No edges on this page")).toBeVisible();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Projection" }), {
-      target: { value: "consumer" },
-    });
+    chooseOption("Projection", "What this tenant consumes");
     fireEvent.click(screen.getByRole("button", { name: "Load projection" }));
     expect(window.location.search).toBe("?tab=projections&projection=consumer");
     expect(await screen.findByText("No entities on this page")).toBeVisible();

@@ -8,6 +8,11 @@ import { ToastProvider } from "@repo/ui/primitives";
 import { ContextplaneApiError, type ContextplaneClient } from "../../shared/api";
 import { ContextLabPage } from "./ContextLabPage";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 const actorId = "a0000000-0000-4000-8000-000000000001";
 const tenantId = "b0000000-0000-4000-8000-000000000001";
 const receiptId = "c0000000-0000-4000-8000-000000000001";
@@ -264,12 +269,8 @@ describe("ContextLabPage", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Workspace term" }), {
       target: { value: "identity migration" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: "Maximum items per source" }), {
-      target: { value: "50" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: "Evidence freshness" }), {
-      target: { value: "86400" },
-    });
+    chooseOption("Maximum items per source", "50 items");
+    chooseOption("Evidence freshness", "Past day");
     fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
 
     expect(

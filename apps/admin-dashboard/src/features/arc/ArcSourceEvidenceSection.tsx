@@ -1,9 +1,9 @@
 import { Copy, Upload } from "lucide-react";
 import { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, SearchableSelect, StatusBadge } from "@repo/ui/primitives";
 
 import type {
   AdmitArcConnectorFetchInput,
@@ -13,7 +13,7 @@ import type {
   ArcSourceEvidence,
 } from "../../shared/api/arcAuthoring";
 import { sha256Hex } from "./arcSemantics";
-import { formatArcDate, formatArcLabel } from "./arcModel";
+import { arcProofMethodOptions, formatArcDate, formatArcLabel } from "./arcModel";
 
 interface ArcSourceEvidenceSectionProps {
   onAdmitConnector: (input: AdmitArcConnectorFetchInput) => Promise<ArcSourceEvidence>;
@@ -575,17 +575,19 @@ export function ArcSourceEvidenceSection({
 
             <fieldset className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
               <legend className="mb-2 text-sm font-semibold text-foreground">External proof</legend>
-              <label className={labelClassName} htmlFor="arc-proof-method">
-                Verification method
-                <select
-                  className={inputClassName}
-                  id="arc-proof-method"
-                  {...register("proofMethod")}
-                >
-                  <option value="detached_signature">Detached Ed25519 signature</option>
-                  <option value="verifier_attestation">Verifier attestation</option>
-                </select>
-              </label>
+              <Controller
+                control={control}
+                name="proofMethod"
+                render={({ field }) => (
+                  <SearchableSelect
+                    allowEmpty={false}
+                    label="Verification method"
+                    onValueChange={field.onChange}
+                    options={arcProofMethodOptions}
+                    value={field.value}
+                  />
+                )}
+              />
               {proofMethod === "detached_signature" ? (
                 <label className={`${labelClassName} sm:col-span-2`} htmlFor="arc-signature">
                   Signature (base64)

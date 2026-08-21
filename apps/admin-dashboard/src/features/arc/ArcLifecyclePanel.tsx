@@ -1,9 +1,11 @@
 import { CheckCircle2, Copy, RefreshCw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, SearchableSelect, StatusBadge } from "@repo/ui/primitives";
+
+import { arcImpactDeltaOptions, arcProofMethodOptions } from "./arcModel";
 
 import {
   acceptArcQualification,
@@ -523,20 +525,19 @@ export function ArcLifecyclePanel({
                 {...register("authorSubject")}
               />
             </label>
-            <label className={labelClassName} htmlFor="arc-impact-delta">
-              Expected delta
-              <select
-                className={inputClassName}
-                id="arc-impact-delta"
-                {...register("impactDeltaCode")}
-              >
-                <option value="newly_selected">Newly selected</option>
-                <option value="no_longer_selected">No longer selected</option>
-                <option value="conflict_changed">Conflict changed</option>
-                <option value="mandatory_block_added">Mandatory block added</option>
-                <option value="mandatory_block_removed">Mandatory block removed</option>
-              </select>
-            </label>
+            <Controller
+              control={control}
+              name="impactDeltaCode"
+              render={({ field }) => (
+                <SearchableSelect
+                  allowEmpty={false}
+                  label="Expected delta"
+                  onValueChange={field.onChange}
+                  options={arcImpactDeltaOptions}
+                  value={field.value}
+                />
+              )}
+            />
             <label className={labelClassName} htmlFor="arc-impact-minimum">
               Minimum count
               <input
@@ -837,17 +838,19 @@ export function ArcLifecyclePanel({
                 value={challenge.canonical_evidence_bytes_base64}
               />
               <div className="mt-4 grid gap-5 sm:grid-cols-2">
-                <label className={labelClassName} htmlFor="arc-approval-proof-method">
-                  Proof method
-                  <select
-                    className={inputClassName}
-                    id="arc-approval-proof-method"
-                    {...register("proofMethod")}
-                  >
-                    <option value="detached_signature">Detached Ed25519 signature</option>
-                    <option value="verifier_attestation">Verifier attestation</option>
-                  </select>
-                </label>
+                <Controller
+                  control={control}
+                  name="proofMethod"
+                  render={({ field }) => (
+                    <SearchableSelect
+                      allowEmpty={false}
+                      label="Proof method"
+                      onValueChange={field.onChange}
+                      options={arcProofMethodOptions}
+                      value={field.value}
+                    />
+                  )}
+                />
                 {proofMethod === "detached_signature" ? (
                   <label className={labelClassName} htmlFor="arc-approval-signature">
                     Signature (base64)

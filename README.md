@@ -20,7 +20,7 @@ The dashboard is organised by product capability rather than by technical layer.
 `apps/admin-dashboard/src/features/` owns its components, hooks, data access, schemas, and colocated
 tests, and exports its supported surface from a root `index.ts`. Current features cover the catalog,
 relationships, memory governance, ARC trust operations, audit, analytics, workspaces, sessions,
-proposals, tenant work, and settings.
+proposals, and settings.
 
 Each destination is a task-oriented workspace. The dashboard deliberately does not mirror the
 service contract endpoint by endpoint — the service publishes its own OpenAPI documentation for

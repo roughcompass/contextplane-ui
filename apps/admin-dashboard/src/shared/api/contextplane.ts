@@ -10,6 +10,11 @@ export type MemoryClaimHistoryItem = components["schemas"]["BelievedClaimRespons
 export type MemoryCurationCounts = components["schemas"]["QueueCountsResponse"];
 export type MemoryCurationItem = components["schemas"]["QueueItemResponse"];
 export type MemoryCurationPage = components["schemas"]["QueueListResponse"];
+export type ClaimAssertionReceipt = components["schemas"]["AssertClaimResponse"];
+export type ClaimEvidenceItem = components["schemas"]["EvidenceItemRequest"];
+export type ClaimEvidenceKind = ClaimEvidenceItem["kind"];
+export type ClaimPredicate = components["schemas"]["PredicateResponse"];
+export type ClaimVisibility = "private" | "public" | "tenant-shared";
 export type RelationshipDependencyResult = components["schemas"]["DependencyResponse"];
 export type RelationshipEdge = components["schemas"]["EdgeRefItem"];
 export type RelationshipEntity = components["schemas"]["EntityRefItem"];
@@ -249,6 +254,18 @@ export type SessionEventKind = (typeof sessionEventKinds)[number];
 export const memoryClaimPersonas = ["l1_responder", "l3_engineer", "architect", "agent"] as const;
 export type MemoryClaimPersona = (typeof memoryClaimPersonas)[number];
 
+export const claimEvidenceKinds = [
+  "session_event",
+  "document_revision",
+  "commit",
+  "work_item",
+  "connector_run",
+  "curator",
+  "incident",
+] as const;
+
+export const claimVisibilities = ["public", "tenant-shared", "private"] as const;
+
 export const relationshipDepths = [1, 2, 3, 4, 5] as const;
 export type RelationshipDepth = (typeof relationshipDepths)[number];
 
@@ -302,6 +319,18 @@ export interface SearchMemoryClaimsParameters {
 export interface ListMemoryCurationParameters {
   cursor?: string;
   pageSize?: number;
+}
+
+export interface AssertClaimInput {
+  assertedValidFrom?: string | null;
+  assertedValidTo?: string | null;
+  evidence: readonly ClaimEvidenceItem[];
+  idempotencyKey: string;
+  namespace?: string | null;
+  predicate: string;
+  subjectReference: string;
+  value: unknown;
+  visibility?: ClaimVisibility | null;
 }
 
 export interface GetRelationshipDependenciesParameters {
@@ -596,6 +625,33 @@ function parseMemoryCurationCounts(value: unknown): MemoryCurationCounts {
     }),
   );
   return { counts };
+}
+
+function parseClaimAssertionReceipt(value: unknown): ClaimAssertionReceipt {
+  if (!isRecord(value)) throw new Error("Invalid API claim assertion receipt.");
+  return {
+    claim_id: requiredString(value, "claim_id"),
+    is_contested: requiredBoolean(value, "is_contested"),
+    owning_tenant_id: nullableString(value, "owning_tenant_id"),
+    predicate: requiredString(value, "predicate"),
+    source_authority: requiredString(value, "source_authority"),
+    status: requiredString(value, "status"),
+    subject_entity_id: nullableString(value, "subject_entity_id"),
+    value: requiredValue(value, "value"),
+    visibility: requiredString(value, "visibility"),
+  };
+}
+
+function parseClaimPredicate(value: unknown): ClaimPredicate {
+  if (!isRecord(value)) throw new Error("Invalid API claim predicate.");
+  return {
+    claim_category: requiredString(value, "claim_category"),
+    definition: requiredString(value, "definition"),
+    deprecated_at: nullableString(value, "deprecated_at"),
+    scope: requiredString(value, "scope"),
+    value: requiredString(value, "value"),
+    value_type: requiredString(value, "value_type"),
+  };
 }
 
 function parseRelationshipDepth(record: Record<string, unknown>): RelationshipDepth {
@@ -1401,6 +1457,48 @@ export async function getMemoryClaimHistory(
     requestOptions(context, signal),
   );
   return parseMemoryClaimHistory(payload);
+}
+
+export async function assertMemoryClaim(
+  client: ContextplaneClient,
+  input: AssertClaimInput,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<ClaimAssertionReceipt> {
+  const payload = await client.request("/v1/memory/claims", {
+    ...requestOptions(context, signal),
+    body: {
+      ...(input.assertedValidFrom === undefined
+        ? {}
+        : { asserted_valid_from: input.assertedValidFrom }),
+      ...(input.assertedValidTo === undefined ? {} : { asserted_valid_to: input.assertedValidTo }),
+      evidence: input.evidence.map((item) => ({
+        ...(item.excerpt === undefined ? {} : { excerpt: item.excerpt }),
+        kind: item.kind,
+        ref: item.ref,
+      })),
+      ...(input.namespace === undefined ? {} : { namespace: input.namespace }),
+      predicate: input.predicate,
+      subject_reference: input.subjectReference,
+      value: input.value,
+      ...(input.visibility === undefined ? {} : { visibility: input.visibility }),
+    },
+    headers: { "Idempotency-Key": input.idempotencyKey },
+    method: "POST",
+  });
+  return parseClaimAssertionReceipt(payload);
+}
+
+export async function listClaimPredicates(
+  client: ContextplaneClient,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<readonly ClaimPredicate[]> {
+  const payload = await client.request(
+    "/v1/operator/claim-predicates",
+    requestOptions(context, signal),
+  );
+  return requiredArray(payload, "claim predicates").map(parseClaimPredicate);
 }
 
 export async function listMemoryCurationQueue(

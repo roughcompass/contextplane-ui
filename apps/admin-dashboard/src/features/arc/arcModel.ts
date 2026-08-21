@@ -165,3 +165,80 @@ export function proposalActionSummary(proposal: ArcProposalVersion): string {
   if (proposal.available_actions.length === 0) return "No actions are currently available.";
   return proposal.available_actions.map(formatArcLabel).join(", ");
 }
+
+export interface ArcSelectOption {
+  label: string;
+  value: string;
+}
+
+export const arcVisibilityOptions: readonly ArcSelectOption[] = [
+  { label: "Standard", value: "standard" },
+  { label: "Restricted", value: "restricted" },
+];
+
+export const arcContentClassificationOptions: readonly ArcSelectOption[] = [
+  { label: "Public", value: "public" },
+  { label: "Internal", value: "internal" },
+  { label: "Confidential", value: "confidential" },
+];
+
+export const arcDetailAudienceOptions: readonly ArcSelectOption[] = [
+  { label: "Agents and people", value: "agent_and_human" },
+  { label: "Agents only", value: "agent_only" },
+  { label: "People only", value: "human_only" },
+];
+
+export const arcFreshnessBasisOptions: readonly ArcSelectOption[] = [
+  { label: "Revision pinned", value: "revision_pinned_only" },
+  { label: "Connector verified", value: "connector_verified" },
+];
+
+export const arcDirectiveTypeOptions: readonly ArcSelectOption[] = [
+  { label: "Provide as context", value: "citation_only" },
+  { label: "Verify before action", value: "verify_before_action" },
+];
+
+export const arcSatisfactionModeOptions: readonly ArcSelectOption[] = [
+  { label: "Authorized retrieval", value: "authorized_retrieval" },
+  { label: "Signed result", value: "signed_result" },
+];
+
+export const arcApplicabilityScopeOptions: readonly ArcSelectOption[] = [
+  { label: "Tenant", value: "tenant" },
+  { label: "Domain", value: "domain" },
+  { label: "Capability", value: "capability" },
+  { label: "Intent", value: "intent" },
+  { label: "Global", value: "global" },
+];
+
+export const arcArtifactKindOptions: readonly ArcSelectOption[] = [
+  { label: "Policy", value: "policy" },
+  { label: "Standard", value: "standard" },
+  { label: "Architecture decision", value: "adr" },
+  { label: "Runbook", value: "runbook" },
+  { label: "Capability contract", value: "capability_contract" },
+];
+
+export const arcOwningScopeOptions: readonly ArcSelectOption[] = [
+  { label: "Tenant", value: "tenant" },
+  { label: "Global", value: "global" },
+];
+
+export const arcProofMethodOptions: readonly ArcSelectOption[] = [
+  { label: "Detached Ed25519 signature", value: "detached_signature" },
+  { label: "Verifier attestation", value: "verifier_attestation" },
+];
+
+export const arcDetailRequestKindOptions: readonly ArcSelectOption[] = [
+  { label: "Directive", value: "directive" },
+  { label: "Source anchor", value: "source_anchor" },
+  { label: "Query", value: "query" },
+];
+
+export const arcImpactDeltaOptions: readonly ArcSelectOption[] = [
+  { label: "Newly selected", value: "newly_selected" },
+  { label: "No longer selected", value: "no_longer_selected" },
+  { label: "Conflict changed", value: "conflict_changed" },
+  { label: "Mandatory block added", value: "mandatory_block_added" },
+  { label: "Mandatory block removed", value: "mandatory_block_removed" },
+];

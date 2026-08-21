@@ -7,7 +7,6 @@ import {
   FlaskConical,
   GitBranch,
   Library,
-  ListChecks,
   MessageSquareText,
   Settings,
   ShieldCheck,
@@ -43,6 +42,7 @@ import {
   getPromotionProposal,
   getWhoAmI,
   getWorkspace,
+  listClaimPredicates,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type MemoryClaimPersona,
@@ -93,6 +93,11 @@ const SessionsPage = lazy(async () => {
   return { default: feature.SessionsPage };
 });
 
+const AssertClaimPage = lazy(async () => {
+  const feature = await import("../features/memory");
+  return { default: feature.AssertClaimPage };
+});
+
 const MemoryPage = lazy(async () => {
   const feature = await import("../features/memory");
   return { default: feature.MemoryPage };
@@ -111,11 +116,6 @@ const RelationshipsPage = lazy(async () => {
 const SettingsPage = lazy(async () => {
   const feature = await import("../features/settings");
   return { default: feature.SettingsPage };
-});
-
-const TenantWorkPage = lazy(async () => {
-  const feature = await import("../features/tenant-work");
-  return { default: feature.TenantWorkPage };
 });
 
 const ProposalsPage = lazy(async () => {
@@ -154,7 +154,6 @@ const navigation: readonly NavigationSection[] = [
         label: "Context Lab",
       },
       { href: "/workspaces", icon: <Boxes className="size-4" />, label: "Workspaces" },
-      { href: "/tenant-work", icon: <ListChecks className="size-4" />, label: "Tenant work" },
     ],
   },
   {
@@ -184,6 +183,7 @@ const navigation: readonly NavigationSection[] = [
 type AppRoute =
   | "analytics"
   | "arc"
+  | "assert-claim"
   | "audit"
   | "catalog"
   | "context-lab"
@@ -193,7 +193,6 @@ type AppRoute =
   | "relationships"
   | "sessions"
   | "settings"
-  | "tenant-work"
   | "workspaces";
 
 function routeForPathname(pathname: string): AppRoute {
@@ -202,12 +201,12 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/arc") return "arc";
   if (pathname === "/audit") return "audit";
   if (pathname === "/context-lab") return "context-lab";
+  if (pathname === "/memory/assert") return "assert-claim";
   if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memory";
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
-  if (pathname === "/tenant-work") return "tenant-work";
   if (pathname === "/workspaces" || pathname.startsWith("/workspaces/")) return "workspaces";
   return "catalog";
 }
@@ -215,6 +214,7 @@ function routeForPathname(pathname: string): AppRoute {
 function loadRouteModule(route: AppRoute): Promise<unknown> {
   if (route === "analytics") return import("../features/analytics");
   if (route === "arc") return import("../features/arc");
+  if (route === "assert-claim") return import("../features/memory");
   if (route === "audit") return import("../features/audit");
   if (route === "catalog") return import("../features/catalog");
   if (route === "context-lab") return import("../features/context-lab");
@@ -224,13 +224,13 @@ function loadRouteModule(route: AppRoute): Promise<unknown> {
   if (route === "relationships") return import("../features/relationships");
   if (route === "sessions") return import("../features/sessions");
   if (route === "settings") return import("../features/settings");
-  if (route === "tenant-work") return import("../features/tenant-work");
   return import("../features/workspaces");
 }
 
 function routeUsesIdentity(route: AppRoute): boolean {
   return (
     route === "arc" ||
+    route === "assert-claim" ||
     route === "catalog" ||
     route === "context-lab" ||
     route === "memory" ||
@@ -239,7 +239,6 @@ function routeUsesIdentity(route: AppRoute): boolean {
     route === "relationships" ||
     route === "sessions" ||
     route === "settings" ||
-    route === "tenant-work" ||
     route === "workspaces"
   );
 }
@@ -330,6 +329,16 @@ async function prepareRouteNavigation({
       queryClient.prefetchQuery({
         queryFn: ({ signal }) => getWhoAmI(client, context, signal),
         queryKey: ["contextplane", tenantKey, "identity"],
+        staleTime: 5 * 60 * 1000,
+      }),
+    );
+  }
+
+  if (route === "assert-claim") {
+    preparations.push(
+      queryClient.prefetchQuery({
+        queryFn: ({ signal }) => listClaimPredicates(client, context, signal),
+        queryKey: ["contextplane", tenantKey, "claim-predicates"],
         staleTime: 5 * 60 * 1000,
       }),
     );
@@ -648,7 +657,7 @@ export function App() {
             ? "/audit"
             : route === "context-lab"
               ? "/context-lab"
-              : route === "memory"
+              : route === "memory" || route === "assert-claim"
                 ? "/memory"
                 : route === "proposals"
                   ? "/proposals"
@@ -656,13 +665,11 @@ export function App() {
                     ? "/relationships"
                     : route === "sessions"
                       ? "/sessions"
-                      : route === "tenant-work"
-                        ? "/tenant-work"
-                        : route === "settings"
-                          ? "/settings"
-                          : route === "workspaces"
-                            ? "/workspaces"
-                            : "/catalog";
+                      : route === "settings"
+                        ? "/settings"
+                        : route === "workspaces"
+                          ? "/workspaces"
+                          : "/catalog";
   const navigationPending = routeNavigationPending || tenantChangePending;
   const userRole =
     route === "analytics" || route === "arc" || route === "sessions" || route === "settings"
@@ -752,8 +759,8 @@ export function App() {
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
               />
-            ) : route === "tenant-work" ? (
-              <TenantWorkPage
+            ) : route === "assert-claim" ? (
+              <AssertClaimPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}

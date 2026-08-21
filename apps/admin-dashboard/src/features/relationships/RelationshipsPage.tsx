@@ -20,7 +20,14 @@ import {
   SummaryStrip,
   TableSection,
 } from "@repo/ui/layouts";
-import { Button, Notice, RequestFailure, Skeleton, StatusBadge } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  Skeleton,
+  StatusBadge,
+} from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
@@ -30,7 +37,6 @@ import {
   getRelationshipDependencies,
   getRelationshipDependents,
   getWhoAmI,
-  relationshipDepths,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type RelationshipDependencyResult,
@@ -50,11 +56,13 @@ import {
   relationshipAreas,
   relationshipCaveats,
   relationshipNodeLookup,
+  relationshipDepthOptions,
   relationshipPropertiesSummary,
-  relationshipProjections,
+  relationshipProjectionOptions,
   relationshipQuestionDescription,
   relationshipQuestionLabel,
-  relationshipQuestions,
+  relationshipDirectionOptions,
+  relationshipQuestionOptions,
   relationshipSearch,
   shortRelationshipIdentifier,
   unsatisfiedRelationshipEdges,
@@ -76,6 +84,7 @@ type RelationshipResult = RelationshipDependencyResult | RelationshipTraversalRe
 const inputClassName =
   "mt-1 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent aria-invalid:border-danger aria-invalid:outline-danger";
 const labelClassName = "block min-w-44 flex-1 text-xs font-medium text-muted";
+const selectControlClassName = "min-w-44 flex-1";
 
 function requestContext(apiTenantId: string | undefined): ContextplaneRequestOptions {
   return apiTenantId ? { tenantId: apiTenantId } : {};
@@ -593,27 +602,19 @@ function ProjectionPanel({
                   </span>
                 ) : null}
               </label>
-              <label className="block text-xs font-medium text-muted">
-                Projection
-                <select
-                  aria-label="Projection"
-                  className={inputClassName}
-                  onChange={(event) =>
-                    onDraftChange({
-                      ...draft,
-                      cursor: "",
-                      projection: event.target.value as RelationshipUrlState["projection"],
-                    })
-                  }
-                  value={draft.projection}
-                >
-                  {relationshipProjections.map((projection) => (
-                    <option key={projection.id} value={projection.id}>
-                      {projection.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SearchableSelect
+                allowEmpty={false}
+                label="Projection"
+                onValueChange={(value) =>
+                  onDraftChange({
+                    ...draft,
+                    cursor: "",
+                    projection: value as RelationshipUrlState["projection"],
+                  })
+                }
+                options={relationshipProjectionOptions}
+                value={draft.projection}
+              />
               <Button className="w-full md:mt-5 md:w-auto" type="submit">
                 Load projection
               </Button>
@@ -772,64 +773,46 @@ function TraversalForm({
         }
         filters={
           <>
-            <label className={labelClassName}>
-              Question
-              <select
-                aria-label="Question"
-                className={inputClassName}
-                onChange={(event) =>
-                  onDraftChange({
-                    ...draft,
-                    question: event.target.value as RelationshipUrlState["question"],
-                  })
-                }
-                value={draft.question}
-              >
-                {relationshipQuestions.map((question) => (
-                  <option key={question.id} value={question.id}>
-                    {question.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={labelClassName}>
-              Hops to follow
-              <select
-                aria-label="Hops to follow"
-                className={inputClassName}
-                onChange={(event) =>
-                  onDraftChange({
-                    ...draft,
-                    depth: Number(event.target.value) as RelationshipUrlState["depth"],
-                  })
-                }
-                value={draft.depth}
-              >
-                {relationshipDepths.map((depth) => (
-                  <option key={depth} value={depth}>
-                    {depth}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              allowEmpty={false}
+              className={selectControlClassName}
+              label="Question"
+              onValueChange={(value) =>
+                onDraftChange({
+                  ...draft,
+                  question: value as RelationshipUrlState["question"],
+                })
+              }
+              options={relationshipQuestionOptions}
+              value={draft.question}
+            />
+            <SearchableSelect
+              allowEmpty={false}
+              className={selectControlClassName}
+              label="Hops to follow"
+              onValueChange={(value) =>
+                onDraftChange({
+                  ...draft,
+                  depth: Number(value) as RelationshipUrlState["depth"],
+                })
+              }
+              options={relationshipDepthOptions}
+              value={String(draft.depth)}
+            />
             {draft.question === "blast-radius" ? (
-              <label className={labelClassName}>
-                Direction
-                <select
-                  aria-label="Direction"
-                  className={inputClassName}
-                  onChange={(event) =>
-                    onDraftChange({
-                      ...draft,
-                      direction: event.target.value as RelationshipUrlState["direction"],
-                    })
-                  }
-                  value={draft.direction}
-                >
-                  <option value="reverse">Toward dependents</option>
-                  <option value="forward">Toward dependencies</option>
-                </select>
-              </label>
+              <SearchableSelect
+                allowEmpty={false}
+                className={selectControlClassName}
+                label="Direction"
+                onValueChange={(value) =>
+                  onDraftChange({
+                    ...draft,
+                    direction: value as RelationshipUrlState["direction"],
+                  })
+                }
+                options={relationshipDirectionOptions}
+                value={draft.direction}
+              />
             ) : null}
             {draft.question !== "dependencies" ? (
               <label className={labelClassName}>

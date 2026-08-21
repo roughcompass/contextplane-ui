@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContextplaneApiError } from "../../shared/api/client";
 import { ArcArtifactDialog } from "./ArcArtifactDialog";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 const tenantId = "b0000000-0000-4000-8000-000000000001";
 
 function fillRequiredFields() {
@@ -48,8 +53,8 @@ describe("ArcArtifactDialog", () => {
   it("creates a trimmed global standard without attaching a tenant", async () => {
     const { onCreate } = renderDialog();
     fillRequiredFields();
-    fireEvent.change(screen.getByLabelText("Artifact kind"), { target: { value: "standard" } });
-    fireEvent.change(screen.getByLabelText("Owning scope"), { target: { value: "global" } });
+    chooseOption("Artifact kind", "Standard");
+    chooseOption("Owning scope", "Global");
 
     expect(screen.getByText("Global scope requires operator authority")).toBeVisible();
     expect(screen.queryByLabelText("Target tenant ID")).toBeNull();

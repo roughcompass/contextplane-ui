@@ -11,6 +11,11 @@ import {
 } from "../../shared/api";
 import { CapabilityDialog } from "./CapabilityDialog";
 
+function chooseOption(controlName: string, optionName: string) {
+  fireEvent.click(screen.getByRole("combobox", { name: new RegExp(`^${controlName}`) }));
+  fireEvent.click(screen.getByRole("option", { name: optionName }));
+}
+
 const capability = {
   attributes: { owner: "Trust engineering" },
   created_at: "2026-08-12T14:28:41Z",
@@ -290,9 +295,7 @@ describe("CapabilityDialog", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save attributes" }));
     expect(await within(dialog).findByText(/Capability attributes were updated/u)).toBeVisible();
 
-    fireEvent.change(within(dialog).getByLabelText("New visibility"), {
-      target: { value: "tenant-shared" },
-    });
+    chooseOption("New visibility", "tenant-shared");
     fireEvent.change(within(dialog).getByLabelText("Shared tenant UUIDs"), {
       target: { value: "tenant-b, , tenant-c" },
     });
@@ -307,9 +310,7 @@ describe("CapabilityDialog", () => {
       ),
     );
 
-    fireEvent.change(within(dialog).getByLabelText("New lifecycle state"), {
-      target: { value: "deprecated" },
-    });
+    chooseOption("New lifecycle state", "deprecated");
     fireEvent.change(within(dialog).getByLabelText("Successor capability UUID or “none”"), {
       target: { value: "" },
     });
