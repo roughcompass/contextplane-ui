@@ -5,9 +5,11 @@ import { useState, type FormEvent } from "react";
 import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
+  ContextplaneApiError,
   changeCapabilityLifecycle,
   deleteCapability,
   entityWriteIntents,
+  getCapability,
   getGoverningBinding,
   setCapabilityVisibility,
   updateCapability,
@@ -48,9 +50,21 @@ function isGoverned(route: EditRoute): route is EntityWriteIntent {
 interface CapabilityOverviewPanelProps {
   capability: CatalogCapabilityDetail;
   client: ContextplaneClient;
+  /**
+   * The validator from the read this panel's forms were composed against.
+   *
+   * Sent as `If-Match` on every write here. `null` when the service returned no
+   * header, and then the writes go without one -- which is the behaviour that
+   * shipped before, and the contract accepts it with a logged warning rather
+   * than a refusal.
+   */
+  etag: string | null;
   onDeleted: () => void;
   requestContext: ContextplaneRequestOptions;
 }
+
+/** The refusal code a stale `If-Match` comes back with. */
+const PRECONDITION_FAILED = "precondition_failed";
 
 const visibilityOptions = ["private", "tenant-shared", "public"] as const;
 const lifecycleOptions = ["alpha", "beta", "ga", "deprecated", "retired"] as const;
@@ -67,6 +81,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function CapabilityOverviewPanel({
   capability,
   client,
+  etag,
   onDeleted,
   requestContext,
 }: CapabilityOverviewPanelProps) {
@@ -84,6 +99,30 @@ export function CapabilityOverviewPanel({
   const [receipt, setReceipt] = useState<string | null>(null);
   const [route, setRoute] = useState<EditRoute>("direct");
   const [approvalReference, setApprovalReference] = useState("");
+  // Set when the service refuses a write because the row moved underneath. The
+  // operator's entered values are untouched; what is shown beside them is what
+  // the entity says now, and the person decides what to do about the difference.
+  const [staleAgainst, setStaleAgainst] = useState<CatalogCapabilityDetail | null>(null);
+
+  /**
+   * What a stale precondition means for a form the operator is holding.
+   *
+   * Keep the draft, refetch, show the newer state -- the same choice the
+   * relationship authoring dialog made, and for the same reason: discarding the
+   * draft would punish the person who lost a race they could not see, and
+   * overwriting silently is what `If-Match` exists to prevent. Returns whether
+   * it handled the error, so each mutation's own reporting stays its own.
+   */
+  async function handledAsStale(caught: unknown): Promise<boolean> {
+    if (!(caught instanceof ContextplaneApiError) || caught.code !== PRECONDITION_FAILED) {
+      return false;
+    }
+    const current = await getCapability(client, capability.entityId, requestContext).catch(
+      () => null,
+    );
+    setStaleAgainst(current?.capability ?? null);
+    return true;
+  }
 
   function refresh(message: string) {
     setReceipt(`${message} · ${new Date().toISOString()}`);
@@ -109,6 +148,8 @@ export function CapabilityOverviewPanel({
           capability.entityId,
           { updates: attributes },
           requestContext,
+          undefined,
+          etag ?? undefined,
         );
         return { effect: "updated" as const };
       }
@@ -156,6 +197,7 @@ export function CapabilityOverviewPanel({
       );
       return { effect: result.effect };
     },
+    onError: handledAsStale,
     onSuccess: (outcome) => {
       // A staged or reviewed change has not been applied, so the receipt names
       // what happened instead of claiming the attributes moved.
@@ -183,7 +225,10 @@ export function CapabilityOverviewPanel({
             : {}),
         },
         requestContext,
+        undefined,
+        etag ?? undefined,
       ),
+    onError: handledAsStale,
     onSuccess: () => refresh(`Capability visibility changed to ${visibility}.`),
   });
   const lifecycleMutation = useMutation({
@@ -193,7 +238,10 @@ export function CapabilityOverviewPanel({
         capability.entityId,
         { new_state: lifecycle, successor: successor.trim() || "none" },
         requestContext,
+        undefined,
+        etag ?? undefined,
       ),
+    onError: handledAsStale,
     onSuccess: () => refresh(`Capability lifecycle changed to ${lifecycle}.`),
   });
   const deleteMutation = useMutation({
@@ -211,6 +259,7 @@ export function CapabilityOverviewPanel({
 
   function submitAttributes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setStaleAgainst(null);
     if (route === "authorized_approval" && !approvalReference.trim()) {
       setAttributesError("An authorized approval must name the approval it rests on.");
       return;
@@ -285,7 +334,23 @@ export function CapabilityOverviewPanel({
           {receipt}
         </Notice>
       ) : null}
-      {hasFailure ? (
+      {staleAgainst ? (
+        <Notice title="This entity changed while you were editing" variant="warning">
+          <p>
+            The service refused the write with <span className="font-mono">412</span>. Your entered
+            values are untouched. Reopen the entity to compose against the current state, or submit
+            again to overwrite what is there now.
+          </p>
+          <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[9rem_1fr]">
+            <dt className="text-muted">Lifecycle now</dt>
+            <dd className="text-foreground">{staleAgainst.lifecycle}</dd>
+            <dt className="text-muted">Attributes now</dt>
+            <dd className="font-mono text-xs break-all text-foreground">
+              {JSON.stringify(staleAgainst.attributes)}
+            </dd>
+          </dl>
+        </Notice>
+      ) : hasFailure ? (
         <Notice title="Change was not completed" variant="danger">
           The service refused or could not complete the requested change. Existing catalog state
           remains authoritative and the entered values are preserved.

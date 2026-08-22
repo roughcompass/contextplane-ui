@@ -56,6 +56,12 @@ export interface CatalogCapabilitySummary {
   name: string;
 }
 
+/** One entity read, together with the validator its writes must echo. */
+export interface CatalogCapabilityRead {
+  capability: CatalogCapabilityDetail;
+  etag: string | null;
+}
+
 export interface CatalogCapabilityDetail extends CatalogCapabilitySummary {
   attributes: Readonly<Record<string, unknown>>;
   lifecycle: string;
@@ -267,19 +273,27 @@ export async function listCapabilities(
   };
 }
 
+/**
+ * One entity, with the `ETag` the write path needs.
+ *
+ * The validator comes back rather than being dropped, because the three PATCH
+ * routes below honour `If-Match` and a caller cannot send one it never saw. The
+ * contract's own recommended flow is exactly this: GET, read the header, PATCH
+ * with it.
+ */
 export async function getCapability(
   client: ContextplaneClient,
   capabilityId: string,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
-): Promise<CatalogCapabilityDetail> {
-  const value = await client.request(
+): Promise<CatalogCapabilityRead> {
+  const { etag, value } = await client.requestWithEtag(
     queryPath(`/v1/capabilities/${pathId(capabilityId)}`, {
       include: "components,depends_on,external_ids,interface",
     }),
     { ...context, signal },
   );
-  return parseCapabilityDetail(value);
+  return { capability: parseCapabilityDetail(value), etag };
 }
 
 export async function createCatalogEntity(
@@ -307,16 +321,32 @@ export async function createCatalogEntity(
   return parseCapabilityMutation(value);
 }
 
+/**
+ * Apply a bag of attribute updates.
+ *
+ * `ifMatch` is the `ETag` from the read the draft was composed against. Sending
+ * it turns a row that moved underneath into a `412` the caller can act on --
+ * keep the draft, refetch, show the newer state -- instead of a write landing on
+ * something the operator never saw. The contract says an absent precondition
+ * "logs a warning and accepts the write", so until this existed the dashboard
+ * was the caller generating those warnings.
+ *
+ * Optional rather than required, matching `updateRelationship`: the service
+ * accepts its absence, and forcing one would have callers inventing a value to
+ * satisfy the signature. A fabricated precondition is worse than none.
+ */
 export async function updateCapability(
   client: ContextplaneClient,
   capabilityId: string,
   input: UpdateCapabilityInput,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
+  ifMatch?: string,
 ): Promise<CatalogCapabilityDetail> {
   const value = await client.request(`/v1/capabilities/${pathId(capabilityId)}`, {
     ...context,
     body: input,
+    ...(ifMatch ? { headers: { "If-Match": ifMatch } } : {}),
     method: "PATCH",
     signal,
   });
@@ -336,32 +366,38 @@ export async function deleteCapability(
   });
 }
 
+/** Change who may discover this entity. `ifMatch` as on `updateCapability`. */
 export async function setCapabilityVisibility(
   client: ContextplaneClient,
   capabilityId: string,
   input: SetCapabilityVisibilityInput,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
+  ifMatch?: string,
 ): Promise<CatalogCapabilityDetail> {
   const value = await client.request(`/v1/capabilities/${pathId(capabilityId)}/visibility`, {
     ...context,
     body: input,
+    ...(ifMatch ? { headers: { "If-Match": ifMatch } } : {}),
     method: "PATCH",
     signal,
   });
   return parseCapabilityMutation(value);
 }
 
+/** Move the entity along its lifecycle. `ifMatch` as on `updateCapability`. */
 export async function changeCapabilityLifecycle(
   client: ContextplaneClient,
   capabilityId: string,
   input: ChangeCapabilityLifecycleInput,
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
+  ifMatch?: string,
 ): Promise<void> {
   await client.request(`/v1/capabilities/${pathId(capabilityId)}/lifecycle`, {
     ...context,
     body: input,
+    ...(ifMatch ? { headers: { "If-Match": ifMatch } } : {}),
     method: "PATCH",
     signal,
   });

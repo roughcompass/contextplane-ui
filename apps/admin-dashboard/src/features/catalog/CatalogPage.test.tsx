@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@repo/ui/primitives";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
-import { clientFromRequest } from "../../shared/api";
+import { ContextplaneApiError, clientFromRequest } from "../../shared/api";
 import { CatalogPage } from "./CatalogPage";
 
 const concept = {
@@ -593,6 +593,68 @@ describe("CatalogPage", () => {
     expect(client.request).not.toHaveBeenCalledWith(
       `/v1/entities/${capability.entity_id}`,
       expect.anything(),
+    );
+  });
+  // --- E19-T8: a write that lost a race keeps the draft --------------------------
+
+  it("keeps the operator's draft and shows the newer state when the row moved underneath", async () => {
+    // The half of this that is not mechanical. Discarding the draft would punish
+    // the person who lost a race they could not see; overwriting silently is
+    // what `If-Match` exists to prevent. So: keep what they typed, refetch, and
+    // let them decide about the difference.
+    let reads = 0;
+    const client = clientFor((path, options) => {
+      if (path === `/v1/capabilities/${capability.entity_id}` && options?.method === "PATCH") {
+        throw new ContextplaneApiError({
+          errors: [{ code: "precondition_failed", message: "stale", path: null }],
+          requestId: null,
+          status: 412,
+        });
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) {
+        reads += 1;
+        // The refetch after the refusal sees what the entity says now.
+        return reads > 1 ? { ...capability, lifecycle: "deprecated" } : capability;
+      }
+      return { items: [capability], next_cursor: null };
+    });
+
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+
+    const attributes = await within(dialog).findByRole("textbox", { name: /Attributes JSON/ });
+    fireEvent.change(attributes, { target: { value: '{"summary":"my edit"}' } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save attributes" }));
+
+    expect(await within(dialog).findByText(/changed while you were editing/)).toBeVisible();
+    // The draft survives, which is the whole point.
+    expect(attributes).toHaveValue('{"summary":"my edit"}');
+    // And the newer state is shown beside it rather than substituted for it.
+    expect(within(dialog).getByText("deprecated")).toBeVisible();
+  });
+
+  it("sends the validator the detail read carried", async () => {
+    const client = clientFor((path, options) => {
+      if (path === `/v1/capabilities/${capability.entity_id}` && options?.method === "PATCH") {
+        return capability;
+      }
+      if (path.startsWith(`/v1/capabilities/${capability.entity_id}`)) return capability;
+      return { items: [capability], next_cursor: null };
+    });
+
+    renderCatalog(client);
+    await screen.findByRole("heading", { level: 1, name: "Catalog" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Policy evaluation" })[0]!);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Save attributes" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        `/v1/capabilities/${capability.entity_id}`,
+        expect.objectContaining({ method: "PATCH" }),
+      ),
     );
   });
 });
