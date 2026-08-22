@@ -58,7 +58,7 @@ const completeEnvelope = {
               },
             ],
             name: "Customer identity resolution",
-            score: 0.91,
+            fused_rank_score: 0.91,
           },
           receipt_item_id: {
             block: "canonical",

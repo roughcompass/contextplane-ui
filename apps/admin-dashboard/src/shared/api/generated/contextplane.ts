@@ -4132,6 +4132,11 @@ export interface paths {
      *     prohibited class is refused with a 422 on a deployment that has configured
      *     nothing, rather than detected and stored. `metadata` is not scanned -- see
      *     the request model.
+     *
+     *     `external` marks the event as a replay of something that happened in another
+     *     system, and re-sending one upstream record is a 409 rather than a second
+     *     turn. Omit it for the ordinary case; an agent recording its own reasoning
+     *     has no upstream identity to give.
      */
     post: operations["record_event_v1_memory_sessions__session_id__events_post"];
     delete?: never;
@@ -5488,12 +5493,12 @@ export interface components {
       justification: string;
       /** Lower Scope Action Class */
       lower_scope_action_class?: string | null;
-      /** Lower Scope Capability Id */
-      lower_scope_capability_id?: string | null;
       /** Lower Scope Data Sensitivity */
       lower_scope_data_sensitivity?: string | null;
       /** Lower Scope Domain Id */
       lower_scope_domain_id?: string | null;
+      /** Lower Scope Entity Id */
+      lower_scope_entity_id?: string | null;
       /** Lower Scope Environment */
       lower_scope_environment?: string | null;
       /** Lower Scope Intent Kind */
@@ -5514,10 +5519,6 @@ export interface components {
     ArtifactApplicabilityRule: {
       /** Action Classes */
       action_classes?: string[] | null;
-      /** Capability Ids */
-      capability_ids?: string[] | null;
-      /** Capability Labels */
-      capability_labels?: string[] | null;
       /** Data Sensitivity Tiers */
       data_sensitivity_tiers?: string[] | null;
       /** Domain Ids */
@@ -5526,6 +5527,8 @@ export interface components {
       effective_from?: string | null;
       /** Effective Until */
       effective_until?: string | null;
+      /** Entity Ids */
+      entity_ids?: string[] | null;
       /** Environments */
       environments?: string[] | null;
       /** Intent Kinds */
@@ -5541,7 +5544,7 @@ export interface components {
        * Scope
        * @enum {string}
        */
-      scope: "global" | "tenant" | "domain" | "capability" | "intent";
+      scope: "global" | "tenant" | "domain" | "entity" | "intent";
       /** Target Tenant Id */
       target_tenant_id?: string | null;
     };
@@ -8135,6 +8138,33 @@ export interface components {
       truncated: boolean;
     };
     /**
+     * ExternalOriginRequest
+     * @description Where a replayed event came from, and when it happened there.
+     *
+     *     A nested object rather than four sibling fields, because the four are
+     *     all-or-nothing: the table refuses an origin with no upstream identity or
+     *     clock, and refuses an identity or clock with no origin. Nested, the
+     *     incomplete state is unrepresentable and the caller is told so by request
+     *     validation instead of by a 500 from a CHECK two layers down.
+     *
+     *     Supplying an `external_record_id` a second time is a 409, not a second
+     *     event: an exporter re-sending a window must not fan one upstream record out
+     *     into two turns.
+     */
+    ExternalOriginRequest: {
+      /** External Record Id */
+      external_record_id: string;
+      /**
+       * Observed At
+       * Format: date-time
+       */
+      observed_at: string;
+      /** Source Namespace */
+      source_namespace: string;
+      /** Source System */
+      source_system: string;
+    };
+    /**
      * ExternalReferenceRequest
      * @description A pointer to something the registry does not own.
      *
@@ -8630,12 +8660,12 @@ export interface components {
      *     caller did in fact send.
      */
     ManifestBody: {
-      /** Capability Ids */
-      capability_ids?: string[];
       /** Data Sensitivity */
       data_sensitivity: string;
       /** Domain Ids */
       domain_ids?: string[];
+      /** Entity Ids */
+      entity_ids?: string[];
       /** Environment */
       environment: string;
       /** Intent Kind */
@@ -8746,12 +8776,12 @@ export interface components {
      * @description Exactly the closed `arc_observation_class_predicate_v2` profile object.
      */
     ObservationClassPredicate: {
-      /** Capability Ids */
-      capability_ids?: string[] | null;
       /** Data Sensitivity Tier */
       data_sensitivity_tier?: string[] | null;
       /** Domain Ids */
       domain_ids?: string[] | null;
+      /** Entity Ids */
+      entity_ids?: string[] | null;
       /** Environment */
       environment?: string[] | null;
       /** Intent Kind */
@@ -10045,6 +10075,7 @@ export interface components {
     RecordEventRequest: {
       /** Body */
       body: string;
+      external?: components["schemas"]["ExternalOriginRequest"] | null;
       /** Kind */
       kind: string;
       /** Metadata */
@@ -10658,8 +10689,8 @@ export interface components {
       | "tenant_non_mandatory"
       | "domain_mandatory"
       | "domain_non_mandatory"
-      | "capability_mandatory"
-      | "capability_non_mandatory"
+      | "entity_mandatory"
+      | "entity_non_mandatory"
       | "intent_mandatory"
       | "intent_non_mandatory";
     /**
@@ -10695,6 +10726,15 @@ export interface components {
      *     read the one they want.
      *
      *     ``tenant_id`` is audit-only, like everywhere else this shape appears.
+     *
+     *     ``fused_rank_score`` is the retrieval fusion's output and says so. It was
+     *     ``score`` -- and the service dataclass behind it was renamed for a stated
+     *     reason while this one was not, so the adapter spent a release writing
+     *     ``score=result.fused_rank_score`` and undoing the rename one layer from the
+     *     only place a reader sees it. Three quantities in this system share the 0..1
+     *     scale and mean different things; a field called ``score`` teaches the next
+     *     author that a bare one is acceptable, and the wire is where that lesson is
+     *     learned.
      */
     SearchResultItem: {
       /** Citations */
@@ -10706,6 +10746,8 @@ export interface components {
       entity_id: string;
       /** Entity Type */
       entity_type: string;
+      /** Fused Rank Score */
+      fused_rank_score: number;
       /** Matching Facts */
       matching_facts?: components["schemas"]["ArtifactResponse"][] | null;
       /** Name */
@@ -10714,8 +10756,6 @@ export interface components {
       retrieval_arms: {
         [key: string]: number;
       };
-      /** Score */
-      score: number;
       /** Tenant Id */
       tenant_id?: string | null;
     };

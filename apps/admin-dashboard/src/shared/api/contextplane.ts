@@ -239,8 +239,8 @@ const arcRiskClassifications = [
   "tenant_non_mandatory",
   "domain_mandatory",
   "domain_non_mandatory",
-  "capability_mandatory",
-  "capability_non_mandatory",
+  "entity_mandatory",
+  "entity_non_mandatory",
   "intent_mandatory",
   "intent_non_mandatory",
 ] as const satisfies readonly components["schemas"]["RiskClassification"][];
