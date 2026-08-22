@@ -583,18 +583,18 @@ export function ArcDirectiveEditor({
                         />
                       </label>
                     ) : null}
-                    {scope === "capability" ? (
+                    {scope === "entity" ? (
                       <>
                         <label
                           className={labelClassName}
                           htmlFor={`arc-rule-${index}-capabilities`}
                         >
-                          Capability IDs
+                          Entity IDs
                           <input
                             className={inputClassName}
                             id={`arc-rule-${index}-capabilities`}
                             placeholder="UUIDs separated by commas"
-                            {...register(`applicability.${index}.capabilityIds`)}
+                            {...register(`applicability.${index}.entityIds`)}
                           />
                         </label>
                         <label className={labelClassName} htmlFor={`arc-rule-${index}-labels`}>
@@ -603,7 +603,7 @@ export function ArcDirectiveEditor({
                             className={inputClassName}
                             id={`arc-rule-${index}-labels`}
                             placeholder="deploy, rollback"
-                            {...register(`applicability.${index}.capabilityLabels`)}
+                            {...register(`applicability.${index}.entityLabels`)}
                           />
                         </label>
                       </>

@@ -28,8 +28,8 @@ export interface ArcDirectiveFormValue {
 
 export interface ArcApplicabilityFormValue {
   actionClasses: string;
-  capabilityIds: string;
-  capabilityLabels: string;
+  entityIds: string;
+  entityLabels: string;
   dataSensitivityTiers: string;
   domainIds: string;
   effectiveFrom: string;
@@ -38,7 +38,7 @@ export interface ArcApplicabilityFormValue {
   intentKinds: string;
   isMandatory: boolean;
   ruleId: string;
-  scope: "capability" | "domain" | "global" | "intent" | "tenant";
+  scope: "domain" | "entity" | "global" | "intent" | "tenant";
   targetTenantId: string;
 }
 
@@ -81,8 +81,8 @@ export function createDirectiveFormValue(): ArcDirectiveFormValue {
 export function createApplicabilityFormValue(tenantId: string): ArcApplicabilityFormValue {
   return {
     actionClasses: "",
-    capabilityIds: "",
-    capabilityLabels: "",
+    entityIds: "",
+    entityLabels: "",
     dataSensitivityTiers: "",
     domainIds: "",
     effectiveFrom: "",
@@ -207,8 +207,7 @@ export async function buildArcProposalPatch(
 
   const applicability = values.applicability.map((rule) => ({
     action_classes: commaSeparated(rule.actionClasses),
-    capability_ids: commaSeparated(rule.capabilityIds),
-    capability_labels: commaSeparated(rule.capabilityLabels),
+    entity_ids: commaSeparated(rule.entityIds),
     data_sensitivity_tiers: commaSeparated(rule.dataSensitivityTiers),
     domain_ids: commaSeparated(rule.domainIds),
     effective_from: rule.effectiveFrom ? localDateTimeToIso(rule.effectiveFrom) : null,

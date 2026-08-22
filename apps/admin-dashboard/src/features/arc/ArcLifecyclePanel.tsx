@@ -146,7 +146,7 @@ export function ArcLifecyclePanel({
       qualificationId: "",
       semanticManifest: JSON.stringify(
         {
-          capability_ids: null,
+          entity_ids: null,
           data_sensitivity_tier: null,
           domain_ids: null,
           environment: null,
@@ -252,7 +252,7 @@ export function ArcLifecyclePanel({
             items: [
               {
                 class_predicate: {
-                  capability_ids: null,
+                  entity_ids: null,
                   data_sensitivity_tier: commaSeparated(values.impactDataSensitivity),
                   domain_ids: null,
                   environment: commaSeparated(values.impactEnvironments),
