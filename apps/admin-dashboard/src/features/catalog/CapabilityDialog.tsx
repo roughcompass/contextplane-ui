@@ -397,7 +397,7 @@ export function CapabilityDialog({
   const title =
     target.mode === "create"
       ? `Create ${entityTypeLabels[target.entityType]}`
-      : detail.data?.name || "Entity detail";
+      : detail.data?.capability.name || "Entity detail";
 
   return (
     <dialog
@@ -420,9 +420,9 @@ export function CapabilityDialog({
           </h2>
           {detail.data ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusBadge tone="info">{detail.data.lifecycle}</StatusBadge>
-              <StatusBadge>{detail.data.entityType}</StatusBadge>
-              <span className="break-all font-mono text-xs text-muted">{detail.data.entityId}</span>
+              <StatusBadge tone="info">{detail.data.capability.lifecycle}</StatusBadge>
+              <StatusBadge>{detail.data.capability.entityType}</StatusBadge>
+              <span className="break-all font-mono text-xs text-muted">{detail.data.capability.entityId}</span>
             </div>
           ) : null}
         </div>
@@ -488,20 +488,21 @@ export function CapabilityDialog({
           <div id="capability-panel" aria-live="polite" role="tabpanel">
             {panel === "overview" ? (
               <CapabilityOverviewPanel
-                capability={detail.data}
+                capability={detail.data.capability}
+                etag={detail.data.etag}
                 client={client}
                 onDeleted={close}
                 requestContext={requestContext}
               />
             ) : panel === "connections" ? (
               <CapabilityConnectionsPanel
-                capability={detail.data}
+                capability={detail.data.capability}
                 client={client}
                 requestContext={requestContext}
               />
             ) : (
               <CapabilityEvidencePanel
-                capability={detail.data}
+                capability={detail.data.capability}
                 client={client}
                 mode={panel}
                 requestContext={requestContext}

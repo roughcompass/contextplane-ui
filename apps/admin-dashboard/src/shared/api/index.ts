@@ -102,6 +102,7 @@ export {
   type CatalogArtifact,
   type CatalogArtifactPage,
   type CatalogCapabilityDetail,
+  type CatalogCapabilityRead,
   type CatalogCapabilityPage,
   type CatalogCapabilitySummary,
   type CatalogEntityType,

@@ -133,7 +133,10 @@ describe("catalog API", () => {
     const subscriptions = await listCapabilitySubscriptions(client, "capability-a", context);
 
     expect(page.nextCursor).toBe("opaque+/cursor==");
-    expect(detail).toEqual(expect.objectContaining({ entityType: "capability" }));
+    // The read now carries the validator its writes must echo, so the entity is
+    // one field in rather than the whole answer.
+    expect(detail.capability).toEqual(expect.objectContaining({ entityType: "capability" }));
+    expect(detail).toHaveProperty("etag");
     expect(declaredInterface.surface).toEqual({ operations: ["evaluate"] });
     expect(impact).toEqual(
       expect.objectContaining({
@@ -295,5 +298,37 @@ describe("catalog API", () => {
       entity_type: "capability",
       name: "Policy evaluation",
     });
+  });
+  // --- E19-T8: the writes echo the validator the read carried ------------------
+
+  it("sends the read's ETag as If-Match on every catalog write that honours one", async () => {
+    const client = clientFor(() => capability);
+
+    await updateCapability(client, "capability-a", { updates: {} }, {}, undefined, 'W/"v1"');
+    await setCapabilityVisibility(client, "capability-a", { visibility: "private" }, {}, undefined, 'W/"v1"');
+    await changeCapabilityLifecycle(
+      client,
+      "capability-a",
+      { new_state: "ga", successor: "none" },
+      {},
+      undefined,
+      'W/"v1"',
+    );
+
+    for (const call of client.request.mock.calls) {
+      expect(call[1]?.headers).toEqual({ "If-Match": 'W/"v1"' });
+    }
+  });
+
+  it("omits the header entirely when there is no validator to echo", async () => {
+    // The service accepts an absent precondition -- it logs a warning and takes
+    // the write -- so a caller with no ETag sends none. Inventing a value to
+    // satisfy the signature would be a fabricated precondition, which is worse
+    // than no precondition at all.
+    const client = clientFor(() => capability);
+
+    await updateCapability(client, "capability-a", { updates: {} });
+
+    expect(client.request.mock.calls[0]?.[1]?.headers).toBeUndefined();
   });
 });
