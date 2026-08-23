@@ -1,5 +1,14 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import { parseArcProposalVersion, type ArcProposalVersion } from "./contextplane";
+import {
+  isRecord,
+  nullableString,
+  requiredBoolean,
+  requiredNumber,
+  requiredRecord,
+  requiredString,
+  stringArray,
+} from "./parse";
 
 // `graph_promotion` is response-only. The service reads the approving
 // authority off the promotion journal, so there is no proof variant for a
@@ -264,51 +273,6 @@ export interface ArcReceiptDetail {
   returned_bytes: number;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error(`Invalid API ${label}.`);
-  return value;
-}
-
-function requiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} must be text.`);
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} must be text.`);
-  return value;
-}
-
-function requiredNumber(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid API response: ${key} must be a number.`);
-  }
-  return value;
-}
-
-function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
-  const value = record[key];
-  if (typeof value !== "boolean")
-    throw new Error(`Invalid API response: ${key} must be true or false.`);
-  return value;
-}
-
-function stringArray(record: Record<string, unknown>, key: string): readonly string[] {
-  const value = record[key];
-  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
-    throw new Error(`Invalid API response: ${key} must contain text values.`);
-  }
-  return value;
-}
-
 function enumValue<const Values extends readonly string[]>(
   record: Record<string, unknown>,
   key: string,
@@ -505,7 +469,7 @@ function parseObservationStatus(value: unknown): ArcObservationStatus {
     eligible_count: requiredNumber(record, "eligible_count"),
     observed_count: requiredNumber(record, "observed_count"),
     out_of_envelope_count: requiredNumber(record, "out_of_envelope_count"),
-    reason_codes: stringArray(record, "reason_codes"),
+    reason_codes: stringArray(record.reason_codes, "reason_codes"),
     unexplained_count: requiredNumber(record, "unexplained_count"),
     window_deadline: requiredString(record, "window_deadline"),
     window_started_at: requiredString(record, "window_started_at"),
@@ -979,7 +943,7 @@ export async function getArcReceiptDetail(
     items: record.items,
     page_number: requiredNumber(record, "page_number"),
     profile: requiredString(record, "profile"),
-    reason_codes: Array.isArray(record.reason_codes) ? stringArray(record, "reason_codes") : [],
+    reason_codes: Array.isArray(record.reason_codes) ? stringArray(record.reason_codes, "reason_codes") : [],
     receipt_id: requiredString(record, "receipt_id"),
     request_digest: requiredString(record, "request_digest"),
     returned_bytes: requiredNumber(record, "returned_bytes"),
