@@ -859,7 +859,14 @@ function parseContextReceipt(value: unknown): ContextReceipt {
   if (!isRecord(value)) throw new Error("Invalid API context receipt.");
   return {
     cacheable: requiredBoolean(value, "cacheable"),
+    exclusion_count: requiredNumber(value, "exclusion_count"),
+    // What the receipt says about its own completeness, separate from `state`.
+    // A `string` in the contract rather than an enum, so it is carried through
+    // rather than narrowed here — narrowing a vocabulary the contract leaves
+    // open is how a value the server started sending becomes a parse failure.
+    hydration_state: requiredString(value, "hydration_state"),
     intent_id: nullableString(value, "intent_id"),
+    item_count: requiredNumber(value, "item_count"),
     receipt_id: requiredString(value, "receipt_id"),
     request_digest: nullableString(value, "request_digest"),
     requested_by: requiredString(value, "requested_by"),

@@ -1203,6 +1203,140 @@ export interface paths {
     patch: operations["patch_vocabulary_value_v1_admin_vocabularies__kind___value__patch"];
     trace?: never;
   };
+  "/v1/agents/{actor_id}/accuracy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Agent Accuracy
+     * @description How often this agent's claims were judged correct.
+     */
+    get: operations["get_agent_accuracy_v1_agents__actor_id__accuracy_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agents/{actor_id}/autonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Agent Autonomy
+     * @description How often this agent finished a session without being steered.
+     */
+    get: operations["get_agent_autonomy_v1_agents__actor_id__autonomy_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agents/{actor_id}/failure-patterns": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Agent Failure Patterns
+     * @description What this agent kept getting wrong, grouped and with examples.
+     *
+     *     A `GET` that writes, which is worth flagging rather than hiding: it stores
+     *     the report and returns its id, because an instruction change has to cite a
+     *     stored one. Idempotent in the sense that matters — repeating it over the
+     *     same window produces the same figures — but each call is a new report row,
+     *     which is the record of when somebody looked.
+     */
+    get: operations["get_agent_failure_patterns_v1_agents__actor_id__failure_patterns_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agents/{actor_id}/instructions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Agent Instructions
+     * @description Every version of this agent's instructions, newest first.
+     */
+    get: operations["list_agent_instructions_v1_agents__actor_id__instructions_get"];
+    put?: never;
+    /**
+     * Propose Agent Instruction
+     * @description Record a candidate version. It does not take effect until activated.
+     */
+    post: operations["propose_agent_instruction_v1_agents__actor_id__instructions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agents/{actor_id}/instructions/{instruction_id}:activate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Activate Agent Instruction
+     * @description Put this version in force, superseding whichever held it.
+     */
+    post: operations["activate_agent_instruction_v1_agents__actor_id__instructions__instruction_id__activate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agents/{actor_id}/instructions:rollback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rollback Agent Instruction
+     * @description Return to the version that was in force before the current one.
+     *
+     *     Returns null rather than erroring when there is no predecessor: "there is
+     *     nothing to roll back to" is a fact the caller acts on, and the incumbent is
+     *     left in force rather than demoted into a gap.
+     */
+    post: operations["rollback_agent_instruction_v1_agents__actor_id__instructions_rollback_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/arc/admin/approval-evidence/{evidence_id}/revoke": {
     parameters: {
       query?: never;
@@ -5180,6 +5314,61 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /**
+     * AccuracyGroupOut
+     * @description One row of an accuracy breakdown.
+     */
+    AccuracyGroupOut: {
+      /** Label */
+      label: string;
+      /**
+       * N Adjudicated
+       * @description Every verdict recorded, including the ones that decided nothing.
+       */
+      n_adjudicated: number;
+      /** N Correct */
+      n_correct: number;
+      /**
+       * N Decided
+       * @description The denominator `rate` is over: correct plus incorrect.
+       */
+      n_decided: number;
+      /** N Incorrect */
+      n_incorrect: number;
+      /** N Undecidable */
+      n_undecidable: number;
+      /**
+       * Rate
+       * @description Correct as a fraction of decided, or null when nothing was decided. Null is not zero: the first means unknown, the second means wrong every time.
+       */
+      rate: number | null;
+    };
+    /**
+     * AccuracyOut
+     * @description One agent's accuracy over one window.
+     */
+    AccuracyOut: {
+      /**
+       * Author Actor Id
+       * Format: uuid
+       */
+      author_actor_id: string;
+      /** Breakdown */
+      breakdown: string;
+      /** Groups */
+      groups: components["schemas"]["AccuracyGroupOut"][];
+      overall: components["schemas"]["AccuracyGroupOut"];
+      /**
+       * Window End
+       * Format: date-time
+       */
+      window_end: string;
+      /**
+       * Window Start
+       * Format: date-time
+       */
+      window_start: string;
+    };
+    /**
      * ActivateRequest
      * @description Body for `POST /v1/arc/revisions/{id}/activate`. `qualification_id`
      *     is required when the risk classification demands observation and
@@ -6066,6 +6255,40 @@ export interface components {
       ts: string;
     };
     /**
+     * AutonomyOut
+     * @description How many of an agent's sessions ran without a human stepping in.
+     */
+    AutonomyOut: {
+      /**
+       * Author Actor Id
+       * Format: uuid
+       */
+      author_actor_id: string;
+      /**
+       * Autonomy Rate
+       * @description Null when the agent ran no sessions — an unknown rate rather than a perfect one.
+       */
+      autonomy_rate: number | null;
+      /** Intervention Rate */
+      intervention_rate: number | null;
+      /** N Autonomous */
+      n_autonomous: number;
+      /** N Intervened */
+      n_intervened: number;
+      /** N Sessions */
+      n_sessions: number;
+      /**
+       * Window End
+       * Format: date-time
+       */
+      window_end: string;
+      /**
+       * Window Start
+       * Format: date-time
+       */
+      window_start: string;
+    };
+    /**
      * AvailableAction
      * @description The closed set of actions a proposal-version read model may report
      *     as available to the caller; see `AVAILABLE_ACTION_ROUTE_ACTIONS`.
@@ -6235,20 +6458,14 @@ export interface components {
        * Denominator
        * @description The population the total is over, named for a reader who would otherwise infer a rate.
        */
-      denominator: number | null;
-      floors: components["schemas"]["FloorsOut"];
+      denominator: number;
       /** Metric */
       metric: string;
       /**
-       * Partial
-       * @description True when at least one cell was suppressed, so the total is over a subset.
-       */
-      partial: boolean;
-      /**
        * Total
-       * @description Recomputed over reported cells only, never the true population. With a cell withheld, serving the real total would let a reader recover the withheld figure by subtraction.
+       * @description The total over every cell. It used to be recomputed over reported cells only, because serving the real population beside a withheld cell lets a reader recover the withheld figure by subtraction; with nothing withheld there is nothing to subtract toward.
        */
-      total: number | null;
+      total: number;
       /**
        * Window End
        * Format: date-time
@@ -6259,11 +6476,6 @@ export interface components {
        * Format: date-time
        */
       window_start: string;
-      /**
-       * Withheld
-       * @description True when the whole breakdown was withheld because its remainder could not be combined into a bucket clearing the floors. Distinct from every cell being suppressed: not even the shape of the distribution is served.
-       */
-      withheld: boolean;
     };
     /** BreakingChangePreviewResponse */
     BreakingChangePreviewResponse: {
@@ -6518,22 +6730,21 @@ export interface components {
     };
     /**
      * CellOut
-     * @description One reported figure, or the record that one was withheld.
+     * @description One reported figure.
      *
-     *     The counts behind a suppressed cell are deliberately absent from this model.
-     *     Serving them would defeat the suppression: an actor count of two is the
-     *     disclosure the floor exists to prevent.
+     *     `FloorsOut` and `suppressed` are gone with the floors they described
+     *     `value` is no longer nullable: there is no state in which a cell
+     *     exists without its figure, so a null here would have no meaning left to
+     *     carry.
      */
     CellOut: {
       /** Label */
       label: string;
-      /** Suppressed */
-      suppressed: boolean;
       /**
        * Value
-       * @description Null exactly when the cell was suppressed for falling below a floor. Not zero: a withheld cell is not an empty one, and reporting it as zero would understate every total computed from this breakdown.
+       * @description The measured figure for this cell.
        */
-      value: number | null;
+      value: number;
     };
     /** ChallengeRequest */
     ChallengeRequest: {
@@ -8237,6 +8448,75 @@ export interface components {
       /** Url Template */
       url_template: string | null;
     };
+    /** FailureExampleOut */
+    FailureExampleOut: {
+      /**
+       * Claim Id
+       * Format: uuid
+       */
+      claim_id: string;
+      /** Note */
+      note: string | null;
+      /** Value */
+      value: unknown;
+    };
+    /** FailureGroupOut */
+    FailureGroupOut: {
+      /** Claim Category */
+      claim_category: string;
+      /** Examples */
+      examples: components["schemas"]["FailureExampleOut"][];
+      /**
+       * Incorrect Count
+       * @description How often this group appears among the failures.
+       */
+      incorrect_count: number;
+      /** Predicate */
+      predicate: string;
+      /**
+       * Rate
+       * @description Incorrect over judged. The figure to act on: a predicate used constantly and mostly got right will lead on `incorrect_count` by volume alone.
+       */
+      rate: number;
+      /**
+       * Total Count
+       * @description How often this group was judged at all.
+       */
+      total_count: number;
+    };
+    /** FailurePatternsOut */
+    FailurePatternsOut: {
+      /**
+       * Author Actor Id
+       * Format: uuid
+       */
+      author_actor_id: string;
+      /** Groups */
+      groups: components["schemas"]["FailureGroupOut"][];
+      /** N Adjudicated */
+      n_adjudicated: number;
+      /** N Incorrect */
+      n_incorrect: number;
+      /** N Intervention Sessions */
+      n_intervention_sessions: number;
+      /** N Sessions */
+      n_sessions: number;
+      /**
+       * Report Id
+       * Format: uuid
+       */
+      report_id: string;
+      /**
+       * Window End
+       * Format: date-time
+       */
+      window_end: string;
+      /**
+       * Window Start
+       * Format: date-time
+       */
+      window_start: string;
+    };
     /**
      * FieldProvenance
      * @description Response projection of `FieldProvenanceInput` that adds the recorded
@@ -8283,22 +8563,6 @@ export interface components {
       source_anchor?: string | null;
       /** Source Evidence Id */
       source_evidence_id?: string | null;
-    };
-    /**
-     * FloorsOut
-     * @description The thresholds in force, served so a suppressed cell is legible.
-     */
-    FloorsOut: {
-      /**
-       * Min Actors
-       * @description Minimum distinct contributors before a cell may carry a value.
-       */
-      min_actors: number;
-      /**
-       * Min Events
-       * @description Minimum events before a cell may carry a value.
-       */
-      min_events: number;
     };
     /**
      * GrantCreate
@@ -8433,6 +8697,31 @@ export interface components {
        * Format: uuid
        */
       tenant_id: string;
+    };
+    /** InstructionOut */
+    InstructionOut: {
+      /** Activated At */
+      activated_at: string | null;
+      /**
+       * Author Actor Id
+       * Format: uuid
+       */
+      author_actor_id: string;
+      /** Content */
+      content: string;
+      /**
+       * Instruction Id
+       * Format: uuid
+       */
+      instruction_id: string;
+      /** Motivated By Report Id */
+      motivated_by_report_id: string | null;
+      /** Status */
+      status: string;
+      /** Superseded At */
+      superseded_at: string | null;
+      /** Version */
+      version: number;
     };
     /**
      * IntegrationListResponse
@@ -9678,6 +9967,27 @@ export interface components {
       source_evidence_id: string;
       state: components["schemas"]["ProposalState"];
     };
+    /** ProposeInstructionRequest */
+    ProposeInstructionRequest: {
+      /** Content */
+      content: string;
+      /**
+       * Motivated By Report Id
+       * Format: uuid
+       * @description The failure-pattern report this version answers. Required: an instruction in force has to say what evidence justified it, and the database refuses an active version that cites none.
+       */
+      motivated_by_report_id: string;
+      /** Version */
+      version: number;
+    };
+    /** ProposedInstructionResponse */
+    ProposedInstructionResponse: {
+      /**
+       * Instruction Id
+       * Format: uuid
+       */
+      instruction_id: string;
+    };
     /**
      * ProvenanceClass
      * @description The three mutually exclusive ways a semantic field can be justified.
@@ -10032,8 +10342,14 @@ export interface components {
     ReceiptResponse: {
       /** Cacheable */
       cacheable: boolean;
+      /** Exclusion Count */
+      exclusion_count: number;
+      /** Hydration State */
+      hydration_state: string;
       /** Intent Id */
       intent_id: string | null;
+      /** Item Count */
+      item_count: number;
       /**
        * Receipt Id
        * Format: uuid
@@ -10693,6 +11009,14 @@ export interface components {
       | "entity_non_mandatory"
       | "intent_mandatory"
       | "intent_non_mandatory";
+    /** RollbackResponse */
+    RollbackResponse: {
+      /**
+       * Restored Instruction Id
+       * @description Null when there was no predecessor — an agent's first version has nothing behind it.
+       */
+      restored_instruction_id: string | null;
+    };
     /**
      * RouteCurationCaseRequest
      * @description Who becomes accountable for deciding the case.
@@ -13889,6 +14213,238 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["VocabularyValueResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_agent_accuracy_v1_agents__actor_id__accuracy_get: {
+    parameters: {
+      query: {
+        window_start: string;
+        window_end: string;
+        breakdown?: string;
+      };
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AccuracyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_agent_autonomy_v1_agents__actor_id__autonomy_get: {
+    parameters: {
+      query: {
+        window_start: string;
+        window_end: string;
+      };
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutonomyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_agent_failure_patterns_v1_agents__actor_id__failure_patterns_get: {
+    parameters: {
+      query: {
+        window_start: string;
+        window_end: string;
+      };
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FailurePatternsOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_agent_instructions_v1_agents__actor_id__instructions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstructionOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  propose_agent_instruction_v1_agents__actor_id__instructions_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProposeInstructionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProposedInstructionResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  activate_agent_instruction_v1_agents__actor_id__instructions__instruction_id__activate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        actor_id: string;
+        instruction_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstructionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rollback_agent_instruction_v1_agents__actor_id__instructions_rollback_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RollbackResponse"];
         };
       };
       /** @description Validation Error */
