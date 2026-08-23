@@ -1381,7 +1381,7 @@ function WorkspaceDetailPage({
       <div className="space-y-6">
         <Notice title="Mutable workspace material, not canonical context">
           Entries can support a task or record a working decision, but they do not change catalog
-          state, route work to capability owners, or create an immutable audit history.
+          state, route work to capability owners, or create durable audit evidence.
         </Notice>
 
         {receipt ? (
