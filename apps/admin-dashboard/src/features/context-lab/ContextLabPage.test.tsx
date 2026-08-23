@@ -135,7 +135,10 @@ const completeEnvelope = {
 
 const receipt = {
   cacheable: true,
+  exclusion_count: 1,
+  hydration_state: "hydrated",
   intent_id: null,
+  item_count: 2,
   receipt_id: receiptId,
   request_digest: "sha256:request",
   requested_by: actorId,
