@@ -683,6 +683,58 @@ describe("SettingsPage", () => {
     );
   });
 
+  it("sets a field policy, which had no screen and was a curl before", async () => {
+    // `POST /v1/admin/pii-field-policies` is the operator's primary PII
+    // control. The dashboard could list policies and not change one, so raising
+    // a field to `block` meant leaving the product.
+    const client = clientFor(fixtureResolver);
+    window.history.pushState({}, "", "/settings?tab=privacy");
+    renderPage(client);
+    await screen.findByText("Field policies");
+
+    const form = screen.getByRole("button", { name: "Set policy" }).closest("form");
+    if (!form) throw new Error("The field-policy form was not rendered.");
+    fireEvent.click(within(form).getByRole("combobox", { name: /Field type/u }));
+    fireEvent.click(await screen.findByRole("option", { name: "intent_checkpoint.body" }));
+    fireEvent.click(within(form).getByRole("combobox", { name: /Policy/u }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Block/u }));
+    fireEvent.submit(form);
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/admin/pii-field-policies",
+        expect.objectContaining({
+          body: {
+            field_type: "intent_checkpoint.body",
+            // Null, not omitted: the endpoint reads it as the catch-all
+            // override for the field type rather than as "no policy".
+            pattern_id: null,
+            policy: "block",
+          },
+          method: "POST",
+        }),
+      ),
+    );
+  });
+
+  it("removes an override through the item path, not by setting advisory", async () => {
+    // Deleting an override is not the same as weakening it: resolution falls
+    // through to the field-wide override, then the pattern's own, then the
+    // default. Setting advisory would leave a row shadowing all three.
+    const client = clientFor(fixtureResolver);
+    window.history.pushState({}, "", "/settings?tab=privacy");
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove override" }));
+
+    await waitFor(() =>
+      expect(client.request).toHaveBeenCalledWith(
+        "/v1/admin/pii-field-policies/field-policy-a",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+  });
+
   it("does not request administrative resources for a non-administrator", async () => {
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return { ...identity, roles: ["producer"] };

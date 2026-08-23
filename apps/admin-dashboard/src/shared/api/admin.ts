@@ -696,6 +696,56 @@ export async function listPiiFieldPolicies(
   return requiredArray(payload, "PII field policies").map(parsePiiFieldPolicy);
 }
 
+/**
+ * Set a tenant's policy for one field type, optionally narrowed to one pattern.
+ *
+ * This is the operator's primary PII control and it had no adapter: the
+ * dashboard could list policies and not change one, so the documented way to
+ * raise a field to `block` was a `curl`. Omitting `patternId` writes the
+ * catch-all override for that field type, which is what the endpoint means by a
+ * null `pattern_id` — it is not the same as "no policy".
+ */
+export async function setPiiFieldPolicy(
+  client: ContextplaneClient,
+  input: { fieldType: string; patternId?: string | null; policy: string },
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<PiiFieldPolicy> {
+  const payload = await client.request("/v1/admin/pii-field-policies", {
+    ...contextOptions(context, signal),
+    body: {
+      field_type: input.fieldType,
+      pattern_id: input.patternId ?? null,
+      policy: input.policy,
+    } satisfies Schemas["PiiFieldPolicyCreate"],
+    method: "POST",
+  });
+  return parsePiiFieldPolicy(payload);
+}
+
+/**
+ * Remove one policy override, restoring whatever resolves beneath it.
+ *
+ * Deleting an override is not the same as setting `advisory`: resolution falls
+ * through to the field-wide override, then the pattern's own, then the runtime
+ * default. A screen that offered only "set to advisory" would leave a row that
+ * shadows a broader policy the tenant may have meant to apply.
+ *
+ * Posts to the item path. The collection path takes a create, so a delete sent
+ * there is a different operation entirely.
+ */
+export async function deletePiiFieldPolicy(
+  client: ContextplaneClient,
+  policyId: string,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<void> {
+  await client.request(`/v1/admin/pii-field-policies/${encodeURIComponent(policyId)}`, {
+    ...contextOptions(context, signal),
+    method: "DELETE",
+  });
+}
+
 export async function purgeActorPersonalData(
   client: ContextplaneClient,
   actorId: string,
