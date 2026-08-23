@@ -48,7 +48,12 @@ export function requiredString(record: Record<string, unknown>, key: string): st
 export function nullableString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   if (value === null || value === undefined) return null;
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} is not text.`);
+  // "or null", where `requiredString` says only "is not text": the refusal says
+  // what was allowed, so a reader can tell a field that may be absent from one
+  // that may not without going to the source.
+  if (typeof value !== "string") {
+    throw new Error(`Invalid API response: ${key} is not text or null.`);
+  }
   return value;
 }
 
@@ -70,11 +75,25 @@ export function requiredNumber(record: Record<string, unknown>, key: string): nu
   return value;
 }
 
+/**
+ * A whole number. Delegates to `requiredNumber`, so a non-finite value is
+ * refused as "not a number" before integrality is asked about — the two
+ * copies this replaced disagreed on that ordering and produced different
+ * messages for `Infinity`.
+ */
+export function requiredInteger(record: Record<string, unknown>, key: string): number {
+  const value = requiredNumber(record, key);
+  if (!Number.isInteger(value)) {
+    throw new Error(`Invalid API response: ${key} is not an integer.`);
+  }
+  return value;
+}
+
 export function nullableNumber(record: Record<string, unknown>, key: string): number | null {
   const value = record[key];
   if (value === null || value === undefined) return null;
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid API response: ${key} is not a number.`);
+    throw new Error(`Invalid API response: ${key} is not a number or null.`);
   }
   return value;
 }
@@ -84,4 +103,22 @@ export function stringArray(value: unknown, label: string): readonly string[] {
     if (typeof item !== "string") throw new Error(`Invalid API response: ${label} contains data.`);
     return item;
   });
+}
+
+/**
+ * A boolean the service may omit, with the value to assume when it does.
+ *
+ * Separate from `requiredBoolean` because the fallback is a decision the caller
+ * owns: an absent flag means different things per field, and defaulting it here
+ * would hide that choice inside a validator.
+ */
+export function optionalBoolean(
+  record: Record<string, unknown>,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const value = record[key];
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== "boolean") throw new Error(`Invalid API response: ${key} is not boolean.`);
+  return value;
 }

@@ -1244,7 +1244,7 @@ describe("Contextplane endpoint adapters", () => {
       listPromotionProposals(
         stubClient({ items: [{ ...proposal, high_impact: "yes" }], next_cursor: null }),
       ),
-    ).rejects.toThrow(/high_impact is not a boolean/i);
+    ).rejects.toThrow(/high_impact is not boolean/i);
     await expect(
       getPromotionProposal(stubClient({ ...proposal, state: "pending" }), proposal.proposal_id),
     ).rejects.toThrow(/unknown proposal state/i);
@@ -1264,7 +1264,7 @@ describe("Contextplane endpoint adapters", () => {
     ).rejects.toThrow(/warnings is not an array/i);
     await expect(
       listMemoryClaims(stubClient([{ ...memoryClaim, citations: [{ kind: "artifact" }] }])),
-    ).rejects.toThrow(/ref is not a string/i);
+    ).rejects.toThrow(/ref is not text/i);
     await expect(
       getMemoryCurationCounts(stubClient({ counts: { unlinked: 1.5 } })),
     ).rejects.toThrow(/count for unlinked is not an integer/i);
@@ -1279,7 +1279,7 @@ describe("Contextplane endpoint adapters", () => {
         }),
         "identity",
       ),
-    ).rejects.toThrow(/version agreement.*is not a boolean/i);
+    ).rejects.toThrow(/version agreement.*is not boolean/i);
     await expect(
       getRelationshipBlastRadius(
         stubClient({ ...relationshipTraversal, direction: "sideways" }),
@@ -1303,10 +1303,10 @@ describe("Contextplane endpoint adapters", () => {
         }),
         "identity",
       ),
-    ).rejects.toThrow(/name is not a string/i);
+    ).rejects.toThrow(/name is not text/i);
     await expect(
       getProviderRelationshipProjection(stubClient({ edges: [], next_cursor: 42, nodes: [] })),
-    ).rejects.toThrow(/next_cursor is not nullable text/i);
+    ).rejects.toThrow(/next_cursor is not text or null/i);
     await expect(
       resolveContext(
         stubClient({ ...contextEnvelope, blocks: [...contextEnvelope.blocks].reverse() }),

@@ -223,18 +223,18 @@ describe("the governed entity write", () => {
   });
 
   it.each([
-    [{ effect: 7 }, "effect is not a string"],
+    [{ effect: 7 }, "effect is not text"],
     [{ validation: { mode: "m", valid: true, violations: "none" } }, "not a list"],
     [{ validation: { mode: "m", valid: true, violations: [1] } }, "violation 0"],
-    [{ validation: { mode: "m", valid: "yes" } }, "valid is not a boolean"],
-    [{ validation: { mode: "m", valid: true, truncated: "no" } }, "truncated is not a boolean"],
+    [{ validation: { mode: "m", valid: "yes" } }, "valid is not boolean"],
+    [{ validation: { mode: "m", valid: true, truncated: "no" } }, "truncated is not boolean"],
     [
       { profile: { enforcement_mode: 3, binding_id: null, profile_revision_id: null } },
-      "enforcement_mode is not a string",
+      "enforcement_mode is not text",
     ],
     [
       { profile: { enforcement_mode: "m", binding_id: 7, profile_revision_id: null } },
-      "binding_id is not a string or null",
+      "binding_id is not text or null",
     ],
     [{ profile: "nope" }, "profile attribution is not an object"],
   ])("refuses a malformed result (%o)", async (override, message) => {

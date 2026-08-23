@@ -388,7 +388,7 @@ describe("relationship traversal adapter", () => {
 
   it.each([
     [{ items: undefined }, "relationship page items are not a list"],
-    [{ has_more: "yes" }, "has_more is not a boolean"],
+    [{ has_more: "yes" }, "has_more is not boolean"],
     [{ limit: 1.5 }, "limit is not an integer"],
   ])("refuses a malformed page envelope (%o)", async (override, message) => {
     const { client } = clientFor(() => ({
@@ -403,11 +403,11 @@ describe("relationship traversal adapter", () => {
   });
 
   it.each([
-    [{ is_inverse: "maybe" }, "is_inverse is not a boolean"],
+    [{ is_inverse: "maybe" }, "is_inverse is not boolean"],
     [{ properties: "gold" }, "relationship properties are not an object"],
-    [{ readiness_state: 3 }, "readiness_state is not a string"],
+    [{ readiness_state: 3 }, "readiness_state is not text"],
     [{ provenance: { confidence: "high" } }, "confidence is not a number or null"],
-    [{ profile: { ...writeResult.profile, binding_id: 7 } }, "binding_id is not a string or null"],
+    [{ profile: { ...writeResult.profile, binding_id: 7 } }, "binding_id is not text or null"],
     [{ validation: { mode: "enforcing", valid: true, violations: "none" } }, "not a list"],
     [{ validation: { mode: "enforcing", valid: true, violations: [1] } }, "violation 0"],
   ])("refuses a malformed relationship row (%o)", async (override, message) => {
