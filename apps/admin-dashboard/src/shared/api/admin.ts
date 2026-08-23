@@ -666,9 +666,21 @@ export async function listPiiFieldPolicies(
  * catch-all override for that field type, which is what the endpoint means by a
  * null `pattern_id` — it is not the same as "no policy".
  */
+/**
+ * The two vocabularies, read off the contract rather than written out.
+ *
+ * They arrived as bare `string` until the service published them as enums, and
+ * until then a picker had to duplicate nine field-type literals — with a
+ * free-text box the only alternative, which let an operator save a policy that
+ * stored, listed, and governed nothing. These aliases are what let the editor
+ * drop its copy.
+ */
+export type PiiFieldType = NonNullable<Schemas["PiiFieldPolicyCreate"]["field_type"]>;
+export type PiiPolicy = NonNullable<Schemas["PiiFieldPolicyCreate"]["policy"]>;
+
 export async function setPiiFieldPolicy(
   client: ContextplaneClient,
-  input: { fieldType: string; patternId?: string | null; policy: string },
+  input: { fieldType: PiiFieldType; patternId?: string | null; policy: PiiPolicy },
   context: ContextplaneRequestOptions = {},
   signal?: AbortSignal,
 ): Promise<PiiFieldPolicy> {

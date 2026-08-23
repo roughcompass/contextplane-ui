@@ -118,6 +118,83 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/claim-quarantines": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Apply Quarantine
+     * @description Withhold every claim this predicate matches, and record which ones.
+     *
+     *     A predicate matching nothing is a `409`, not an empty success: a quarantine
+     *     that withheld nothing reads later as one that was tried and worked, and an
+     *     incident review would take it as evidence the content was contained.
+     */
+    post: operations["apply_quarantine_v1_admin_claim_quarantines_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/claim-quarantines/{quarantine_id}:revert": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revert Quarantine
+     * @description Put back exactly what this quarantine withheld. Returns how many.
+     *
+     *     The count can be lower than `matched_count` and that is correct rather than
+     *     a partial failure: a claim still held by a second, unreverted quarantine
+     *     stays withheld, because releasing it would republish what the other incident
+     *     still means to contain.
+     *
+     *     Reverting an already-reverted quarantine is a `409`. Answering `200` with
+     *     zero would be indistinguishable from a quarantine that had nothing left to
+     *     restore, and those are different facts about the incident.
+     */
+    post: operations["revert_quarantine_v1_admin_claim_quarantines__quarantine_id__revert_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/claim-quarantines:preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview Quarantine
+     * @description What applying this predicate would reach, without withholding anything.
+     *
+     *     A POST rather than a GET despite writing nothing: the predicate is a body,
+     *     and putting a selector and an operator-chosen value in a query string puts
+     *     them in every access log between here and the caller.
+     */
+    post: operations["preview_quarantine_v1_admin_claim_quarantines_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/edge-property-schemas": {
     parameters: {
       query?: never;
@@ -9299,12 +9376,27 @@ export interface components {
      *     the field type as a whole.
      */
     PiiFieldPolicyCreate: {
-      /** Field Type */
-      field_type: string;
+      /**
+       * Field Type
+       * @enum {string}
+       */
+      field_type:
+        | "artifact.body"
+        | "claim_value"
+        | "external_signal.payload"
+        | "external_signal.references"
+        | "intent_checkpoint.body"
+        | "intent_checkpoint.references"
+        | "memory_session_event.body"
+        | "workspace_entry.body"
+        | "workspace_entry.references";
       /** Pattern Id */
       pattern_id?: string | null;
-      /** Policy */
-      policy: string;
+      /**
+       * Policy
+       * @enum {string}
+       */
+      policy: "advisory" | "warn" | "block";
     };
     /**
      * PiiFieldPolicyResponse
@@ -10143,6 +10235,97 @@ export interface components {
       degraded_blocks: string[];
       /** Reasons */
       reasons: string[];
+    };
+    /**
+     * QuarantineApplyRequest
+     * @description A predicate plus the reason it is being applied.
+     */
+    QuarantineApplyRequest: {
+      /**
+       * Reason
+       * @description Why. Withheld content with no stated cause is unreviewable.
+       */
+      reason: string;
+      /**
+       * Selector
+       * @description One of ['connector_run', 'strategy_id', 'namespace_prefix'].
+       */
+      selector: string;
+      /** Value */
+      value: string;
+    };
+    /**
+     * QuarantinePredicate
+     * @description Which claims to withhold, in the closed provenance vocabulary.
+     */
+    QuarantinePredicate: {
+      /**
+       * Selector
+       * @description One of ['connector_run', 'strategy_id', 'namespace_prefix'].
+       */
+      selector: string;
+      /** Value */
+      value: string;
+    };
+    /**
+     * QuarantinePreviewResponse
+     * @description What a predicate reaches, and what depends on what it reaches.
+     *
+     *     Two sets that mean different things, kept apart in the response for the
+     *     reason they are kept apart in the service: `matched` is exact and is what
+     *     would be withheld; `downstream` is advisory and **is withheld by nothing**.
+     *     A caller that merged them would tell an operator that applying this makes
+     *     the second list disappear.
+     */
+    QuarantinePreviewResponse: {
+      /** Downstream */
+      downstream: string[];
+      /** Matched */
+      matched: string[];
+      /** Seeds Total */
+      seeds_total: number;
+      /** Seeds Traversed */
+      seeds_traversed: number;
+      /** Subjects */
+      subjects: string[];
+      /** Truncated */
+      truncated: boolean;
+    };
+    /**
+     * QuarantineResponse
+     * @description One applied quarantine, and exactly which claims it withheld.
+     *
+     *     The ids rather than only the count, because `revert` restores the recorded
+     *     membership and an operator reviewing the incident needs to see the same set
+     *     the ledger will put back.
+     */
+    QuarantineResponse: {
+      /** Matched */
+      matched: string[];
+      /** Matched Count */
+      matched_count: number;
+      /**
+       * Quarantine Id
+       * Format: uuid
+       */
+      quarantine_id: string;
+      /** Selector */
+      selector: string;
+      /** Value */
+      value: string;
+    };
+    /**
+     * QuarantineRevertResponse
+     * @description How many claims a revert actually restored.
+     */
+    QuarantineRevertResponse: {
+      /**
+       * Quarantine Id
+       * Format: uuid
+       */
+      quarantine_id: string;
+      /** Restored Count */
+      restored_count: number;
     };
     /** QueueCountsResponse */
     QueueCountsResponse: {
@@ -12516,6 +12699,103 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuditResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  apply_quarantine_v1_admin_claim_quarantines_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QuarantineApplyRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuarantineResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revert_quarantine_v1_admin_claim_quarantines__quarantine_id__revert_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        quarantine_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuarantineRevertResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  preview_quarantine_v1_admin_claim_quarantines_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QuarantinePredicate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuarantinePreviewResponse"];
         };
       };
       /** @description Validation Error */

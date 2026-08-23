@@ -110,7 +110,14 @@ describe("App", () => {
       ["Monitor usage", ["Activity", "Agents", "Sessions", "Analytics"]],
       [
         "Governance",
-        ["Governed policies", "Proposals", "Ownership & profiles", "Audit log", "Settings"],
+        [
+          "Governed policies",
+          "Proposals",
+          "Ownership & profiles",
+          "Quarantine",
+          "Audit log",
+          "Settings",
+        ],
       ],
     ] as const;
     const primaryNavigation = screen.getByRole("navigation", { name: "Primary" });

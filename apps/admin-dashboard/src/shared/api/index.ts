@@ -53,6 +53,8 @@ export {
   type ListProgressionOverridesParameters,
   type ListSyncRunsParameters,
   type PiiFieldPolicy,
+  type PiiFieldType,
+  type PiiPolicy,
   type PiiPattern,
   type ProgressionDefinition,
   type ProgressionOverride,
@@ -86,6 +88,14 @@ export {
   type FailurePatternReport,
   type ProposeInstructionInput,
 } from "./agents";
+export {
+  applyQuarantine,
+  previewQuarantine,
+  revertQuarantine,
+  type AppliedQuarantine,
+  type QuarantinePreview,
+  type QuarantineSelector,
+} from "./quarantine";
 export {
   queryAuditRecords,
   type AuditRecord,

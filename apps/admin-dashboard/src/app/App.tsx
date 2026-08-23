@@ -12,6 +12,7 @@ import {
   ListChecks,
   MessageSquareText,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   UserCog,
   Workflow,
@@ -124,6 +125,11 @@ const SettingsPage = lazy(async () => {
   return { default: feature.SettingsPage };
 });
 
+const QuarantinePage = lazy(async () => {
+  const feature = await import("../features/quarantine");
+  return { default: feature.QuarantinePage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -204,6 +210,7 @@ const navigation: readonly NavigationSection[] = [
       { href: "/arc", icon: <ShieldCheck className="size-4" />, label: "Governed policies" },
       { href: "/proposals", icon: <Workflow className="size-4" />, label: "Proposals" },
       { href: "/ownership", icon: <UserCog className="size-4" />, label: "Ownership & profiles" },
+      { href: "/quarantine", icon: <ShieldAlert className="size-4" />, label: "Quarantine" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
@@ -224,6 +231,7 @@ type AppRoute =
   | "overview"
   | "ownership"
   | "proposals"
+  | "quarantine"
   | "relationships"
   | "sessions"
   | "settings"
@@ -332,6 +340,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Producer",
     usesIdentity: true,
   },
+  quarantine: {
+    href: "/quarantine",
+    load: () => import("../features/quarantine"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
   relationships: {
     href: "/relationships",
     load: () => import("../features/relationships"),
@@ -386,6 +400,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memory";
   if (pathname === "/ownership") return "ownership";
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
+  if (pathname === "/quarantine") return "quarantine";
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
@@ -902,6 +917,12 @@ export function App() {
                 client={apiClient}
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
+              />
+            ) : route === "quarantine" ? (
+              <QuarantinePage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
               />
             ) : route === "agents" ? (
               <AgentsPage
