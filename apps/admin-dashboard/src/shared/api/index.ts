@@ -89,6 +89,17 @@ export {
   type ProposeInstructionInput,
 } from "./agents";
 export {
+  approveArcReplayCorpus,
+  registerArcSourceConnector,
+  registerArcSourceUploadPolicy,
+  type ArcReplayCorpus,
+  type ArcReplayCorpusInput,
+  type ArcSourceConnector,
+  type ArcSourceConnectorInput,
+  type ArcSourceUploadPolicy,
+  type ArcSourceUploadPolicyInput,
+} from "./arcSourceGovernance";
+export {
   grantArcException,
   revokeArcException,
   type ArcExceptionApproval,

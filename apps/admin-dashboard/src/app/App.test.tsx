@@ -117,6 +117,7 @@ describe("App", () => {
           "Quarantine",
           "Approval verifiers",
           "Exceptions",
+          "Source governance",
           "Audit log",
           "Settings",
         ],
