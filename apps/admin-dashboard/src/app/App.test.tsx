@@ -106,9 +106,12 @@ describe("App", () => {
 
     const expectedSections = [
       ["Discover", ["Overview", "Catalog", "Relationships", "Living memory"]],
-      ["Work with context", ["Context Lab", "Workspaces", "Tenant work"]],
-      ["Monitor usage", ["Sessions", "Analytics"]],
-      ["Governance", ["Governed policies", "Proposals", "Audit log", "Settings"]],
+      ["Work with context", ["Context Lab", "Tasks", "Workspaces"]],
+      ["Monitor usage", ["Activity", "Sessions", "Analytics"]],
+      [
+        "Governance",
+        ["Governed policies", "Proposals", "Ownership & profiles", "Audit log", "Settings"],
+      ],
     ] as const;
     const primaryNavigation = screen.getByRole("navigation", { name: "Primary" });
 
@@ -183,6 +186,22 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "dark"));
+  });
+
+  it("reports an address no destination claims, instead of rendering another one", async () => {
+    // The router used to fall through to the catalog. A mistyped or stale URL
+    // then rendered a real page with no signal that it was not the one asked
+    // for, which is the opposite of "a copied URL reconstructs the same view".
+    window.history.replaceState({}, "", "/tenant-work");
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
+    expect(screen.getByText("/tenant-work")).toBeVisible();
+    expect(screen.queryByRole("heading", { level: 1, name: "Catalog" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { current: "page" }),
+      "no navigation item may claim to be where the reader is",
+    ).toBeNull();
   });
 
   it("navigates between features without reloading the shell", async () => {

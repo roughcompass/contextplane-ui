@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bell,
   Boxes,
   Braces,
   ChartColumn,
@@ -11,6 +12,7 @@ import {
   MessageSquareText,
   Settings,
   ShieldCheck,
+  UserCog,
   Workflow,
 } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -49,6 +51,7 @@ import {
   type MemoryClaimPersona,
 } from "../shared/api";
 import { createBrowserAccessTokenProvider } from "../shared/auth/runtimeAuth";
+import { NotFoundPage } from "../shared/navigation/NotFoundPage";
 import { EntitySearch } from "./EntitySearch";
 
 declare global {
@@ -120,9 +123,19 @@ const SettingsPage = lazy(async () => {
   return { default: feature.SettingsPage };
 });
 
-const TenantWorkPage = lazy(async () => {
-  const feature = await import("../features/tenant-work");
-  return { default: feature.TenantWorkPage };
+const ActivityPage = lazy(async () => {
+  const feature = await import("../features/activity");
+  return { default: feature.ActivityPage };
+});
+
+const OwnershipPage = lazy(async () => {
+  const feature = await import("../features/ownership");
+  return { default: feature.OwnershipPage };
+});
+
+const TasksPage = lazy(async () => {
+  const feature = await import("../features/tasks");
+  return { default: feature.TasksPage };
 });
 
 const ProposalsPage = lazy(async () => {
@@ -160,14 +173,15 @@ const navigation: readonly NavigationSection[] = [
         icon: <FlaskConical className="size-4" />,
         label: "Context Lab",
       },
+      { href: "/tasks", icon: <ListChecks className="size-4" />, label: "Tasks" },
       { href: "/workspaces", icon: <Boxes className="size-4" />, label: "Workspaces" },
-      { href: "/tenant-work", icon: <ListChecks className="size-4" />, label: "Tenant work" },
     ],
   },
   {
     id: "monitor-usage",
     label: "Monitor usage",
     items: [
+      { href: "/activity", icon: <Bell className="size-4" />, label: "Activity" },
       {
         href: "/sessions",
         icon: <MessageSquareText className="size-4" />,
@@ -182,6 +196,7 @@ const navigation: readonly NavigationSection[] = [
     items: [
       { href: "/arc", icon: <ShieldCheck className="size-4" />, label: "Governed policies" },
       { href: "/proposals", icon: <Workflow className="size-4" />, label: "Proposals" },
+      { href: "/ownership", icon: <UserCog className="size-4" />, label: "Ownership & profiles" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
@@ -189,6 +204,7 @@ const navigation: readonly NavigationSection[] = [
 ];
 
 type AppRoute =
+  | "activity"
   | "analytics"
   | "arc"
   | "assert-claim"
@@ -196,63 +212,179 @@ type AppRoute =
   | "catalog"
   | "context-lab"
   | "memory"
+  | "not-found"
   | "overview"
+  | "ownership"
   | "proposals"
   | "relationships"
   | "sessions"
   | "settings"
-  | "tenant-work"
+  | "tasks"
   | "workspaces";
 
+type UserRole = "Administrator" | "Auditor" | "Producer";
+
+interface RouteDefinition {
+  /** The nav href this route marks current. Several routes may share one. */
+  readonly href: string;
+  /** Preloads the route's chunk, so a click does not wait on the network twice. */
+  readonly load: () => Promise<unknown>;
+  /** Whether the shell resolves `whoami` before the page renders. */
+  readonly usesIdentity: boolean;
+  readonly role: UserRole;
+}
+
+/**
+ * Every route's facts in one place.
+ *
+ * These used to be five parallel lists — a union, a pathname matcher, a chunk
+ * loader, an identity predicate, and two nested ternary chains — each edited by
+ * hand when a destination was added. Nothing made them agree, so a route could
+ * load its chunk and still highlight nothing in the navigation, and only a
+ * person reading all five would notice. Adding a destination is now one entry.
+ */
+const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
+  activity: {
+    href: "/activity",
+    load: () => import("../features/activity"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  analytics: {
+    href: "/analytics",
+    load: () => import("../features/analytics"),
+    role: "Administrator",
+    usesIdentity: false,
+  },
+  arc: {
+    href: "/arc",
+    load: () => import("../features/arc"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
+  "assert-claim": {
+    href: "/memory",
+    load: () => import("../features/memory"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  audit: {
+    href: "/audit",
+    load: () => import("../features/audit"),
+    role: "Auditor",
+    usesIdentity: false,
+  },
+  catalog: {
+    href: "/catalog",
+    load: () => import("../features/catalog"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  "context-lab": {
+    href: "/context-lab",
+    load: () => import("../features/context-lab"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  memory: {
+    href: "/memory",
+    load: () => import("../features/memory"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  "not-found": {
+    // No nav item is current: the address matched none of them, and marking one
+    // anyway would claim the reader is somewhere they are not.
+    href: "",
+    load: () => Promise.resolve(),
+    role: "Producer",
+    usesIdentity: false,
+  },
+  overview: {
+    href: "/",
+    load: () => import("../features/overview"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  ownership: {
+    href: "/ownership",
+    load: () => import("../features/ownership"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  proposals: {
+    href: "/proposals",
+    load: () => import("../features/proposals"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  relationships: {
+    href: "/relationships",
+    load: () => import("../features/relationships"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  sessions: {
+    href: "/sessions",
+    load: () => import("../features/sessions"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
+  settings: {
+    href: "/settings",
+    load: () => import("../features/settings"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
+  tasks: {
+    href: "/tasks",
+    load: () => import("../features/tasks"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+  workspaces: {
+    href: "/workspaces",
+    load: () => import("../features/workspaces"),
+    role: "Producer",
+    usesIdentity: true,
+  },
+};
+
+/**
+ * Which route an address names, or `not-found`.
+ *
+ * Ordered: `/memory/assert` is a destination of its own and has to be tested
+ * before `/memory/`'s prefix claims it. The fall-through used to be the
+ * catalog, so a mistyped or stale URL rendered a real page and said nothing —
+ * a copied URL is supposed to reconstruct the same view, and silently
+ * reconstructing a different one is worse than reporting nothing.
+ */
 function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/") return "overview";
+  if (pathname === "/activity") return "activity";
   if (pathname === "/analytics") return "analytics";
   if (pathname === "/arc") return "arc";
   if (pathname === "/audit") return "audit";
+  if (pathname === "/catalog") return "catalog";
   if (pathname === "/context-lab") return "context-lab";
   if (pathname === "/memory/assert") return "assert-claim";
   if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memory";
+  if (pathname === "/ownership") return "ownership";
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
-  if (pathname === "/tenant-work") return "tenant-work";
+  if (pathname === "/tasks") return "tasks";
   if (pathname === "/workspaces" || pathname.startsWith("/workspaces/")) return "workspaces";
-  return "catalog";
+  return "not-found";
 }
 
 function loadRouteModule(route: AppRoute): Promise<unknown> {
-  if (route === "analytics") return import("../features/analytics");
-  if (route === "arc") return import("../features/arc");
-  if (route === "assert-claim") return import("../features/memory");
-  if (route === "audit") return import("../features/audit");
-  if (route === "catalog") return import("../features/catalog");
-  if (route === "context-lab") return import("../features/context-lab");
-  if (route === "memory") return import("../features/memory");
-  if (route === "overview") return import("../features/overview");
-  if (route === "proposals") return import("../features/proposals");
-  if (route === "relationships") return import("../features/relationships");
-  if (route === "sessions") return import("../features/sessions");
-  if (route === "settings") return import("../features/settings");
-  if (route === "tenant-work") return import("../features/tenant-work");
-  return import("../features/workspaces");
+  return routeDefinitions[route].load();
 }
 
 function routeUsesIdentity(route: AppRoute): boolean {
-  return (
-    route === "arc" ||
-    route === "assert-claim" ||
-    route === "catalog" ||
-    route === "context-lab" ||
-    route === "memory" ||
-    route === "overview" ||
-    route === "proposals" ||
-    route === "relationships" ||
-    route === "sessions" ||
-    route === "settings" ||
-    route === "tenant-work" ||
-    route === "workspaces"
-  );
+  return routeDefinitions[route].usesIdentity;
 }
 
 function apiRequestContext(apiTenantId: string | undefined): ContextplaneRequestOptions {
@@ -658,39 +790,9 @@ export function App() {
     });
   }
 
-  const activeHref =
-    route === "overview"
-      ? "/"
-      : route === "analytics"
-        ? "/analytics"
-        : route === "arc"
-          ? "/arc"
-          : route === "audit"
-            ? "/audit"
-            : route === "context-lab"
-              ? "/context-lab"
-              : route === "memory" || route === "assert-claim"
-                ? "/memory"
-                : route === "proposals"
-                  ? "/proposals"
-                  : route === "relationships"
-                    ? "/relationships"
-                    : route === "sessions"
-                      ? "/sessions"
-                      : route === "tenant-work"
-                        ? "/tenant-work"
-                        : route === "settings"
-                          ? "/settings"
-                          : route === "workspaces"
-                            ? "/workspaces"
-                            : "/catalog";
+  const activeHref = routeDefinitions[route].href;
   const navigationPending = routeNavigationPending || tenantChangePending;
-  const userRole =
-    route === "analytics" || route === "arc" || route === "sessions" || route === "settings"
-      ? "Administrator"
-      : route === "audit"
-        ? "Auditor"
-        : "Producer";
+  const userRole = routeDefinitions[route].role;
   const skeletonControls = route === "audit" ? 5 : 2;
 
   return (
@@ -786,12 +888,26 @@ export function App() {
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
               />
-            ) : route === "tenant-work" ? (
-              <TenantWorkPage
+            ) : route === "activity" ? (
+              <ActivityPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}
               />
+            ) : route === "ownership" ? (
+              <OwnershipPage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "tasks" ? (
+              <TasksPage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "not-found" ? (
+              <NotFoundPage activeTenantName={activeTenantName} pathname={pathname} />
             ) : route === "assert-claim" ? (
               <AssertClaimPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
