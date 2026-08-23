@@ -16,6 +16,19 @@
  * Every function takes the field name so a refusal says which field, not just
  * that something was wrong. A parse failure a reader cannot locate is the same
  * as no validation at all: both end in someone reading the network tab.
+ *
+ * ## The optional `label`, and why the key alone is sometimes not enough
+ *
+ * The field validators name the field by its key, which is enough while the key
+ * is unique. It stops being enough for `created_at`, `name` or `title`, which
+ * the catalog parses on five different objects in one request cycle: `name is
+ * not text` does not say whether the capability, the artifact or the adoption
+ * was malformed.
+ *
+ * So a caller may pass a qualified label. `catalog.ts` had reached this
+ * conclusion already and acted on it by keeping a whole private dialect
+ * (E10-T13); the label is the part of that dialect worth keeping, and it is
+ * kept here rather than there so one prefix and one message shape survive.
  */
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,9 +45,13 @@ export function requiredArray(value: unknown, label: string): readonly unknown[]
   return value;
 }
 
-export function requiredString(record: Record<string, unknown>, key: string): string {
+export function requiredString(
+  record: Record<string, unknown>,
+  key: string,
+  label: string = key,
+): string {
   const value = record[key];
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} is not text.`);
+  if (typeof value !== "string") throw new Error(`Invalid API response: ${label} is not text.`);
   return value;
 }
 
@@ -45,21 +62,29 @@ export function requiredString(record: Record<string, unknown>, key: string): st
  * and a caller that had to tell them apart would be branching on which of two
  * serializers produced the payload.
  */
-export function nullableString(record: Record<string, unknown>, key: string): string | null {
+export function nullableString(
+  record: Record<string, unknown>,
+  key: string,
+  label: string = key,
+): string | null {
   const value = record[key];
   if (value === null || value === undefined) return null;
   // "or null", where `requiredString` says only "is not text": the refusal says
   // what was allowed, so a reader can tell a field that may be absent from one
   // that may not without going to the source.
   if (typeof value !== "string") {
-    throw new Error(`Invalid API response: ${key} is not text or null.`);
+    throw new Error(`Invalid API response: ${label} is not text or null.`);
   }
   return value;
 }
 
-export function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
+export function requiredBoolean(
+  record: Record<string, unknown>,
+  key: string,
+  label: string = key,
+): boolean {
   const value = record[key];
-  if (typeof value !== "boolean") throw new Error(`Invalid API response: ${key} is not boolean.`);
+  if (typeof value !== "boolean") throw new Error(`Invalid API response: ${label} is not boolean.`);
   return value;
 }
 
@@ -98,9 +123,18 @@ export function nullableNumber(record: Record<string, unknown>, key: string): nu
   return value;
 }
 
+/**
+ * Every element is text, and the refusal names the one that was not.
+ *
+ * `${label} contains data` was what this said before, and it is what a reader
+ * gets when the list is a hundred long: true, and no help. The index is what
+ * turns the message into somewhere to look.
+ */
 export function stringArray(value: unknown, label: string): readonly string[] {
-  return requiredArray(value, label).map((item) => {
-    if (typeof item !== "string") throw new Error(`Invalid API response: ${label} contains data.`);
+  return requiredArray(value, label).map((item, index) => {
+    if (typeof item !== "string") {
+      throw new Error(`Invalid API response: ${label}[${index}] is not text.`);
+    }
     return item;
   });
 }

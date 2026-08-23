@@ -1,5 +1,13 @@
-import type { components } from "./generated/contextplane";
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import type { components } from "./generated/contextplane";
+import {
+  nullableString,
+  requiredArray,
+  requiredBoolean,
+  requiredRecord,
+  requiredString,
+  stringArray,
+} from "./parse";
 
 /**
  * The entity types the service gives a dedicated create route. `GET
@@ -135,105 +143,72 @@ export interface ListCapabilitiesParameters {
   pageSize?: number;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function record(value: unknown, label: string): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error(`${label} was not an object.`);
-  return value;
-}
-
-function string(value: unknown, label: string): string {
-  if (typeof value !== "string") throw new Error(`${label} was not a string.`);
-  return value;
-}
-
-function nullableString(value: unknown, label: string): string | null {
-  if (value === null || value === undefined) return null;
-  return string(value, label);
-}
-
-function boolean(value: unknown, label: string): boolean {
-  if (typeof value !== "boolean") throw new Error(`${label} was not a boolean.`);
-  return value;
-}
-
-function stringArray(value: unknown, label: string): readonly string[] {
-  if (!Array.isArray(value)) throw new Error(`${label} was not a list.`);
-  return value.map((item, index) => string(item, `${label}[${index}]`));
-}
-
-function unknownRecord(value: unknown, label: string): Readonly<Record<string, unknown>> {
-  return record(value, label);
-}
-
 function parseCapabilitySummary(value: unknown): CatalogCapabilitySummary {
-  const item = record(value, "Capability");
+  const item = requiredRecord(value, "Capability");
   return {
-    createdAt: string(item.created_at, "Capability created_at"),
-    entityId: string(item.entity_id, "Capability entity_id"),
-    entityType: string(item.entity_type, "Capability entity_type"),
-    externalId: nullableString(item.external_id, "Capability external_id"),
-    name: string(item.name, "Capability name"),
+    createdAt: requiredString(item, "created_at", "Capability created_at"),
+    entityId: requiredString(item, "entity_id", "Capability entity_id"),
+    entityType: requiredString(item, "entity_type", "Capability entity_type"),
+    externalId: nullableString(item, "external_id", "Capability external_id"),
+    name: requiredString(item, "name", "Capability name"),
   };
 }
 
 function parseCapabilityDetail(value: unknown): CatalogCapabilityDetail {
-  const item = record(value, "Capability detail");
+  const item = requiredRecord(value, "Capability detail");
   return {
     ...parseCapabilitySummary(item),
-    attributes: unknownRecord(item.attributes, "Capability attributes"),
-    lifecycle: string(item.lifecycle, "Capability lifecycle"),
+    attributes: requiredRecord(item.attributes, "Capability attributes"),
+    lifecycle: requiredString(item, "lifecycle", "Capability lifecycle"),
   };
 }
 
 function parseCapabilityMutation(value: unknown): CatalogCapabilityDetail {
-  const item = record(value, "Capability mutation response");
+  const item = requiredRecord(value, "Capability mutation response");
   return {
-    attributes: unknownRecord(item.attributes, "Capability attributes"),
-    createdAt: string(item.created_at, "Capability created_at"),
-    entityId: string(item.entity_id, "Capability entity_id"),
+    attributes: requiredRecord(item.attributes, "Capability attributes"),
+    createdAt: requiredString(item, "created_at", "Capability created_at"),
+    entityId: requiredString(item, "entity_id", "Capability entity_id"),
     entityType: "capability",
-    externalId: nullableString(item.external_id, "Capability external_id"),
-    lifecycle: string(item.lifecycle, "Capability lifecycle"),
-    name: string(item.name, "Capability name"),
+    externalId: nullableString(item, "external_id", "Capability external_id"),
+    lifecycle: requiredString(item, "lifecycle", "Capability lifecycle"),
+    name: requiredString(item, "name", "Capability name"),
   };
 }
 
 function parseArtifact(value: unknown): CatalogArtifact {
-  const item = record(value, "Artifact");
+  const item = requiredRecord(value, "Artifact");
   return {
-    body: nullableString(item.body, "Artifact body"),
-    bodyFormat: nullableString(item.body_format, "Artifact body_format"),
-    category: nullableString(item.category, "Artifact category"),
-    createdAt: nullableString(item.created_at, "Artifact created_at"),
-    createdBy: nullableString(item.created_by_display_name, "Artifact created_by_display_name"),
-    factId: string(item.fact_id, "Artifact fact_id"),
-    title: nullableString(item.title, "Artifact title"),
+    body: nullableString(item, "body", "Artifact body"),
+    bodyFormat: nullableString(item, "body_format", "Artifact body_format"),
+    category: nullableString(item, "category", "Artifact category"),
+    createdAt: nullableString(item, "created_at", "Artifact created_at"),
+    createdBy: nullableString(item, "created_by_display_name", "Artifact created_by_display_name"),
+    factId: requiredString(item, "fact_id", "Artifact fact_id"),
+    title: nullableString(item, "title", "Artifact title"),
   };
 }
 
 function parseAdoption(value: unknown): CatalogAdoption {
-  const item = record(value, "Adoption");
+  const item = requiredRecord(value, "Adoption");
   return {
-    adoptionId: string(item.adoption_id, "Adoption adoption_id"),
-    consumerTenantId: string(item.consumer_tenant_id, "Adoption consumer_tenant_id"),
-    intent: nullableString(item.intent, "Adoption intent"),
-    providerCapabilityId: string(item.provider_capability_id, "Adoption provider_capability_id"),
-    versionPin: nullableString(item.version_pin, "Adoption version_pin"),
+    adoptionId: requiredString(item, "adoption_id", "Adoption adoption_id"),
+    consumerTenantId: requiredString(item, "consumer_tenant_id", "Adoption consumer_tenant_id"),
+    intent: nullableString(item, "intent", "Adoption intent"),
+    providerCapabilityId: requiredString(item, "provider_capability_id", "Adoption provider_capability_id"),
+    versionPin: nullableString(item, "version_pin", "Adoption version_pin"),
   };
 }
 
 function parseSubscription(value: unknown): CatalogSubscription {
-  const item = record(value, "Subscription");
+  const item = requiredRecord(value, "Subscription");
   return {
-    capabilityId: string(item.capability_id, "Subscription capability_id"),
-    digestWindow: string(item.digest_window, "Subscription digest_window"),
+    capabilityId: requiredString(item, "capability_id", "Subscription capability_id"),
+    digestWindow: requiredString(item, "digest_window", "Subscription digest_window"),
     eventKinds: stringArray(item.event_kinds, "Subscription event_kinds"),
-    isEnabled: boolean(item.is_enabled, "Subscription is_enabled"),
-    subscriptionId: string(item.subscription_id, "Subscription subscription_id"),
-    webhookUrl: nullableString(item.webhook_url, "Subscription webhook_url"),
+    isEnabled: requiredBoolean(item, "is_enabled", "Subscription is_enabled"),
+    subscriptionId: requiredString(item, "subscription_id", "Subscription subscription_id"),
+    webhookUrl: nullableString(item, "webhook_url", "Subscription webhook_url"),
   };
 }
 
@@ -265,11 +240,11 @@ export async function listCapabilities(
     }),
     { ...context, signal },
   );
-  const page = record(value, "Capability page");
-  if (!Array.isArray(page.items)) throw new Error("Capability page items was not a list.");
+  const page = requiredRecord(value, "Capability page");
+  const items = requiredArray(page.items, "Capability page items");
   return {
-    items: page.items.map(parseCapabilitySummary),
-    nextCursor: nullableString(page.next_cursor, "Capability page next_cursor"),
+    items: items.map(parseCapabilitySummary),
+    nextCursor: nullableString(page, "next_cursor", "Capability page next_cursor"),
   };
 }
 
@@ -413,11 +388,11 @@ export async function getCapabilityInterface(
     ...context,
     signal,
   });
-  const item = record(value, "Capability interface");
+  const item = requiredRecord(value, "Capability interface");
   return {
-    capabilityId: string(item.capability_id, "Capability interface capability_id"),
-    format: nullableString(item.interface_format, "Capability interface interface_format"),
-    ingestedAt: nullableString(item.ingested_at, "Capability interface ingested_at"),
+    capabilityId: requiredString(item, "capability_id", "Capability interface capability_id"),
+    format: nullableString(item, "interface_format", "Capability interface interface_format"),
+    ingestedAt: nullableString(item, "ingested_at", "Capability interface ingested_at"),
     source: item.interface_source,
     surface: item.interface_canonical,
   };
@@ -451,25 +426,23 @@ export async function previewCapabilityVersion(
     method: "POST",
     signal,
   });
-  const item = record(value, "Version preview");
-  if (!Array.isArray(item.changes)) throw new Error("Version preview changes was not a list.");
-  if (!Array.isArray(item.affected_consumers)) {
-    throw new Error("Version preview affected_consumers was not a list.");
-  }
+  const item = requiredRecord(value, "Version preview");
+  const changes = requiredArray(item.changes, "Version preview changes");
+  const consumers = requiredArray(item.affected_consumers, "Version preview affected_consumers");
   return {
-    affectedConsumers: item.affected_consumers.map((candidate) => {
-      const consumer = record(candidate, "Affected consumer");
+    affectedConsumers: consumers.map((candidate) => {
+      const consumer = requiredRecord(candidate, "Affected consumer");
       return {
-        entityId: string(consumer.entity_id, "Affected consumer entity_id"),
-        name: nullableString(consumer.name, "Affected consumer name"),
-        tenantId: string(consumer.tenant_id, "Affected consumer tenant_id"),
-        versionPin: nullableString(consumer.version_pin, "Affected consumer version_pin"),
+        entityId: requiredString(consumer, "entity_id", "Affected consumer entity_id"),
+        name: nullableString(consumer, "name", "Affected consumer name"),
+        tenantId: requiredString(consumer, "tenant_id", "Affected consumer tenant_id"),
+        versionPin: nullableString(consumer, "version_pin", "Affected consumer version_pin"),
       };
     }),
-    changes: item.changes.map((change) => unknownRecord(change, "Version preview change")),
-    classification: string(item.diff_classification, "Version preview diff_classification"),
-    proposedVersion: string(item.proposed_version, "Version preview proposed_version"),
-    releaseNotes: string(item.release_notes_scaffold, "Version preview release_notes_scaffold"),
+    changes: changes.map((change) => requiredRecord(change, "Version preview change")),
+    classification: requiredString(item, "diff_classification", "Version preview diff_classification"),
+    proposedVersion: requiredString(item, "proposed_version", "Version preview proposed_version"),
+    releaseNotes: requiredString(item, "release_notes_scaffold", "Version preview release_notes_scaffold"),
   };
 }
 
@@ -486,11 +459,11 @@ export async function listCapabilityArtifacts(
     }),
     { ...context, signal },
   );
-  const page = record(value, "Artifact page");
-  if (!Array.isArray(page.items)) throw new Error("Artifact page items was not a list.");
+  const page = requiredRecord(value, "Artifact page");
+  const items = requiredArray(page.items, "Artifact page items");
   return {
-    items: page.items.map(parseArtifact),
-    nextCursor: nullableString(page.next_cursor, "Artifact page next_cursor"),
+    items: items.map(parseArtifact),
+    nextCursor: nullableString(page, "next_cursor", "Artifact page next_cursor"),
   };
 }
 
@@ -535,9 +508,9 @@ export async function listCapabilityAdoptions(
     ...context,
     signal,
   });
-  const page = record(value, "Adoption page");
-  if (!Array.isArray(page.items)) throw new Error("Adoption page items was not a list.");
-  return page.items.map(parseAdoption);
+  const page = requiredRecord(value, "Adoption page");
+  const items = requiredArray(page.items, "Adoption page items");
+  return items.map(parseAdoption);
 }
 
 export async function createCapabilityAdoption(
@@ -581,9 +554,9 @@ export async function listCapabilitySubscriptions(
     ...context,
     signal,
   });
-  const page = record(value, "Subscription page");
-  if (!Array.isArray(page.items)) throw new Error("Subscription page items was not a list.");
-  return page.items.map(parseSubscription);
+  const page = requiredRecord(value, "Subscription page");
+  const items = requiredArray(page.items, "Subscription page items");
+  return items.map(parseSubscription);
 }
 
 export async function createCapabilitySubscription(
