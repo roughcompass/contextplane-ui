@@ -89,6 +89,13 @@ export {
   type ProposeInstructionInput,
 } from "./agents";
 export {
+  grantArcException,
+  revokeArcException,
+  type ArcExceptionApproval,
+  type ArcExceptionGrant,
+  type ArcExceptionInput,
+} from "./arcExceptions";
+export {
   createArcEnrollmentChallenge,
   enrolArcApprovalVerifier,
   getArcOperatorIdentity,
