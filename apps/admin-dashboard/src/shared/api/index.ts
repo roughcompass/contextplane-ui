@@ -289,6 +289,7 @@ export {
   createWorkspaceEntry,
   deleteWorkspace,
   deleteWorkspaceEntry,
+  findReceiptsByReference,
   getContextReceipt,
   getContextReceiptExclusions,
   getContextReceiptReferences,
