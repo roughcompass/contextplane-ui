@@ -5,6 +5,7 @@ import {
   Boxes,
   Braces,
   ChartColumn,
+  Download,
   FileClock,
   FileWarning,
   FlaskConical,
@@ -142,6 +143,11 @@ const ExceptionsPage = lazy(async () => {
   return { default: feature.ExceptionsPage };
 });
 
+const SourceGovernancePage = lazy(async () => {
+  const feature = await import("../features/sources");
+  return { default: feature.SourceGovernancePage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -225,6 +231,7 @@ const navigation: readonly NavigationSection[] = [
       { href: "/quarantine", icon: <ShieldAlert className="size-4" />, label: "Quarantine" },
       { href: "/verifiers", icon: <KeyRound className="size-4" />, label: "Approval verifiers" },
       { href: "/exceptions", icon: <FileWarning className="size-4" />, label: "Exceptions" },
+      { href: "/sources", icon: <Download className="size-4" />, label: "Source governance" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
@@ -249,6 +256,7 @@ type AppRoute =
   | "quarantine"
   | "relationships"
   | "sessions"
+  | "sources"
   | "settings"
   | "tasks"
   | "verifiers"
@@ -386,6 +394,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Administrator",
     usesIdentity: true,
   },
+  sources: {
+    href: "/sources",
+    load: () => import("../features/sources"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
   tasks: {
     href: "/tasks",
     load: () => import("../features/tasks"),
@@ -432,6 +446,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
+  if (pathname === "/sources") return "sources";
   if (pathname === "/tasks") return "tasks";
   if (pathname === "/exceptions") return "exceptions";
   if (pathname === "/verifiers") return "verifiers";
@@ -962,6 +977,12 @@ export function App() {
               />
             ) : route === "exceptions" ? (
               <ExceptionsPage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "sources" ? (
+              <SourceGovernancePage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}
