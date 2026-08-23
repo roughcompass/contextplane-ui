@@ -86,21 +86,44 @@ as one traceable chain.
 
 ## Information architecture
 
-Organize navigation by user intent, not by endpoint or database table:
+Organize navigation by user intent, not by endpoint or database table. Primary navigation is
+grouped by what someone came to do; destinations inside a group are named for the job, not for the
+scope the job runs in.
 
-- **Overview:** Assigned attention, recent governed changes, and resumable work. Avoid vanity
-  metrics and totals without an actionable interpretation.
-- **Catalog:** Capabilities, interfaces, components, versions, and relationships.
-- **Memory:** Claims, citations, observations, and review queues.
-- **Workspaces:** Scoped notes, decisions, and saved queries.
-- **Governance:** Requests, proposals, promotions, and lifecycle work.
-- **Audit:** Immutable activity and decision history.
-- **Administration:** Tenant-level configuration and access, only when the service exposes those
-  operations.
+**A destination is named for its reader's job.** "Tenant work" is a scope, not a job, and a
+destination named that way accumulates unrelated readers until nothing on the page fits any of
+them. If a proposed destination needs the word "and" to describe who it serves, it is more than one
+destination.
+
+- **Discover** — what exists and what is known.
+  - *Overview:* assigned attention, recent governed changes, and resumable work. Avoid vanity
+    metrics and totals without an actionable interpretation.
+  - *Catalog:* capabilities, interfaces, components, and versions.
+  - *Relationships:* how catalog entities depend on one another.
+  - *Living memory:* claims, citations, observations, and review queues.
+- **Work with context** — assembling and continuing work.
+  - *Context Lab:* compose and inspect a resolution before an agent depends on it.
+  - *Tasks:* participant grants and the append-only checkpoint chain a second agent resumes from.
+  - *Workspaces:* scoped notes, decisions, and saved queries.
+- **Monitor usage** — what has happened, and what needs acknowledging.
+  - *Activity:* notifications, learning evidence, and signals from outside the plane.
+  - *Sessions:* what an agent did, turn by turn.
+  - *Analytics:* service-reported usage by surface.
+- **Governance** — deciding, delegating, and answering for it.
+  - *Governed policies:* the ARC artifacts and their lifecycle.
+  - *Proposals:* promotions and the review they pass through.
+  - *Ownership & profiles:* who answers for what, profile revisions, and bindings.
+  - *Audit log:* immutable activity and decision history.
+  - *Settings:* tenant-level configuration and access, only when the service exposes those
+    operations.
 
 Sections may nest when needed, but do not create placeholder destinations. Keep the primary
 navigation stable across roles; omit unauthorized destinations rather than reordering the remaining
 ones.
+
+**An address no destination claims resolves to a not-found page**, never to a fall-through
+destination. Rendering a real page for an unrecognized address is worse than reporting nothing,
+because it is indistinguishable from having asked for that page.
 
 The application shell must provide:
 

@@ -23,7 +23,7 @@ import {
   type IntentCheckpoint,
 } from "../../shared/api";
 
-interface CoordinationPanelProps {
+interface TaskCoordinationPanelProps {
   client: ContextplaneClient;
   requestContext: ContextplaneRequestOptions;
 }
@@ -97,7 +97,7 @@ function CheckpointCard({ checkpoint }: { checkpoint: IntentCheckpoint }) {
   );
 }
 
-export function CoordinationPanel({ client, requestContext }: CoordinationPanelProps) {
+export function TaskCoordinationPanel({ client, requestContext }: TaskCoordinationPanelProps) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const tenantKey = requestContext.tenantId ?? "credential-default";
