@@ -1241,10 +1241,18 @@ function PrivacyTab({ apiTenantId, client }: AdminTabProps) {
         </Notice>
       ) : null}
       <SectionSurface
-        description="System patterns are visible but immutable. Tenant-owned patterns may be enabled or disabled without changing their regular expression."
+        description="System patterns are visible but not editable. Tenant-owned patterns may be enabled or disabled without changing their regular expression."
         flush
         title="Personal-data detection patterns"
       >
+        <div className="px-6 pt-4">
+          <Notice title="A tenant pattern is recorded, not enforced" variant="warning">
+            The write-time scanner is built from the system detectors only, so a tenant-defined
+            regular expression produces no matches on any write path — enabling one here changes
+            what is recorded, not what is refused. Use a field policy on a system pattern for a
+            control that takes effect.
+          </Notice>
+        </div>
         {query.data.patterns.length === 0 ? (
           <EmptyState
             description="No personal-data patterns were returned by the service."

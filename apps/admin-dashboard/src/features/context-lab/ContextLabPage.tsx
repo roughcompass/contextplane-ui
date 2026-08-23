@@ -822,7 +822,7 @@ function RunTrace({
             {contextEnvelopeStateLabel(envelope.state)}
           </StatusBadge>
         }
-        description="The immutable service record for this exact resolution."
+        description="The service's own record of this exact resolution: what it returned, and what it withheld."
         title="Run trace"
       >
         <div className="space-y-5">
