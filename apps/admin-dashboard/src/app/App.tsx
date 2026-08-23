@@ -14,6 +14,7 @@ import {
   Library,
   ListChecks,
   MessageSquareText,
+  Receipt,
   Settings,
   ShieldAlert,
   ShieldCheck,
@@ -154,6 +155,11 @@ const RevisionLifecyclePage = lazy(async () => {
   return { default: feature.RevisionLifecyclePage };
 });
 
+const ReceiptsPage = lazy(async () => {
+  const feature = await import("../features/receipts");
+  return { default: feature.ReceiptsPage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -225,6 +231,7 @@ const navigation: readonly NavigationSection[] = [
         label: "Sessions",
       },
       { href: "/analytics", icon: <ChartColumn className="size-4" />, label: "Analytics" },
+      { href: "/receipts", icon: <Receipt className="size-4" />, label: "Receipts" },
     ],
   },
   {
@@ -260,6 +267,7 @@ type AppRoute =
   | "overview"
   | "ownership"
   | "proposals"
+  | "receipts"
   | "quarantine"
   | "relationships"
   | "revisions"
@@ -384,6 +392,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Administrator",
     usesIdentity: true,
   },
+  receipts: {
+    href: "/receipts",
+    load: () => import("../features/receipts"),
+    role: "Auditor",
+    usesIdentity: true,
+  },
   relationships: {
     href: "/relationships",
     load: () => import("../features/relationships"),
@@ -457,6 +471,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/ownership") return "ownership";
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
   if (pathname === "/quarantine") return "quarantine";
+  if (pathname === "/receipts") return "receipts";
   if (pathname === "/relationships") return "relationships";
   if (pathname === "/revisions") return "revisions";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
@@ -1004,6 +1019,12 @@ export function App() {
               />
             ) : route === "revisions" ? (
               <RevisionLifecyclePage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "receipts" ? (
+              <ReceiptsPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}

@@ -1288,6 +1288,41 @@ export async function resolveContext(
   return parseContextEnvelope(payload);
 }
 
+/**
+ * Every receipt that cited one external reference.
+ *
+ * The only way to *find* a receipt without already holding its id. All four
+ * coordinates are required by the contract, and deliberately: a partial
+ * reference would match across source systems and return receipts about a
+ * different thing that happens to share a name.
+ */
+export async function findReceiptsByReference(
+  client: ContextplaneClient,
+  reference: {
+    external_id: string;
+    kind: string;
+    source_namespace: string;
+    source_system: string;
+  },
+  limit?: number,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<readonly ContextReceipt[]> {
+  const query = new URLSearchParams({
+    external_id: reference.external_id,
+    kind: reference.kind,
+    source_namespace: reference.source_namespace,
+    source_system: reference.source_system,
+  });
+  if (limit !== undefined) query.set("limit", String(limit));
+  const payload = await client.request(
+    `/v1/receipts/by-reference?${query.toString()}`,
+    requestOptions(context, signal),
+  );
+  if (!isRecord(payload)) throw new Error("Invalid API receipt list.");
+  return requiredArray(payload.receipts, "receipts").map(parseContextReceipt);
+}
+
 export async function getContextReceipt(
   client: ContextplaneClient,
   receiptId: string,
