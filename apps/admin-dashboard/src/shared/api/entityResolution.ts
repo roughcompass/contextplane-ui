@@ -3,6 +3,11 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "./client";
+import {
+  isRecord,
+  nullableString,
+  requiredString,
+} from "./parse";
 
 /** The refusal code a bare name matching more than one type comes back with. */
 export const IDENTITY_AMBIGUOUS = "identity_ambiguous";
@@ -28,25 +33,6 @@ export type EntityResolution =
   | { candidates: readonly string[]; handle: string; outcome: "ambiguous" }
   | { identity: EntityIdentity; outcome: "resolved" }
   | { handle: string; outcome: "unknown" };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} is not a string.`);
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") {
-    throw new Error(`Invalid API response: ${key} is not a string or null.`);
-  }
-  return value;
-}
 
 function parseIdentity(value: unknown): EntityIdentity {
   if (!isRecord(value)) throw new Error("Invalid API response: resolution is not an object.");

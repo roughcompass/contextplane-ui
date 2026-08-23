@@ -123,7 +123,9 @@ describe("resolveEntity", () => {
   it("refuses a malformed resolution rather than passing it on", async () => {
     const { client } = clientFor(() => ({ identity: { entity_id: 7 } }));
 
-    await expect(resolveEntity(client, "orders")).rejects.toThrow("entity_id is not a string");
+    // "is not text.", not "is not a string." — this module used to spell the
+    // same refusal its own way, which is the drift E10-T11 removed.
+    await expect(resolveEntity(client, "orders")).rejects.toThrow("entity_id is not text");
   });
 });
 

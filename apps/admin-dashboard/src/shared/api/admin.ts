@@ -1,5 +1,15 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import type { components } from "./generated/contextplane";
+import {
+  nullableNumber,
+  nullableString,
+  requiredArray,
+  requiredBoolean,
+  requiredNumber,
+  requiredRecord,
+  requiredString,
+  stringArray,
+} from "./parse";
 
 type Schemas = components["schemas"];
 
@@ -57,68 +67,6 @@ export interface ListProgressionOverridesParameters {
   expired?: boolean;
   fromState?: string;
   toState?: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error(`Invalid API response: ${label} is not an object.`);
-  return value;
-}
-
-function requiredArray(value: unknown, label: string): readonly unknown[] {
-  if (!Array.isArray(value)) throw new Error(`Invalid API response: ${label} is not an array.`);
-  return value;
-}
-
-function requiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string") {
-    throw new Error(`Invalid API response: ${key} is not text.`);
-  }
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") {
-    throw new Error(`Invalid API response: ${key} is not nullable text.`);
-  }
-  return value;
-}
-
-function requiredNumber(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid API response: ${key} is not a number.`);
-  }
-  return value;
-}
-
-function nullableNumber(record: Record<string, unknown>, key: string): number | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  return requiredNumber(record, key);
-}
-
-function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
-  const value = record[key];
-  if (typeof value !== "boolean") {
-    throw new Error(`Invalid API response: ${key} is not a boolean.`);
-  }
-  return value;
-}
-
-function stringArray(value: unknown, label: string): string[] {
-  return requiredArray(value, label).map((item) => {
-    if (typeof item !== "string") {
-      throw new Error(`Invalid API response: ${label} contains a non-text value.`);
-    }
-    return item;
-  });
 }
 
 function objectValue(record: Record<string, unknown>, key: string): Record<string, unknown> {
@@ -197,7 +145,7 @@ function parseStrategy(value: unknown): Strategy {
     model_id: requiredString(record, "model_id"),
     model_is_overridden: requiredBoolean(record, "model_is_overridden"),
     namespace_template: requiredString(record, "namespace_template"),
-    permitted_predicates: stringArray(record.permitted_predicates, "permitted predicates"),
+    permitted_predicates: mutableStringArray(record.permitted_predicates, "permitted predicates"),
     prompt_is_overridden: requiredBoolean(record, "prompt_is_overridden"),
     strategy_id: requiredString(record, "strategy_id"),
   };
@@ -255,7 +203,7 @@ function parseSourcePolicy(value: unknown): SourcePolicy {
 function parsePromotionPolicy(value: unknown): PromotionPolicy {
   const record = requiredRecord(value, "promotion policy");
   return {
-    always_review: stringArray(record.always_review, "always-review predicates"),
+    always_review: mutableStringArray(record.always_review, "always-review predicates"),
     blast_radius_threshold: requiredNumber(record, "blast_radius_threshold"),
     confidence_floor: requiredNumber(record, "confidence_floor"),
   };
@@ -263,7 +211,7 @@ function parsePromotionPolicy(value: unknown): PromotionPolicy {
 
 function parseAllowlist(value: unknown): AdminAllowlist {
   const record = requiredRecord(value, "autopromote allowlist");
-  return { predicates: stringArray(record.predicates, "autopromote predicates") };
+  return { predicates: mutableStringArray(record.predicates, "autopromote predicates") };
 }
 
 function parseCalibration(value: unknown): CalibrationMapping {
@@ -278,6 +226,19 @@ function parseCalibration(value: unknown): CalibrationMapping {
     strategy_id: requiredString(record, "strategy_id"),
     version: requiredString(record, "version"),
   };
+}
+
+/**
+ * A mutable copy, because the generated contract types declare these arrays as
+ * `string[]`.
+ *
+ * Copied rather than cast: the shared validator returns `readonly string[]`
+ * precisely so a parsed response cannot be edited in place, and a cast here
+ * would keep the annotation while dropping the guarantee. Three call sites
+ * need it, all of them fields of a generated response type.
+ */
+function mutableStringArray(value: unknown, label: string): string[] {
+  return [...stringArray(value, label)];
 }
 
 function parsePiiPattern(value: unknown): PiiPattern {
