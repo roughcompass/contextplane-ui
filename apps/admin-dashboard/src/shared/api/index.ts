@@ -67,6 +67,24 @@ export {
   type VocabularyValue,
 } from "./admin";
 export {
+  activateAgentInstruction,
+  getAgentAccuracy,
+  getAgentAutonomy,
+  getAgentFailurePatterns,
+  listAgentInstructions,
+  proposeAgentInstruction,
+  rollbackAgentInstruction,
+  type AccuracyGroup,
+  type AgentAccuracy,
+  type AgentAutonomy,
+  type AgentInstruction,
+  type AgentWindowParameters,
+  type FailureExample,
+  type FailureGroup,
+  type FailurePatternReport,
+  type ProposeInstructionInput,
+} from "./agents";
+export {
   queryAuditRecords,
   type AuditRecord,
   type AuditRecordPage,

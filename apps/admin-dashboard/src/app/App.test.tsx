@@ -107,7 +107,7 @@ describe("App", () => {
     const expectedSections = [
       ["Discover", ["Overview", "Catalog", "Relationships", "Living memory"]],
       ["Work with context", ["Context Lab", "Tasks", "Workspaces"]],
-      ["Monitor usage", ["Activity", "Sessions", "Analytics"]],
+      ["Monitor usage", ["Activity", "Agents", "Sessions", "Analytics"]],
       [
         "Governance",
         ["Governed policies", "Proposals", "Ownership & profiles", "Audit log", "Settings"],

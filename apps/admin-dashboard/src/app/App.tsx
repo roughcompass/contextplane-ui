@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  Bot,
   Boxes,
   Braces,
   ChartColumn,
@@ -123,6 +124,11 @@ const SettingsPage = lazy(async () => {
   return { default: feature.SettingsPage };
 });
 
+const AgentsPage = lazy(async () => {
+  const feature = await import("../features/agents");
+  return { default: feature.AgentsPage };
+});
+
 const ActivityPage = lazy(async () => {
   const feature = await import("../features/activity");
   return { default: feature.ActivityPage };
@@ -182,6 +188,7 @@ const navigation: readonly NavigationSection[] = [
     label: "Monitor usage",
     items: [
       { href: "/activity", icon: <Bell className="size-4" />, label: "Activity" },
+      { href: "/agents", icon: <Bot className="size-4" />, label: "Agents" },
       {
         href: "/sessions",
         icon: <MessageSquareText className="size-4" />,
@@ -205,6 +212,7 @@ const navigation: readonly NavigationSection[] = [
 
 type AppRoute =
   | "activity"
+  | "agents"
   | "analytics"
   | "arc"
   | "assert-claim"
@@ -248,6 +256,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     href: "/activity",
     load: () => import("../features/activity"),
     role: "Producer",
+    usesIdentity: true,
+  },
+  agents: {
+    href: "/agents",
+    load: () => import("../features/agents"),
+    role: "Administrator",
     usesIdentity: true,
   },
   analytics: {
@@ -362,6 +376,7 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
 function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/") return "overview";
   if (pathname === "/activity") return "activity";
+  if (pathname === "/agents") return "agents";
   if (pathname === "/analytics") return "analytics";
   if (pathname === "/arc") return "arc";
   if (pathname === "/audit") return "audit";
@@ -887,6 +902,12 @@ export function App() {
                 client={apiClient}
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
+              />
+            ) : route === "agents" ? (
+              <AgentsPage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
               />
             ) : route === "activity" ? (
               <ActivityPage
