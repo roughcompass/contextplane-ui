@@ -1,6 +1,6 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import type { components } from "./generated/contextplane";
-import { isRecord, requiredArray, requiredBoolean, requiredNumber, requiredString } from "./parse";
+import { isRecord, requiredBoolean, requiredNumber, requiredString, stringArray } from "./parse";
 
 /** The provenance dimensions a quarantine may select on, and the only ones. */
 export type QuarantineSelector = NonNullable<
@@ -34,13 +34,6 @@ export interface AppliedQuarantine {
   value: string;
 }
 
-function stringIds(value: unknown, label: string): readonly string[] {
-  return requiredArray(value, label).map((item) => {
-    if (typeof item !== "string") throw new Error(`Invalid API response: ${label} contains data.`);
-    return item;
-  });
-}
-
 /**
  * What applying this predicate would reach, withholding nothing.
  *
@@ -60,11 +53,11 @@ export async function previewQuarantine(
   });
   if (!isRecord(payload)) throw new Error("Invalid API response: quarantine preview.");
   return {
-    downstream: stringIds(payload.downstream, "downstream"),
-    matched: stringIds(payload.matched, "matched"),
+    downstream: stringArray(payload.downstream, "downstream"),
+    matched: stringArray(payload.matched, "matched"),
     seeds_total: requiredNumber(payload, "seeds_total"),
     seeds_traversed: requiredNumber(payload, "seeds_traversed"),
-    subjects: stringIds(payload.subjects, "subjects"),
+    subjects: stringArray(payload.subjects, "subjects"),
     truncated: requiredBoolean(payload, "truncated"),
   };
 }
@@ -82,7 +75,7 @@ export async function applyQuarantine(
   });
   if (!isRecord(payload)) throw new Error("Invalid API response: quarantine.");
   return {
-    matched: stringIds(payload.matched, "matched"),
+    matched: stringArray(payload.matched, "matched"),
     matched_count: requiredNumber(payload, "matched_count"),
     quarantine_id: requiredString(payload, "quarantine_id"),
     selector: requiredString(payload, "selector"),

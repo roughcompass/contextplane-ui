@@ -237,10 +237,13 @@ describe("catalog API", () => {
     expect(new Set(idempotencyKeys).size).toBe(4);
   });
 
-  it("rejects malformed pages and impact payloads at the API boundary", async () => {
+  it("refuses malformed pages in the same words as every other adapter", async () => {
+    /** The prefix is the point: `Invalid API response:` is what makes these
+     * greppable as one class, and the catalog used to be the one adapter a
+     * filter written for the rest would miss. */
     const malformedPage = clientFor(() => ({ items: "not-a-list", next_cursor: null }));
     await expect(listCapabilities(malformedPage)).rejects.toThrow(
-      "Capability page items was not a list.",
+      "Invalid API response: Capability page items is not an array.",
     );
 
     const malformedImpact = clientFor(() => ({ affected_consumers: [], changes: "invalid" }));
@@ -250,14 +253,33 @@ describe("catalog API", () => {
         proposed_interface: {},
         proposed_version: "3.0.0",
       }),
-    ).rejects.toThrow("Version preview changes was not a list.");
+    ).rejects.toThrow("Invalid API response: Version preview changes is not an array.");
 
     const malformedSubscriptions = clientFor(() => ({
       items: [{ ...subscription, event_kinds: 1 }],
     }));
     await expect(
       listCapabilitySubscriptions(malformedSubscriptions, "capability-a"),
-    ).rejects.toThrow("Subscription event_kinds was not a list.");
+    ).rejects.toThrow("Invalid API response: Subscription event_kinds is not an array.");
+  });
+
+  it("says which object a shared field name belonged to", async () => {
+    /** `created_at` is on five catalog objects, so the bare key does not locate
+     * the failure. The qualified label is the half of the old private dialect
+     * worth keeping, and it moved into `parse.ts` rather than being dropped. */
+    const client = clientFor(() => ({ items: [{ ...capability, created_at: 7 }] }));
+    await expect(listCapabilities(client)).rejects.toThrow(
+      "Invalid API response: Capability created_at is not text.",
+    );
+  });
+
+  it("names the element of a list that was not text, not just the list", async () => {
+    const client = clientFor(() => ({
+      items: [{ ...subscription, event_kinds: ["created", 3] }],
+    }));
+    await expect(listCapabilitySubscriptions(client, "capability-a")).rejects.toThrow(
+      "Invalid API response: Subscription event_kinds[1] is not text.",
+    );
   });
 
   it("sends each creatable entity type to its own route", async () => {
