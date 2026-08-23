@@ -2,36 +2,38 @@ import { useId, useState, type FormEvent } from "react";
 
 import { Button, SearchableSelect } from "@repo/ui/primitives";
 
-import type { PiiPattern } from "../../shared/api";
+import type { PiiFieldType, PiiPattern, PiiPolicy } from "../../shared/api";
 
 /**
- * The policies a tenant may set on a field.
+ * The policies a tenant may set on a field, with the wording an operator reads.
  *
  * Three, and the service takes the strongest of the tenant's value and its own
- * floor — so `advisory` here does not weaken a block the deployment applies. The
- * contract types this as an open `string`, which is why the list is written
- * out; see the field-type note below for why that matters more there.
+ * floor — so `advisory` here does not weaken a block the deployment applies.
+ *
+ * Written out for the labels, not for the values: the values are checked
+ * against the contract by the `PiiPolicy` annotation below, so one the service
+ * drops fails the build here.
  */
-const POLICIES = [
+const POLICIES: readonly { label: string; value: PiiPolicy }[] = [
   { label: "Advisory — record the match, allow the write", value: "advisory" },
   { label: "Warn — allow the write and tell the caller", value: "warn" },
   { label: "Block — refuse the write", value: "block" },
-] as const;
+];
 
 /**
  * The field types the scanner runs on.
  *
- * **Written out here because the contract does not publish them.** The service
- * holds a closed set — `PILOT_FIELD_TYPES` — and refuses an unrecognised value
- * rather than admitting it, but `PiiFieldPolicyCreate.field_type` is typed as a
- * bare `string`. So a free-text field would let an operator save a policy that
- * silently governs nothing: it would store, list, and never match.
+ * **Still written out, and now checked.** A TypeScript union cannot be
+ * enumerated at runtime, so a picker needs a real array — the list does not go
+ * away. What changed is that `PiiFieldType` comes from the contract, so a value
+ * the service removes fails the build here instead of silently offering an
+ * operator a policy that stores, lists, and governs nothing.
  *
- * A duplicated vocabulary is the lesser problem, and it is a visible one — a
- * value missing from this list cannot be selected, where a typo in a text box
- * cannot be seen at all. The contract gap is filed rather than lived with.
+ * The remaining gap is one-directional and worth naming: a value the service
+ * *adds* still has to be added here by hand. Nothing catches its absence,
+ * because an incomplete array is a valid array.
  */
-const FIELD_TYPES = [
+const FIELD_TYPES: readonly PiiFieldType[] = [
   "artifact.body",
   "claim_value",
   "external_signal.payload",
@@ -41,12 +43,12 @@ const FIELD_TYPES = [
   "memory_session_event.body",
   "workspace_entry.body",
   "workspace_entry.references",
-] as const;
+];
 
 export interface PiiFieldPolicyDraft {
-  fieldType: string;
+  fieldType: PiiFieldType;
   patternId: string | null;
-  policy: string;
+  policy: PiiPolicy;
 }
 
 interface PiiFieldPolicyEditorProps {
@@ -57,9 +59,9 @@ interface PiiFieldPolicyEditorProps {
 
 export function PiiFieldPolicyEditor({ disabled, onSubmit, patterns }: PiiFieldPolicyEditorProps) {
   const formId = useId();
-  const [fieldType, setFieldType] = useState("");
+  const [fieldType, setFieldType] = useState<PiiFieldType | "">("");
   const [patternId, setPatternId] = useState("");
-  const [policy, setPolicy] = useState("");
+  const [policy, setPolicy] = useState<PiiPolicy | "">("");
 
   const ready = fieldType !== "" && policy !== "";
 
@@ -68,7 +70,11 @@ export function PiiFieldPolicyEditor({ disabled, onSubmit, patterns }: PiiFieldP
     if (!ready) return;
     // An empty pattern means the catch-all override for this field type, which
     // is what the endpoint reads a null `pattern_id` as — not "no policy".
-    onSubmit({ fieldType, patternId: patternId === "" ? null : patternId, policy });
+    onSubmit({
+      fieldType: fieldType as PiiFieldType,
+      patternId: patternId === "" ? null : patternId,
+      policy: policy as PiiPolicy,
+    });
     setFieldType("");
     setPatternId("");
     setPolicy("");
@@ -87,7 +93,7 @@ export function PiiFieldPolicyEditor({ disabled, onSubmit, patterns }: PiiFieldP
         <SearchableSelect
           emptyLabel="Choose a field type…"
           label="Field type"
-          onValueChange={setFieldType}
+          onValueChange={(value) => setFieldType(value as PiiFieldType)}
           options={FIELD_TYPES.map((value) => ({ label: value, value }))}
           value={fieldType}
         />
@@ -105,7 +111,7 @@ export function PiiFieldPolicyEditor({ disabled, onSubmit, patterns }: PiiFieldP
         <SearchableSelect
           emptyLabel="Choose a policy…"
           label="Policy"
-          onValueChange={setPolicy}
+          onValueChange={(value) => setPolicy(value as PiiPolicy)}
           options={POLICIES.map((entry) => ({ label: entry.label, value: entry.value }))}
           value={policy}
         />
