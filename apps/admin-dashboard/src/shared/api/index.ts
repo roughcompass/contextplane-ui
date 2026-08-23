@@ -89,6 +89,19 @@ export {
   type ProposeInstructionInput,
 } from "./agents";
 export {
+  createArcEnrollmentChallenge,
+  enrolArcApprovalVerifier,
+  getArcOperatorIdentity,
+  revokeArcApprovalVerifier,
+  type ArcApprovalVerifier,
+  type ArcEnrollmentChallenge,
+  type ArcEnrollmentChallengeInput,
+  type ArcEvidenceType,
+  type ArcOperatorIdentity,
+  type ArcOwningScope,
+  type ArcPrincipalBindingKind,
+} from "./arcVerifiers";
+export {
   applyQuarantine,
   previewQuarantine,
   revertQuarantine,

@@ -8,6 +8,7 @@ import {
   FileClock,
   FlaskConical,
   GitBranch,
+  KeyRound,
   Library,
   ListChecks,
   MessageSquareText,
@@ -130,6 +131,11 @@ const QuarantinePage = lazy(async () => {
   return { default: feature.QuarantinePage };
 });
 
+const VerifiersPage = lazy(async () => {
+  const feature = await import("../features/verifiers");
+  return { default: feature.VerifiersPage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -211,6 +217,7 @@ const navigation: readonly NavigationSection[] = [
       { href: "/proposals", icon: <Workflow className="size-4" />, label: "Proposals" },
       { href: "/ownership", icon: <UserCog className="size-4" />, label: "Ownership & profiles" },
       { href: "/quarantine", icon: <ShieldAlert className="size-4" />, label: "Quarantine" },
+      { href: "/verifiers", icon: <KeyRound className="size-4" />, label: "Approval verifiers" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
@@ -236,6 +243,7 @@ type AppRoute =
   | "sessions"
   | "settings"
   | "tasks"
+  | "verifiers"
   | "workspaces";
 
 type UserRole = "Administrator" | "Auditor" | "Producer";
@@ -370,6 +378,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Producer",
     usesIdentity: true,
   },
+  verifiers: {
+    href: "/verifiers",
+    load: () => import("../features/verifiers"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
   workspaces: {
     href: "/workspaces",
     load: () => import("../features/workspaces"),
@@ -405,6 +419,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
   if (pathname === "/tasks") return "tasks";
+  if (pathname === "/verifiers") return "verifiers";
   if (pathname === "/workspaces" || pathname.startsWith("/workspaces/")) return "workspaces";
   return "not-found";
 }
@@ -920,6 +935,12 @@ export function App() {
               />
             ) : route === "quarantine" ? (
               <QuarantinePage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "verifiers" ? (
+              <VerifiersPage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}
