@@ -209,4 +209,20 @@ describe("AuditPage", () => {
     expect(screen.getByText("Request ID:")).toBeVisible();
     expect(screen.queryByText("private detail")).not.toBeInTheDocument();
   });
+
+  it("does not call this history immutable, because it is not", async () => {
+    /** E10-T4's standard, and ADR-0012's precedent: never reach for the
+     * stronger word. `audit_log` is an ordinary table — no hash chain, no
+     * signature, no append-only trigger — and `audit/emit.py` swallows its own
+     * write failures by design so a failed audit row cannot roll back the
+     * mutation it describes. The page said "Immutable history" and "This
+     * history is append-only", and an auditor is precisely the reader who
+     * would act on either. */
+    renderAuditPage(clientFor(() => ({ items: [], next_cursor: null })));
+
+    expect(await screen.findByText(/What the service recorded/u)).toBeVisible();
+    expect(screen.getByText(/not cryptographically chained/u)).toBeVisible();
+    expect(screen.getByText(/a missing row is not evidence that an action did not occur/u)).toBeVisible();
+    expect(screen.queryByText(/immutable/iu)).toBeNull();
+  });
 });

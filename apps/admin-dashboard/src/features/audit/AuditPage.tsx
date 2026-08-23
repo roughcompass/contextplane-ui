@@ -402,8 +402,8 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
     <PageContainer>
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Audit Log" }]}
-        description="Trace immutable service activity by actor, action, target, outcome, timestamp, and request correlation."
-        eyebrow="Immutable history"
+        description="Trace recorded service activity by actor, action, target, outcome, timestamp, and request correlation."
+        eyebrow="Recorded activity"
         metadata={
           <>
             <StatusBadge>Service-authoritative</StatusBadge>
@@ -416,9 +416,19 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
       />
 
       <div className="space-y-6">
-        <Notice title="This history is append-only">
-          Entries reflect what the service recorded for this tenant. Filters change the view but do
-          not alter or remove audit evidence.
+        {/* This used to read "Immutable history" and "This history is
+            append-only". Neither is true of `audit_log`: it is an ordinary
+            table with no hash chain, no signature and no append-only trigger,
+            and `contextplane/audit/emit.py` swallows its own write failures by
+            design so a failed audit row can never roll back the mutation it
+            describes. ADR-0012's rule is the precedent — never reach for the
+            stronger word — and an auditor is exactly the reader who would act
+            on the stronger one. */}
+        <Notice title="What the service recorded — not proof of what happened">
+          Filters change the view but do not alter or remove entries. Two things this history does
+          not claim: rows are not cryptographically chained, and an audit write that fails is
+          counted rather than raised, so a missing row is not evidence that an action did not
+          occur.
         </Notice>
 
         {auditQuery.isError && invalidCursor ? (
