@@ -17,6 +17,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Stamp,
   UserCog,
   Workflow,
 } from "lucide-react";
@@ -148,6 +149,11 @@ const SourceGovernancePage = lazy(async () => {
   return { default: feature.SourceGovernancePage };
 });
 
+const RevisionLifecyclePage = lazy(async () => {
+  const feature = await import("../features/revisions");
+  return { default: feature.RevisionLifecyclePage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -232,6 +238,7 @@ const navigation: readonly NavigationSection[] = [
       { href: "/verifiers", icon: <KeyRound className="size-4" />, label: "Approval verifiers" },
       { href: "/exceptions", icon: <FileWarning className="size-4" />, label: "Exceptions" },
       { href: "/sources", icon: <Download className="size-4" />, label: "Source governance" },
+      { href: "/revisions", icon: <Stamp className="size-4" />, label: "Revision lifecycle" },
       { href: "/audit", icon: <FileClock className="size-4" />, label: "Audit log" },
       { href: "/settings", icon: <Settings className="size-4" />, label: "Settings" },
     ],
@@ -255,6 +262,7 @@ type AppRoute =
   | "proposals"
   | "quarantine"
   | "relationships"
+  | "revisions"
   | "sessions"
   | "sources"
   | "settings"
@@ -382,6 +390,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Producer",
     usesIdentity: true,
   },
+  revisions: {
+    href: "/revisions",
+    load: () => import("../features/revisions"),
+    role: "Administrator",
+    usesIdentity: true,
+  },
   sessions: {
     href: "/sessions",
     load: () => import("../features/sessions"),
@@ -444,6 +458,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
   if (pathname === "/quarantine") return "quarantine";
   if (pathname === "/relationships") return "relationships";
+  if (pathname === "/revisions") return "revisions";
   if (pathname === "/sessions" || pathname.startsWith("/sessions/")) return "sessions";
   if (pathname === "/settings") return "settings";
   if (pathname === "/sources") return "sources";
@@ -983,6 +998,12 @@ export function App() {
               />
             ) : route === "sources" ? (
               <SourceGovernancePage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
+              />
+            ) : route === "revisions" ? (
+              <RevisionLifecyclePage
                 {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
                 activeTenantName={activeTenantName}
                 client={apiClient}
