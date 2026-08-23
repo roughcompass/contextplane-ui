@@ -1,5 +1,13 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import type { components } from "./generated/contextplane";
+import {
+  isRecord,
+  nullableNumber,
+  nullableString,
+  requiredArray,
+  requiredNumber,
+  requiredString,
+} from "./parse";
 
 export type ProposeInstructionInput = components["schemas"]["ProposeInstructionRequest"];
 
@@ -93,55 +101,24 @@ export interface AgentWindowParameters {
   windowStart: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredString(value: unknown, field: string): string {
-  if (typeof value !== "string") throw new Error(`Invalid agent response: ${field}`);
-  return value;
-}
-
-function nullableString(value: unknown, field: string): string | null {
-  if (value === null) return null;
-  return requiredString(value, field);
-}
-
-function requiredNumber(value: unknown, field: string): number {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    throw new Error(`Invalid agent response: ${field}`);
-  }
-  return value;
-}
-
-function nullableNumber(value: unknown, field: string): number | null {
-  if (value === null) return null;
-  return requiredNumber(value, field);
-}
-
-function requiredArray(value: unknown, field: string): readonly unknown[] {
-  if (!Array.isArray(value)) throw new Error(`Invalid agent response: ${field}`);
-  return value;
-}
-
 function accuracyGroup(value: unknown): AccuracyGroup {
   if (!isRecord(value)) throw new Error("Invalid agent response: accuracy group");
   return {
-    label: requiredString(value.label, "label"),
-    n_adjudicated: requiredNumber(value.n_adjudicated, "n_adjudicated"),
-    n_correct: requiredNumber(value.n_correct, "n_correct"),
-    n_decided: requiredNumber(value.n_decided, "n_decided"),
-    n_incorrect: requiredNumber(value.n_incorrect, "n_incorrect"),
-    n_undecidable: requiredNumber(value.n_undecidable, "n_undecidable"),
-    rate: nullableNumber(value.rate, "rate"),
+    label: requiredString(value, "label"),
+    n_adjudicated: requiredNumber(value, "n_adjudicated"),
+    n_correct: requiredNumber(value, "n_correct"),
+    n_decided: requiredNumber(value, "n_decided"),
+    n_incorrect: requiredNumber(value, "n_incorrect"),
+    n_undecidable: requiredNumber(value, "n_undecidable"),
+    rate: nullableNumber(value, "rate"),
   };
 }
 
 function failureExample(value: unknown): FailureExample {
   if (!isRecord(value)) throw new Error("Invalid agent response: failure example");
   return {
-    claim_id: requiredString(value.claim_id, "claim_id"),
-    note: nullableString(value.note, "note"),
+    claim_id: requiredString(value, "claim_id"),
+    note: nullableString(value, "note"),
     // Deliberately unnarrowed: a claim value is whatever the claim carried, and
     // the contract types it as unconstrained. Asserting a shape here would
     // refuse a claim the service is perfectly willing to serve.
@@ -152,29 +129,26 @@ function failureExample(value: unknown): FailureExample {
 function failureGroup(value: unknown): FailureGroup {
   if (!isRecord(value)) throw new Error("Invalid agent response: failure group");
   return {
-    claim_category: requiredString(value.claim_category, "claim_category"),
+    claim_category: requiredString(value, "claim_category"),
     examples: requiredArray(value.examples, "examples").map(failureExample),
-    incorrect_count: requiredNumber(value.incorrect_count, "incorrect_count"),
-    predicate: requiredString(value.predicate, "predicate"),
-    rate: nullableNumber(value.rate, "rate"),
-    total_count: requiredNumber(value.total_count, "total_count"),
+    incorrect_count: requiredNumber(value, "incorrect_count"),
+    predicate: requiredString(value, "predicate"),
+    rate: nullableNumber(value, "rate"),
+    total_count: requiredNumber(value, "total_count"),
   };
 }
 
 function agentInstruction(value: unknown): AgentInstruction {
   if (!isRecord(value)) throw new Error("Invalid agent response: instruction");
   return {
-    activated_at: nullableString(value.activated_at, "activated_at"),
-    author_actor_id: requiredString(value.author_actor_id, "author_actor_id"),
-    content: requiredString(value.content, "content"),
-    instruction_id: requiredString(value.instruction_id, "instruction_id"),
-    motivated_by_report_id: nullableString(
-      value.motivated_by_report_id,
-      "motivated_by_report_id",
-    ),
-    status: requiredString(value.status, "status"),
-    superseded_at: nullableString(value.superseded_at, "superseded_at"),
-    version: requiredNumber(value.version, "version"),
+    activated_at: nullableString(value, "activated_at"),
+    author_actor_id: requiredString(value, "author_actor_id"),
+    content: requiredString(value, "content"),
+    instruction_id: requiredString(value, "instruction_id"),
+    motivated_by_report_id: nullableString(value, "motivated_by_report_id"),
+    status: requiredString(value, "status"),
+    superseded_at: nullableString(value, "superseded_at"),
+    version: requiredNumber(value, "version"),
   };
 }
 
@@ -199,12 +173,12 @@ export async function getAgentAccuracy(
   );
   if (!isRecord(value)) throw new Error("Invalid agent response: accuracy");
   return {
-    author_actor_id: requiredString(value.author_actor_id, "author_actor_id"),
-    breakdown: requiredString(value.breakdown, "breakdown"),
+    author_actor_id: requiredString(value, "author_actor_id"),
+    breakdown: requiredString(value, "breakdown"),
     groups: requiredArray(value.groups, "groups").map(accuracyGroup),
     overall: accuracyGroup(value.overall),
-    window_end: requiredString(value.window_end, "window_end"),
-    window_start: requiredString(value.window_start, "window_start"),
+    window_end: requiredString(value, "window_end"),
+    window_start: requiredString(value, "window_start"),
   };
 }
 
@@ -220,14 +194,14 @@ export async function getAgentAutonomy(
   );
   if (!isRecord(value)) throw new Error("Invalid agent response: autonomy");
   return {
-    author_actor_id: requiredString(value.author_actor_id, "author_actor_id"),
-    autonomy_rate: nullableNumber(value.autonomy_rate, "autonomy_rate"),
-    intervention_rate: nullableNumber(value.intervention_rate, "intervention_rate"),
-    n_autonomous: requiredNumber(value.n_autonomous, "n_autonomous"),
-    n_intervened: requiredNumber(value.n_intervened, "n_intervened"),
-    n_sessions: requiredNumber(value.n_sessions, "n_sessions"),
-    window_end: requiredString(value.window_end, "window_end"),
-    window_start: requiredString(value.window_start, "window_start"),
+    author_actor_id: requiredString(value, "author_actor_id"),
+    autonomy_rate: nullableNumber(value, "autonomy_rate"),
+    intervention_rate: nullableNumber(value, "intervention_rate"),
+    n_autonomous: requiredNumber(value, "n_autonomous"),
+    n_intervened: requiredNumber(value, "n_intervened"),
+    n_sessions: requiredNumber(value, "n_sessions"),
+    window_end: requiredString(value, "window_end"),
+    window_start: requiredString(value, "window_start"),
   };
 }
 
@@ -243,18 +217,15 @@ export async function getAgentFailurePatterns(
   );
   if (!isRecord(value)) throw new Error("Invalid agent response: failure patterns");
   return {
-    author_actor_id: requiredString(value.author_actor_id, "author_actor_id"),
+    author_actor_id: requiredString(value, "author_actor_id"),
     groups: requiredArray(value.groups, "groups").map(failureGroup),
-    n_adjudicated: requiredNumber(value.n_adjudicated, "n_adjudicated"),
-    n_incorrect: requiredNumber(value.n_incorrect, "n_incorrect"),
-    n_intervention_sessions: requiredNumber(
-      value.n_intervention_sessions,
-      "n_intervention_sessions",
-    ),
-    n_sessions: requiredNumber(value.n_sessions, "n_sessions"),
-    report_id: requiredString(value.report_id, "report_id"),
-    window_end: requiredString(value.window_end, "window_end"),
-    window_start: requiredString(value.window_start, "window_start"),
+    n_adjudicated: requiredNumber(value, "n_adjudicated"),
+    n_incorrect: requiredNumber(value, "n_incorrect"),
+    n_intervention_sessions: requiredNumber(value, "n_intervention_sessions"),
+    n_sessions: requiredNumber(value, "n_sessions"),
+    report_id: requiredString(value, "report_id"),
+    window_end: requiredString(value, "window_end"),
+    window_start: requiredString(value, "window_start"),
   };
 }
 
@@ -281,7 +252,7 @@ export async function proposeAgentInstruction(
     { ...context, body: input, method: "POST" },
   );
   if (!isRecord(value)) throw new Error("Invalid agent response: proposal");
-  return requiredString(value.instruction_id, "instruction_id");
+  return requiredString(value, "instruction_id");
 }
 
 /**
@@ -312,5 +283,5 @@ export async function rollbackAgentInstruction(
     { ...context, method: "POST" },
   );
   if (!isRecord(value)) throw new Error("Invalid agent response: rollback");
-  return nullableString(value.restored_instruction_id, "restored_instruction_id");
+  return nullableString(value, "restored_instruction_id");
 }

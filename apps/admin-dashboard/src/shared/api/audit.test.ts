@@ -70,6 +70,6 @@ describe("queryAuditRecords", () => {
       vi.fn(async () => ({ items: [{ audit_id: 42 }], next_cursor: null })),
     );
 
-    await expect(queryAuditRecords(client, {})).rejects.toThrow("Invalid audit response");
+    await expect(queryAuditRecords(client, {})).rejects.toThrow("Invalid API response");
   });
 });

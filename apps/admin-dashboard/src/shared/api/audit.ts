@@ -1,4 +1,9 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import {
+  isRecord,
+  nullableString,
+  requiredString,
+} from "./parse";
 
 export type AuditSnapshot = Readonly<Record<string, unknown>> | null;
 
@@ -31,20 +36,6 @@ export interface QueryAuditRecordsParameters {
   to?: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredString(value: unknown, field: string): string {
-  if (typeof value !== "string") throw new Error(`Invalid audit response: ${field}`);
-  return value;
-}
-
-function nullableString(value: unknown, field: string): string | null {
-  if (value === null) return null;
-  return requiredString(value, field);
-}
-
 function snapshot(value: unknown, field: string): AuditSnapshot {
   if (value === null) return null;
   if (!isRecord(value)) throw new Error(`Invalid audit response: ${field}`);
@@ -54,16 +45,16 @@ function snapshot(value: unknown, field: string): AuditSnapshot {
 function auditRecord(value: unknown): AuditRecord {
   if (!isRecord(value)) throw new Error("Invalid audit response: item");
   return {
-    action: requiredString(value.action, "action"),
-    actor_id: nullableString(value.actor_id, "actor_id"),
+    action: requiredString(value, "action"),
+    actor_id: nullableString(value, "actor_id"),
     after_jsonb: snapshot(value.after_jsonb, "after_jsonb"),
-    audit_id: requiredString(value.audit_id, "audit_id"),
+    audit_id: requiredString(value, "audit_id"),
     before_jsonb: snapshot(value.before_jsonb, "before_jsonb"),
-    error_code: nullableString(value.error_code, "error_code"),
-    request_id: nullableString(value.request_id, "request_id"),
-    target_id: requiredString(value.target_id, "target_id"),
-    target_type: requiredString(value.target_type, "target_type"),
-    ts: requiredString(value.ts, "ts"),
+    error_code: nullableString(value, "error_code"),
+    request_id: nullableString(value, "request_id"),
+    target_id: requiredString(value, "target_id"),
+    target_type: requiredString(value, "target_type"),
+    ts: requiredString(value, "ts"),
   };
 }
 
@@ -73,7 +64,7 @@ function asAuditRecordPage(value: unknown): AuditRecordPage {
   }
   return {
     items: value.items.map(auditRecord),
-    next_cursor: nullableString(value.next_cursor, "next_cursor"),
+    next_cursor: nullableString(value, "next_cursor"),
   };
 }
 

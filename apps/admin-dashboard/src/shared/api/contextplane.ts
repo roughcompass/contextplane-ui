@@ -1,5 +1,15 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
 import type { components } from "./generated/contextplane";
+import {
+  isRecord,
+  nullableNumber,
+  nullableString,
+  requiredArray,
+  requiredBoolean,
+  requiredNumber,
+  requiredString,
+  requiredInteger,
+} from "./parse";
 
 export type SessionEvent = components["schemas"]["EventResponse"];
 export type SessionSummary = components["schemas"]["SessionResponse"];
@@ -429,24 +439,6 @@ export interface OpenArcProposalInput {
   sourceEvidenceId: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} is not a string.`);
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  if (value === null) return null;
-  if (typeof value !== "string")
-    throw new Error(`Invalid API response: ${key} is not nullable text.`);
-  return value;
-}
-
 function optionalNullableString(record: Record<string, unknown>, key: string): string | null {
   const value = record[key];
   if (value === undefined || value === null) return null;
@@ -455,44 +447,9 @@ function optionalNullableString(record: Record<string, unknown>, key: string): s
   return value;
 }
 
-function requiredNumber(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid API response: ${key} is not a number.`);
-  }
-  return value;
-}
-
-function requiredInteger(record: Record<string, unknown>, key: string): number {
-  const value = requiredNumber(record, key);
-  if (!Number.isInteger(value)) {
-    throw new Error(`Invalid API response: ${key} is not an integer.`);
-  }
-  return value;
-}
-
-function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
-  const value = record[key];
-  if (typeof value !== "boolean") {
-    throw new Error(`Invalid API response: ${key} is not a boolean.`);
-  }
-  return value;
-}
-
 function requiredValue(record: Record<string, unknown>, key: string): unknown {
   if (!(key in record)) throw new Error(`Invalid API response: ${key} is missing.`);
   return record[key];
-}
-
-function nullableNumber(record: Record<string, unknown>, key: string): number | null {
-  const value = record[key];
-  if (value === null) return null;
-  return requiredNumber(record, key);
-}
-
-function requiredArray(value: unknown, label: string): readonly unknown[] {
-  if (!Array.isArray(value)) throw new Error(`Invalid API response: ${label} is not an array.`);
-  return value;
 }
 
 function parseStringArray(value: unknown, label: string): string[] {
@@ -695,7 +652,7 @@ function parseVersionSatisfaction(value: unknown): Record<string, boolean> {
   return Object.fromEntries(
     Object.entries(value).map(([edgeId, satisfied]) => {
       if (typeof satisfied !== "boolean") {
-        throw new Error(`Invalid API response: version agreement for ${edgeId} is not a boolean.`);
+        throw new Error(`Invalid API response: version agreement for ${edgeId} is not boolean.`);
       }
       return [edgeId, satisfied];
     }),

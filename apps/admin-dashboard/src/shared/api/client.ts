@@ -1,4 +1,5 @@
 import { BRAND } from "@repo/ui/brand";
+import { isRecord } from "./parse";
 
 export interface ContextplaneErrorItem {
   code: string;
@@ -85,10 +86,6 @@ export interface ContextplaneClientOptions {
   getAccessToken?: () => Promise<string | null> | string | null;
   onUnauthorized?: () => Promise<void> | void;
   timeoutMs?: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function errorItemsFrom(value: unknown, status: number): readonly ContextplaneErrorItem[] {

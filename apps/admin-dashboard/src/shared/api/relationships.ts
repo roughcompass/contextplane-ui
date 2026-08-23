@@ -1,4 +1,13 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
+import {
+  isRecord,
+  nullableNumber,
+  nullableString,
+  requiredBoolean,
+  requiredString,
+  optionalBoolean,
+  requiredInteger,
+} from "./parse";
 
 export const relationshipWriteIntents = ["observation", "request", "authorized_approval"] as const;
 export type RelationshipWriteIntent = (typeof relationshipWriteIntents)[number];
@@ -133,57 +142,8 @@ export interface RelationshipQueryInput {
   relationshipType?: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
   if (!isRecord(value)) throw new Error(`Invalid API response: ${label} is not an object.`);
-  return value;
-}
-
-function requiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string") throw new Error(`Invalid API response: ${key} is not a string.`);
-  return value;
-}
-
-function nullableString(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string") {
-    throw new Error(`Invalid API response: ${key} is not a string or null.`);
-  }
-  return value;
-}
-
-function nullableNumber(record: Record<string, unknown>, key: string): number | null {
-  const value = record[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid API response: ${key} is not a number or null.`);
-  }
-  return value;
-}
-
-function requiredInteger(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  if (typeof value !== "number" || !Number.isInteger(value)) {
-    throw new Error(`Invalid API response: ${key} is not an integer.`);
-  }
-  return value;
-}
-
-function requiredBoolean(record: Record<string, unknown>, key: string): boolean {
-  const value = record[key];
-  if (typeof value !== "boolean") throw new Error(`Invalid API response: ${key} is not a boolean.`);
-  return value;
-}
-
-function optionalBoolean(record: Record<string, unknown>, key: string, fallback: boolean): boolean {
-  const value = record[key];
-  if (value === undefined || value === null) return fallback;
-  if (typeof value !== "boolean") throw new Error(`Invalid API response: ${key} is not a boolean.`);
   return value;
 }
 
