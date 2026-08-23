@@ -36,6 +36,7 @@ import {
   listExtractionStrategies,
   listMemoryCalibration,
   listMemorySources,
+  deletePiiFieldPolicy,
   listPiiFieldPolicies,
   listPiiPatterns,
   listProgressionDefinitions,
@@ -48,6 +49,7 @@ import {
   replacePromotionPolicy,
   resetMemorySourceBreaker,
   setEntityTypeSchemaAdvisory,
+  setPiiFieldPolicy,
   setPiiPatternEnabled,
   setSyncSourceActive,
   setVocabularyDeprecated,
@@ -76,6 +78,7 @@ import {
   shortAdminIdentifier,
   type SettingsTab,
 } from "./settingsModel";
+import { PiiFieldPolicyEditor, type PiiFieldPolicyDraft } from "./PiiFieldPolicyEditor";
 
 interface SettingsPageProps {
   activeTenantName: string;
@@ -1163,8 +1166,36 @@ function PrivacyTab({ apiTenantId, client }: AdminTabProps) {
     mutationFn: async (
       input:
         | { action: "purge"; actorId: string }
+        | { action: "removePolicy"; fieldType: string; policyId: string }
+        | { action: "setPolicy"; draft: PiiFieldPolicyDraft }
         | { action: "toggle"; enabled: boolean; patternId: string; patternName: string },
     ) => {
+      if (input.action === "setPolicy") {
+        const saved = await setPiiFieldPolicy(
+          client,
+          {
+            fieldType: input.draft.fieldType,
+            patternId: input.draft.patternId,
+            policy: input.draft.policy,
+          },
+          context,
+        );
+        return {
+          body: `${saved.field_type} is now ${saved.policy}${
+            saved.pattern_id ? " for that detector" : " for every detector"
+          }.`,
+          title: "Field policy set",
+        };
+      }
+      if (input.action === "removePolicy") {
+        await deletePiiFieldPolicy(client, input.policyId, context);
+        // Not the same as setting `advisory`: resolution now falls through to
+        // the field-wide override, then the pattern's own, then the default.
+        return {
+          body: `${input.fieldType} falls back to whatever resolves beneath the override.`,
+          title: "Field policy removed",
+        };
+      }
       if (input.action === "toggle") {
         await setPiiPatternEnabled(client, input.patternId, input.enabled, context);
         return {
@@ -1278,6 +1309,22 @@ function PrivacyTab({ apiTenantId, client }: AdminTabProps) {
             {query.data.fieldPolicies.map((policy) => (
               <SettingsRow
                 key={policy.policy_id}
+                action={
+                  <Button
+                    disabled={mutation.isPending}
+                    onClick={() =>
+                      mutation.mutate({
+                        action: "removePolicy",
+                        fieldType: policy.field_type,
+                        policyId: policy.policy_id,
+                      })
+                    }
+                    size="compact"
+                    variant="secondary"
+                  >
+                    Remove override
+                  </Button>
+                }
                 description={
                   policy.pattern_id
                     ? `Pattern ${shortAdminIdentifier(policy.pattern_id)}`
@@ -1291,6 +1338,11 @@ function PrivacyTab({ apiTenantId, client }: AdminTabProps) {
             ))}
           </ul>
         )}
+        <PiiFieldPolicyEditor
+          disabled={mutation.isPending}
+          onSubmit={(draft) => mutation.mutate({ action: "setPolicy", draft })}
+          patterns={query.data.patterns}
+        />
       </SectionSurface>
 
       <SectionSurface
