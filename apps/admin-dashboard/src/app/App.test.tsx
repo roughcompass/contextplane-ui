@@ -118,6 +118,7 @@ describe("App", () => {
           "Approval verifiers",
           "Exceptions",
           "Source governance",
+          "Revision lifecycle",
           "Audit log",
           "Settings",
         ],
