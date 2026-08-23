@@ -1,0 +1,1 @@
+export { VerifiersPage } from "./VerifiersPage";
