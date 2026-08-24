@@ -8,10 +8,11 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "generate:api": "openapi-typescript contracts/openapi.json -o apps/admin-dashboard/src/shared/api/generated/contextplane.ts && prettier --write apps/admin-dashboard/src/shared/api/generated/contextplane.ts",
-    "lint": "node scripts/check-test-colocation.mjs && turbo lint",
+    "lint": "node scripts/check-test-colocation.mjs && node scripts/check-identifier-fields.mjs && turbo lint",
     "lint:test-colocation": "node scripts/check-test-colocation.mjs",
     "test": "turbo test",
-    "type-check": "turbo type-check"
+    "type-check": "turbo type-check",
+    "lint:identifier-fields": "node scripts/check-identifier-fields.mjs"
   },
   "devDependencies": {
     "@eslint/js": "latest",
