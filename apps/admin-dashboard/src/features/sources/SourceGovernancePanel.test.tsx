@@ -19,9 +19,43 @@ const connector = {
   registered_at: "2026-08-22T09:00:00Z",
 };
 
+/** What the verifier roster answers with, for the authority picker to offer. */
+const ENROLLED_VERIFIER = {
+  created_at: "2026-08-22T09:00:00Z",
+  detail: {},
+  in_force: true,
+  in_force_until: null,
+  kind: "approval_verifier",
+  object_id: "verifier-a",
+  scope: "global",
+  target_tenant_id: null,
+};
+
+/** One connector already granting `verifier-a` authority, so the count is real. */
+const REGISTERED_CONNECTOR = {
+  created_at: "2026-08-22T09:00:00Z",
+  detail: { allowed_verifier_ids: ["verifier-a"] },
+  in_force: true,
+  in_force_until: null,
+  kind: "source_connector",
+  object_id: "connector-existing",
+  scope: "global",
+  target_tenant_id: null,
+};
+
 function testClient() {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
-    void options;
+    // Each collection path serves two operations, and the **method** is what
+    // tells them apart -- not the query string. A fake that matched on `?`
+    // would answer a registration when the read stopped narrowing, which is a
+    // divergence between the double and the service that only shows up later.
+    if (options?.method === "GET") {
+      const [collection] = path.split("?");
+      if (collection === "/v1/arc/admin/approval-verifiers") return { items: [ENROLLED_VERIFIER] };
+      if (collection === "/v1/arc/admin/source-connectors") return { items: [REGISTERED_CONNECTOR] };
+      if (collection === "/v1/arc/admin/source-upload-policies") return { items: [] };
+      throw new Error(`Unexpected read: ${path}`);
+    }
     if (path === "/v1/arc/admin/source-connectors") return connector;
     if (path === "/v1/arc/admin/source-upload-policies") {
       return {
@@ -77,6 +111,19 @@ describe("SourceGovernancePanel", () => {
     expect(screen.getByText(/every future admission through it/u)).toBeVisible();
   });
 
+  it("no longer claims a registration cannot be read back", () => {
+    /** The notice used to end "None of them can be read back afterwards, so what
+     * is registered here is not visible anywhere else." That was false when it
+     * was written — the five list endpoints were in the committed contract and
+     * nothing had called them — and E22-T5 builds the tables that make it
+     * obviously so. The true half of the notice, asserted above, survives:
+     * removing the whole thing would drop a real warning with a false one. */
+    renderPanel(testClient());
+
+    expect(screen.queryByText(/cannot be read back/u)).toBeNull();
+    expect(screen.queryByText(/not visible anywhere else/u)).toBeNull();
+  });
+
   it("names the verifier list as the field that widens who may approve", () => {
     // It is one field among six and the only one that grants authority over
     // material that does not exist yet.
@@ -86,6 +133,55 @@ describe("SourceGovernancePanel", () => {
       screen.getByText(/who may approve material this connector fetches/u),
     ).toBeVisible();
     expect(screen.getByText(/every future fetch, not just the next one/u)).toBeVisible();
+  });
+
+  it("offers enrolled verifiers rather than asking for a list of UUIDs", async () => {
+    /** ADR 0018's worst case: a comma-separated list of server-assigned
+     * identifiers, on the widest field of the form. */
+    renderPanel(testClient());
+
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+
+    expect(await screen.findByRole("option", { name: /verifier-a/u })).toBeVisible();
+  });
+
+  it("says how much authority a candidate verifier already holds", async () => {
+    /** E22-T5's own claim, that the verifier argument gets stronger once
+     * verifiers are readable: the form can show what each candidate would be
+     * added to. A verifier already on six connectors is a broadly trusted
+     * credential and one on none is a first grant, and the two deserve
+     * different hesitation. */
+    renderPanel(testClient());
+
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+
+    expect(await screen.findByText(/Already approves for 1 registration/u)).toBeVisible();
+  });
+
+  it("drops a verifier from the offer once it has been chosen", async () => {
+    /** The picker is single-value and this field is not. Offering a chosen
+     * verifier again would let one credential be named twice in a list the
+     * service reads as a set. */
+    renderPanel(testClient());
+
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+    fireEvent.click(await screen.findByRole("option", { name: /verifier-a/u }));
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("verifier-a");
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("option", { name: /verifier-a/u })).toBeNull(),
+    );
+  });
+
+  it("lets a chosen verifier be taken back off", async () => {
+    renderPanel(testClient());
+
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+    fireEvent.click(await screen.findByRole("option", { name: /verifier-a/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove verifier-a" }));
+
+    expect(screen.queryByRole("listitem")).toBeNull();
   });
 
   it("says a regenerated corpus is a different corpus", () => {
@@ -106,9 +202,10 @@ describe("SourceGovernancePanel", () => {
     fireEvent.change(screen.getByLabelText("Allowed media types"), {
       target: { value: "application/pdf" },
     });
-    fireEvent.change(screen.getByLabelText("Allowed approval verifiers"), {
-      target: { value: "verifier-a" },
-    });
+    // Chosen from the roster rather than typed: ADR 0018, and the field
+    // this one replaced was a comma-separated list of UUIDs.
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+    fireEvent.click(await screen.findByRole("option", { name: /verifier-a/u }));
     fireEvent.change(screen.getByLabelText("Maximum bytes"), { target: { value: "1048576" } });
     fireEvent.click(screen.getByRole("button", { name: "Register this connector" }));
 
@@ -127,7 +224,7 @@ describe("SourceGovernancePanel", () => {
     );
   });
 
-  it("will not register a connector with an empty list or a non-numeric size", () => {
+  it("will not register a connector with an empty list or a non-numeric size", async () => {
     /** Every list here is required by the contract, and an empty one would be a
      * connector that can fetch nothing or that nobody may approve. */
     renderPanel(testClient());
@@ -139,9 +236,10 @@ describe("SourceGovernancePanel", () => {
     fireEvent.change(screen.getByLabelText("Allowed schemes"), { target: { value: "https" } });
     fireEvent.change(screen.getByLabelText("Allowed hosts"), { target: { value: "a.example" } });
     fireEvent.change(screen.getByLabelText("Allowed media types"), { target: { value: "text/plain" } });
-    fireEvent.change(screen.getByLabelText("Allowed approval verifiers"), {
-      target: { value: "verifier-a" },
-    });
+    // Chosen from the roster rather than typed: ADR 0018, and the field
+    // this one replaced was a comma-separated list of UUIDs.
+    fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
+    fireEvent.click(await screen.findByRole("option", { name: /verifier-a/u }));
     fireEvent.change(screen.getByLabelText("Maximum bytes"), { target: { value: "lots" } });
     expect(submit).toBeDisabled();
 
@@ -159,9 +257,8 @@ describe("SourceGovernancePanel", () => {
     fireEvent.change(screen.getByLabelText("Uploadable media types"), {
       target: { value: "application/pdf" },
     });
-    fireEvent.change(screen.getByLabelText("Approval verifiers for uploads"), {
-      target: { value: "verifier-a" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Approval verifiers for uploads" }));
+    fireEvent.click(await screen.findByRole("option", { name: /verifier-a/u }));
     fireEvent.change(screen.getByLabelText("Maximum upload bytes"), { target: { value: "2048" } });
     chooseScope(/Upload policy scope/u, /Tenant/u);
     fireEvent.click(screen.getByRole("button", { name: "Register this upload policy" }));

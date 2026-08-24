@@ -1,6 +1,7 @@
 import { PageContainer, PageHeader } from "@repo/ui/layouts";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
+import { GovernanceObjectTable } from "../../shared/arcGovernance/GovernanceObjectTable";
 import { SourceGovernancePanel } from "./SourceGovernancePanel";
 
 interface SourceGovernancePageProps {
@@ -38,6 +39,35 @@ export function SourceGovernancePage({
         title="Source governance"
       />
       <SourceGovernancePanel client={client} requestContext={requestContext} />
+      {/* The tables sit under the forms rather than beside them, because the
+          order matches the job: an operator arrives to register something, and
+          the first question they have afterwards is whether it took. Putting
+          the read above the write would ask them to scroll past a list to reach
+          the thing they came to do. */}
+      <GovernanceObjectTable
+        client={client}
+        collection="sourceConnectors"
+        description="Every connector registered for this tenant, including ones that have been revoked — a fetch that used to work and now refuses is usually explained by a row here, not by its absence."
+        identifierLabel="Connector"
+        requestContext={requestContext}
+        title="Registered source connectors"
+      />
+      <GovernanceObjectTable
+        client={client}
+        collection="sourceUploadPolicies"
+        description="Every upload policy, on the same terms."
+        identifierLabel="Policy"
+        requestContext={requestContext}
+        title="Registered upload policies"
+      />
+      <GovernanceObjectTable
+        client={client}
+        collection="replayCorpora"
+        description="Every approved corpus. A qualification citing a digest that is no longer in force was measured against something this tenant has since withdrawn."
+        identifierLabel="Corpus digest"
+        requestContext={requestContext}
+        title="Approved replay corpora"
+      />
     </PageContainer>
   );
 }

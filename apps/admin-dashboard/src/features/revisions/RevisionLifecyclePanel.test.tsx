@@ -4,16 +4,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@repo/ui/primitives";
 
-import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
+import type { ContextplaneClient } from "../../shared/api";
 import { clientFromRequest } from "../../shared/api";
 import { RevisionLifecyclePanel } from "./RevisionLifecyclePanel";
 
 const REVISION_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const EVIDENCE_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
+/** What the evidence roster answers with, for the revoke picker to offer. */
+const FILED_EVIDENCE = {
+  created_at: "2026-08-22T09:00:00Z",
+  detail: {},
+  in_force: true,
+  in_force_until: null,
+  kind: "approval_evidence",
+  object_id: EVIDENCE_ID,
+  scope: "tenant",
+  target_tenant_id: null,
+};
+
 function testClient() {
-  const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
-    void options;
+  const request = vi.fn(async (path: string) => {
+    // The collection lists on GET and the item path revokes on POST. Keying on
+    // the path alone would answer the roster read with a revocation response.
+    if (path.startsWith("/v1/arc/admin/approval-evidence?")) return { items: [FILED_EVIDENCE] };
     if (path.includes("/approval-evidence") && path.includes("/revisions/")) {
       return { evidence_id: EVIDENCE_ID, revision_id: REVISION_ID, status: "attached" };
     }
@@ -162,9 +176,10 @@ describe("RevisionLifecyclePanel", () => {
      * revision, and withdrawing it is a statement about the approval. */
     const client = testClient();
     renderPanel(client);
-    fireEvent.change(screen.getByLabelText("Evidence", { selector: "#revoke-evidence-id" }), {
-      target: { value: EVIDENCE_ID },
-    });
+    // Chosen from what is filed, not typed. An evidence id is minted by the
+    // approval path and never shown to the person who later withdraws one.
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    fireEvent.click(await screen.findByRole("option", { name: new RegExp(EVIDENCE_ID, "u") }));
     fireEvent.change(screen.getByLabelText("Reason", { selector: "#revoke-evidence-reason" }), {
       target: { value: "Signed by a key since rotated." },
     });

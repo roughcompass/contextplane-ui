@@ -22,8 +22,11 @@ import { requiredInteger, requiredRecord, requiredString, stringArray } from "./
  * governance surface: nothing about registering a connector looks like it
  * changes what governance concludes, and it does.
  *
- * Like every other ARC admin object, none of these can be read back — see
- * E14-T1. A registration is invisible from the moment it is made.
+ * All three **are** readable back, and this module is the write half only.
+ * `arcGovernanceObjects.ts` holds the read. The sentence that used to be here —
+ * that a registration is invisible from the moment it is made — was false when
+ * it was written: the list endpoints were in the committed contract, and
+ * nothing had called them.
  */
 
 export interface ArcSourceConnector {

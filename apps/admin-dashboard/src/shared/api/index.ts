@@ -96,6 +96,13 @@ export {
   type ArcRevisionAction,
 } from "./arcRevisionLifecycle";
 export {
+  listArcGovernanceObjects,
+  listArcGovernanceOptions,
+  type ArcGovernanceCollection,
+  type ArcGovernanceObject,
+  type ArcGovernanceObjectQuery,
+} from "./arcGovernanceObjects";
+export {
   approveArcReplayCorpus,
   registerArcSourceConnector,
   registerArcSourceUploadPolicy,

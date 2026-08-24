@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, useToast } from "@repo/ui/primitives";
+import { Button, Notice, ResourcePicker, useToast } from "@repo/ui/primitives";
 
 import {
   attachArcApprovalEvidence,
@@ -12,6 +12,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { governancePickerSource } from "../../shared/arcGovernance/governancePickerSource";
 
 interface RevisionLifecyclePanelProps {
   client: ContextplaneClient;
@@ -54,6 +55,16 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
   const [endingRevision, setEndingRevision] = useState("");
   const [endingReason, setEndingReason] = useState("");
   const [ending, setEnding] = useState<Ending | null>(null);
+
+  // See the note on the same memo in `VerifierEnrolmentPanel`: the context is
+  // rebuilt inside rather than closed over, because the page constructs a fresh
+  // one every render and depending on the object would rebuild the source —
+  // discarding the collection it holds and re-requesting per keystroke.
+  const tenantId = requestContext.tenantId;
+  const evidenceSource = useMemo(
+    () => governancePickerSource(client, "approvalEvidence", tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
 
   const attachMutation = useMutation({
     mutationFn: () =>
@@ -159,15 +170,20 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor="revoke-evidence-id">
-              Evidence
-              <input
-                className={fieldClassName}
-                id="revoke-evidence-id"
-                onChange={(event) => setRevokeEvidence(event.target.value)}
-                value={revokeEvidence}
-              />
-            </label>
+            {/* ADR 0018. Revoking approval evidence is the action whose target
+                a reader is least able to name from memory: evidence ids are
+                minted by the approval path and never shown to the person who
+                later has to withdraw one. Only evidence still in force is
+                offered — revoking what is already revoked is a no-op the
+                service refuses. */}
+            <ResourcePicker
+              label="Evidence"
+              load={evidenceSource.load}
+              onValueChange={setRevokeEvidence}
+              resolve={evidenceSource.resolve}
+              searchPlaceholder="Search approval evidence"
+              value={revokeEvidence}
+            />
             <label className="text-xs font-medium text-muted" htmlFor="revoke-evidence-reason">
               Reason
               <input
