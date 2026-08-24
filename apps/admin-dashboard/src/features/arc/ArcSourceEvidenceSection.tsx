@@ -484,6 +484,9 @@ export function ArcSourceEvidenceSection({
               </label>
               <label className={labelClassName} htmlFor="arc-source-revision">
                 Immutable revision locator
+                {/* The other system's name for the commit this evidence was taken from.
+                    ADR 0018 names this class in its own text.
+                    identifier-exception: external-locator */}
                 <input
                   aria-describedby="arc-source-revision-error"
                   aria-invalid={errors.sourceRevisionLocator ? "true" : undefined}
@@ -516,6 +519,9 @@ export function ArcSourceEvidenceSection({
               {mode === "connector" ? (
                 <label className={`${labelClassName} sm:col-span-2`} htmlFor="arc-source-digest">
                   Expected content digest
+                  {/* Asserted about bytes not yet fetched, which is the whole point: offering
+                      a list of digests the system already holds would defeat the constraint.
+                      identifier-exception: asserted-digest */}
                   <input
                     aria-describedby="arc-source-digest-error"
                     aria-invalid={errors.sourceContentDigest ? "true" : undefined}
@@ -558,6 +564,9 @@ export function ArcSourceEvidenceSection({
               <legend className="mb-2 text-sm font-semibold text-foreground">Approval claim</legend>
               <label className={labelClassName} htmlFor="arc-approval-locator">
                 Approval locator
+                {/* Where the approval lives in the approving system. This one cannot list
+                    another system's records.
+                    identifier-exception: external-locator */}
                 <input
                   aria-describedby="arc-approval-locator-error"
                   aria-invalid={errors.approvalLocator ? "true" : undefined}
@@ -616,6 +625,9 @@ export function ArcSourceEvidenceSection({
               </label>
               <label className={labelClassName} htmlFor="arc-authority-subject">
                 Authority subject
+                {/* Half of an IdP-issued pair with the issuer above. Matched as a pair, and
+                    no collection of external authorities exists to enumerate.
+                    identifier-exception: external-id */}
                 <input
                   aria-describedby="arc-authority-subject-error"
                   aria-invalid={errors.approvingAuthoritySubject ? "true" : undefined}
@@ -696,6 +708,8 @@ export function ArcSourceEvidenceSection({
                 <>
                   <label className={labelClassName} htmlFor="arc-provider-id">
                     Provider ID
+                    {/* The attestation provider's own id, in its id space rather than this one's.
+                        identifier-exception: external-id */}
                     <input
                       aria-describedby="arc-provider-id-error"
                       aria-invalid={errors.providerId ? "true" : undefined}

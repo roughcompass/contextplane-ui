@@ -239,6 +239,8 @@ export function ArcDirectiveEditor({
           </div>
           <label className={`${labelClassName} sm:col-span-2`} htmlFor="arc-source-approval-digest">
             Source approval evidence digest
+            {/* Asserted about the approval record's content, not looked up.
+                identifier-exception: asserted-digest */}
             <input
               aria-describedby="arc-source-approval-digest-help arc-source-approval-digest-error"
               aria-invalid={errors.sourceApprovalEvidenceDigest ? "true" : undefined}

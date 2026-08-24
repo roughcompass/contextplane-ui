@@ -327,6 +327,11 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
             <ScopeField label="Corpus scope" onChange={setCorpusScope} value={corpusScope} />
             <label className="text-xs font-medium text-muted" htmlFor="corpus-digest">
               Corpus digest
+              {/* The digest IS the corpus, which the copy below already argues and which
+                  ADR 0018 quotes as the clearest statement of this exception anywhere in
+                  the tree: a regenerated corpus has a different digest and needs its own
+                  approval.
+                  identifier-exception: asserted-digest */}
               <input
                 className={fieldClassName}
                 id="corpus-digest"
