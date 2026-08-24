@@ -106,6 +106,15 @@ export {
   type ReceiptSummary,
 } from "./directory";
 export {
+  actOnEnvelope,
+  grantEnvelope,
+  resolveEnvelope,
+  type EnvelopeAct,
+  type EnvelopeBinding,
+  type EnvelopeGrantInput,
+  type WorkloadIdentity,
+} from "./envelopes";
+export {
   listPrincipals,
   type Principal,
   type PrincipalPage,

@@ -109,10 +109,11 @@ describe("App", () => {
      *
      * The full membership is asserted rather than sampled. A regrouping that
      * quietly loses a destination is a deletion nobody voted for, and the
-     * arithmetic is the only thing that catches one: 24 entries — 23 existing
-     * destinations plus `Needs review`, which is promoted out of the
+     * arithmetic is the only thing that catches one: 25 entries — 23 existing
+     * destinations, plus `Needs review`, which is promoted out of the
      * `?tab=curation` value Overview and `AssertClaimPage` already deep-linked
-     * to as though it were one. */
+     * to as though it were one, plus `Envelopes`, which E23-T5 added when the
+     * autonomy envelope finally got an operating surface. */
     mockEmptyOverviewService();
     render(<App />);
 
@@ -125,7 +126,7 @@ describe("App", () => {
         ["Catalog", "Claims", "Relationships", "Notebooks", "Sources", "Withheld"],
       ],
       ["Judgement", ["Needs review", "Curation review", "Promotions", "Exceptions"]],
-      ["Agents", ["Agents", "Tasks", "Activity", "Analytics"]],
+      ["Agents", ["Agents", "Envelopes", "Tasks", "Activity", "Analytics"]],
       [
         "Governance",
         [
@@ -156,7 +157,7 @@ describe("App", () => {
     }
 
     const placed = expectedSections.flatMap(([, items]) => items).length;
-    expect(placed + 1).toBe(24);
+    expect(placed + 1).toBe(25);
   });
 
   it("leaves Overview ungrouped rather than in a section of one", async () => {

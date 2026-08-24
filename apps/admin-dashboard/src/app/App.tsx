@@ -14,6 +14,7 @@ import {
   Library,
   ListChecks,
   MessageSquareText,
+  PauseCircle,
   Receipt,
   Settings,
   Gavel,
@@ -170,6 +171,11 @@ const ReceiptsPage = lazy(async () => {
   return { default: feature.ReceiptsPage };
 });
 
+const AutonomyPage = lazy(async () => {
+  const feature = await import("../features/autonomy");
+  return { default: feature.AutonomyPage };
+});
+
 const AgentsPage = lazy(async () => {
   const feature = await import("../features/agents");
   return { default: feature.AgentsPage };
@@ -282,6 +288,7 @@ const navigation: readonly NavigationSection[] = [
     label: "Agents",
     items: [
       { href: "/agents", icon: <Bot className="size-4" />, label: "Agents" },
+      { href: "/autonomy", icon: <PauseCircle className="size-4" />, label: "Envelopes" },
       { href: "/tasks", icon: <ListChecks className="size-4" />, label: "Tasks" },
       { href: "/activity", icon: <Bell className="size-4" />, label: "Activity" },
       { href: "/analytics", icon: <ChartColumn className="size-4" />, label: "Analytics" },
@@ -308,6 +315,7 @@ type AppRoute =
   | "arc"
   | "assert-claim"
   | "audit"
+  | "autonomy"
   | "catalog"
   | "context-lab"
   | "exceptions"
@@ -378,6 +386,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
   agents: {
     href: "/agents",
     load: () => import("../features/agents"),
+    surface: "Agents",
+    usesIdentity: true,
+  },
+  autonomy: {
+    href: "/autonomy",
+    load: () => import("../features/autonomy"),
     surface: "Agents",
     usesIdentity: true,
   },
@@ -581,6 +595,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/") return "overview";
   if (pathname === "/activity") return "activity";
   if (pathname === "/agents") return "agents";
+  if (pathname === "/autonomy") return "autonomy";
   if (pathname === "/analytics") return "analytics";
   if (pathname === "/arc") return "arc";
   if (pathname === "/audit") return "audit";
@@ -1249,6 +1264,12 @@ function AppShellRoot() {
             />
           ) : route === "agents" ? (
             <AgentsPage
+              {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+              activeTenantName={activeTenantName}
+              client={apiClient}
+            />
+          ) : route === "autonomy" ? (
+            <AutonomyPage
               {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
               activeTenantName={activeTenantName}
               client={apiClient}
