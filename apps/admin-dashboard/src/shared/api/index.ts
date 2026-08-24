@@ -108,9 +108,11 @@ export {
 export {
   actOnEnvelope,
   grantEnvelope,
+  listEnvelopeBindings,
   resolveEnvelope,
   type EnvelopeAct,
   type EnvelopeBinding,
+  type EnvelopeBindingPage,
   type EnvelopeGrantInput,
   type WorkloadIdentity,
 } from "./envelopes";

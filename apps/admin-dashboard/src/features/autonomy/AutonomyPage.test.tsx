@@ -29,7 +29,18 @@ const inForce = {
 type Responder = (path: string, options?: ContextplaneRequestOptions) => unknown;
 
 function testClient(responder: Responder) {
-  return clientFromRequest(vi.fn(async (path: string, options?: ContextplaneRequestOptions) => responder(path, options)));
+  return clientFromRequest(
+    vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
+      // The directory renders above the lookup on this page. Answered here so
+      // each test exercises the page as a reader sees it rather than a page with
+      // a failed panel at the top; `EnvelopeDirectory.test.tsx` covers what it
+      // shows.
+      if (path.startsWith("/v1/arc/admin/envelopes/bindings/directory")) {
+        return { items: [], next_cursor: null };
+      }
+      return responder(path, options);
+    }),
+  );
 }
 
 function renderPage(client: ContextplaneClient) {

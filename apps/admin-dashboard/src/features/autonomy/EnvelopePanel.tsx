@@ -21,6 +21,7 @@ import {
   type EnvelopeAct,
 } from "../../shared/api";
 import { revisionSource } from "../../shared/pickers/sources";
+import { EnvelopeDirectory } from "./EnvelopeDirectory";
 import {
   ageInSeconds,
   availableActs,
@@ -143,21 +144,35 @@ export function EnvelopePanel({ apiTenantId, client, requestContext }: EnvelopeP
     },
   });
 
-  function load(event: FormEvent) {
-    event.preventDefault();
-    const issuer = issuerInput.trim();
-    const subject = subjectInput.trim();
-    if (issuer === "" || subject === "") return;
-    setPrincipal({ issuer, subject });
+  /** Choosing a row in the directory is the same act as looking one up, so it
+   *  goes through one function rather than two paths that could drift about
+   *  what a fresh lookup clears. */
+  function open(next: { issuer: string; subject: string }) {
+    setIssuerInput(next.issuer);
+    setSubjectInput(next.subject);
+    setPrincipal(next);
     setPendingAct(null);
     setReason("");
     setNow(new Date());
   }
 
+  function load(event: FormEvent) {
+    event.preventDefault();
+    const issuer = issuerInput.trim();
+    const subject = subjectInput.trim();
+    if (issuer === "" || subject === "") return;
+    open({ issuer, subject });
+  }
+
   return (
     <div className="space-y-6">
+      {/* The directory comes first, because the lookup below needs an exact
+          identity pair and the operator reaching for this during an incident is
+          usually the one who does not have it to hand. */}
+      <EnvelopeDirectory client={client} onOpen={open} requestContext={requestContext} />
+
       <SectionSurface
-        description="An envelope is the control that decides what an agent may do. Look one up by the identity its own provider issued it."
+        description="An envelope is the control that decides what an agent may do. Look one up by the identity its own provider issued it — or choose one above."
         title="Find a principal's envelope"
       >
         <form className="space-y-3 px-6 py-4" onSubmit={load}>
@@ -193,9 +208,10 @@ export function EnvelopePanel({ apiTenantId, client, requestContext }: EnvelopeP
               collection to enumerate. Saying so beats leaving a reader to wonder
               where the dropdown went. */}
           <p className="text-xs text-muted">
-            Both halves come from the agent&rsquo;s own identity provider, so there is no list to
-            choose from. They are matched as a pair — the same subject under a different issuer is a
-            different principal.
+            Both halves come from the agent&rsquo;s own identity provider. They are matched as a
+            pair — the same subject under a different issuer is a different principal — and this is
+            the path for a principal that is not governed yet, so the directory above cannot list
+            it.
           </p>
           <Button disabled={issuerInput.trim() === "" || subjectInput.trim() === ""} type="submit">
             Look up envelope

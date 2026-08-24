@@ -1,5 +1,11 @@
 import type { ContextplaneClient, ContextplaneRequestOptions } from "./client";
-import { isRecord, nullableString, requiredBoolean, requiredString } from "./parse";
+import {
+  isRecord,
+  nullableString,
+  requiredArray,
+  requiredBoolean,
+  requiredString,
+} from "./parse";
 
 /**
  * The autonomy envelope's four acts, and the read that shows the posture.
@@ -81,6 +87,50 @@ function parseBinding(payload: unknown): EnvelopeBinding {
     state: requiredString(payload, "state"),
     suspended_at: nullableString(payload, "suspended_at", "suspended_at"),
     suspension_reason: nullableString(payload, "suspension_reason", "suspension_reason"),
+  };
+}
+
+export interface EnvelopeBindingPage {
+  items: readonly EnvelopeBinding[];
+  /**
+   * Send back as `cursor` for the next page. Opaque — carried unchanged, never
+   * decoded, compared or stored. It happens to encode a timestamp, and treating
+   * it as one is how a client starts depending on an ordering nobody promised.
+   */
+  next_cursor: string | null;
+}
+
+/**
+ * Who is governed in this tenant, newest interval first.
+ *
+ * **The read the operating surface was missing.** `resolveEnvelope` answers
+ * about a principal the caller can already name; until this, nothing told them
+ * the names, so an operator during an incident had to already hold the exact
+ * `(issuer, subject)` pair of the agent they were trying to stop.
+ *
+ * Suspended and revoked bindings are included by the service, and the screen
+ * must not filter them out: "was this agent ever governed" is a question about
+ * closed intervals, and a list of only live ones answers "no" where the truth
+ * is "yes, until Tuesday".
+ */
+export async function listEnvelopeBindings(
+  client: ContextplaneClient,
+  query: { cursor?: string; limit?: number } = {},
+  context: ContextplaneRequestOptions = {},
+): Promise<EnvelopeBindingPage> {
+  const search = new URLSearchParams();
+  if (query.cursor) search.set("cursor", query.cursor);
+  if (query.limit) search.set("limit", String(query.limit));
+  const suffix = search.size > 0 ? `?${search.toString()}` : "";
+
+  const payload = await client.request(`/v1/arc/admin/envelopes/bindings/directory${suffix}`, {
+    ...context,
+    method: "GET",
+  });
+  if (!isRecord(payload)) throw new Error("Invalid API response: envelope directory.");
+  return {
+    items: requiredArray(payload.items, "Envelope directory items").map(parseBinding),
+    next_cursor: nullableString(payload, "next_cursor", "next_cursor"),
   };
 }
 
