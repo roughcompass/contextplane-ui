@@ -24,7 +24,7 @@ function chooseOption(controlName: RegExp, optionName: string) {
   fireEvent.click(screen.getByRole("option", { name: optionName }));
 }
 
-function mockEmptyOverviewService() {
+function mockEmptyOverviewService(identity: Record<string, unknown> | null = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const path =
       typeof input === "string"
@@ -33,14 +33,18 @@ function mockEmptyOverviewService() {
           ? `${input.pathname}${input.search}`
           : input.url;
     if (path === "/v1/whoami") {
+      // `null` means the identity never resolves, which is what "still signing
+      // in" looks like to the shell.
+      if (identity === null) return new Response(null, { status: 503 });
       return Response.json({
-        actor_display_name: "Morgan Morris",
+        actor_display_name: "Ada Okonjo",
         actor_email: null,
         actor_id: "a0000000-0000-4000-8000-000000000001",
         roles: ["producer"],
         tenant_display_name: "Northstar Systems",
         tenant_id: "b0000000-0000-4000-8000-000000000001",
         tenant_slug: "northstar",
+        ...identity,
       });
     }
     if (path === "/v1/memory/curation-queue?counts=true") {
@@ -238,7 +242,11 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "Analytics" })).toBeVisible();
     expect(screen.queryByRole("status", { name: "Loading destination" })).toBeNull();
     expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Administrator")).toBeVisible();
+    // The reader does not change when the destination does. This line used to
+    // assert "Administrator" — the notional persona of whichever page was open,
+    // rendered as the reader's identity, which is the defect and not a label.
+    expect(screen.queryByText("Administrator")).toBeNull();
+    expect(screen.getAllByText("Ada Okonjo").length).toBeGreaterThan(0);
     expect(screen.getByRole("combobox", { name: /^Active tenant/ })).toHaveValue("field-labs");
 
     expect(screen.queryByRole("button", { name: "Search usage" })).toBeNull();
@@ -269,7 +277,10 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Audit Log" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Audit log" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Auditor")).toBeVisible();
+    // Same reader on the audit log as on analytics. Two destinations, two
+    // notional personas, one identity — which is the whole point of the change.
+    expect(screen.queryByText("Auditor")).toBeNull();
+    expect(screen.getAllByText("Ada Okonjo").length).toBeGreaterThan(0);
     expect(screen.getByRole("combobox", { name: /^Active tenant/ })).toHaveValue("field-labs");
 
     expect(screen.queryByRole("button", { name: "Filter audit log" })).toBeNull();
@@ -332,7 +343,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["admin"],
@@ -374,7 +385,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["admin"],
@@ -437,7 +448,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["producer"],
@@ -509,7 +520,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["consumer"],
@@ -542,7 +553,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["producer"],
@@ -576,7 +587,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["admin"],
@@ -637,7 +648,7 @@ describe("App", () => {
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (path === "/v1/whoami") {
         return Response.json({
-          actor_display_name: "Morgan Morris",
+          actor_display_name: "Ada Okonjo",
           actor_email: null,
           actor_id: "a0000000-0000-4000-8000-000000000001",
           roles: ["producer"],
@@ -683,5 +694,54 @@ describe("App", () => {
       "href",
       "/workspaces?archived=include",
     );
+  });
+});
+
+describe("who the shell says is reading", () => {
+  it("renders the identity the service resolved, not a literal", async () => {
+    // The fixture name is deliberately *not* the string the header used to
+    // hardcode. Eight fixtures said "Morgan Morris" and so did the header, so a
+    // test asserting the header's name passed whether or not it read `whoami` —
+    // three mutually-consistent copies of the wrong value, which is the failure
+    // this repository has already recorded once.
+    mockEmptyOverviewService();
+    render(<App />);
+
+    // The shell renders the name in more than one responsive variant, so the
+    // assertion is that it appears rather than that it appears once.
+    expect((await screen.findAllByText("Ada Okonjo")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Morgan Morris")).toBeNull();
+  });
+
+  it("shows no role, because the chrome has none to show", async () => {
+    // The previous value was `routeDefinitions[route].role` — the current
+    // page's notional persona, relabelling the reader on every navigation.
+    // Under the one-operator decision there is no role to display, so it is
+    // removed rather than replaced with a better guess.
+    mockEmptyOverviewService();
+    render(<App />);
+
+    await screen.findAllByText("Ada Okonjo");
+    for (const persona of ["Producer", "Administrator", "Auditor", "Consumer"]) {
+      expect(screen.queryByText(persona)).toBeNull();
+    }
+  });
+
+  it("says it is still signing in rather than inventing a reader", async () => {
+    // An unresolved identity is a real state and the honest rendering of it is
+    // to say so. Inventing one is what produced the literal.
+    mockEmptyOverviewService(null);
+    render(<App />);
+
+    expect((await screen.findAllByText("Signing in…")).length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the actor id when the identity carries no name", async () => {
+    // An identity that exists and is unnamed is not the same as no identity,
+    // and a placeholder name would be this defect again one deployment later.
+    mockEmptyOverviewService({ actor_display_name: null });
+    render(<App />);
+
+    expect((await screen.findAllByText(/^Actor /u)).length).toBeGreaterThan(0);
   });
 });
