@@ -1,7 +1,7 @@
 {
   "_comment": "Free-text identifier fields that existed when the gate was written, and the only ones permitted. ADR 0018 decides that a server-assigned identifier is chosen from a list, never typed; these are the debt that decision was written against, not exceptions to it. Every entry is owned by an E22 task and leaves when that task lands. THE RATCHET: a field not listed here fails the gate, and a listed field that no longer exists ALSO fails it -- so the list cannot be padded and cannot go stale. Shrink it; never add to it. A genuinely permanent exception is an inline `identifier-exception:` annotation naming an ADR 0018 class, not an entry here.",
   "recorded_at": "2026-08-24",
-  "total": 65,
+  "total": 63,
   "fields": {
     "apps/admin-dashboard/src/features/activity/ActivityPanel.tsx": [
       "Producer ID",
@@ -88,10 +88,6 @@
     ],
     "apps/admin-dashboard/src/features/relationships/RelationshipsPage.tsx": [
       "identity-platform Capability UUID or slug"
-    ],
-    "apps/admin-dashboard/src/features/revisions/RevisionLifecyclePanel.tsx": [
-      "Revision",
-      "Revision"
     ],
     "apps/admin-dashboard/src/features/settings/SettingsPage.tsx": [
       "Actor UUID Actor ID",

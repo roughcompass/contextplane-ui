@@ -96,6 +96,12 @@ export {
   type ArcRevisionAction,
 } from "./arcRevisionLifecycle";
 export {
+  listArcRevisions,
+  type ArcRevision,
+  type ArcRevisionPage,
+  type ArcRevisionQuery,
+} from "./arcRevisions";
+export {
   listArcGovernanceObjects,
   listArcGovernanceOptions,
   type ArcGovernanceCollection,
