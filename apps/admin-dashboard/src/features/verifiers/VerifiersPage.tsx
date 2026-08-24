@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { GovernanceObjectTable } from "../../shared/arcGovernance/GovernanceObjectTable";
@@ -24,10 +25,9 @@ export function VerifiersPage({ activeTenantName, apiTenantId, client }: Verifie
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Approval verifiers" }]}
+        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Approvers" }]}
         description="Enrol the keys allowed to approve a governed change, and end their authority when they should no longer hold it."
-        eyebrow="Govern"
-        title="Approval verifiers"
+        title="Approvers"
       />
       <VerifierEnrolmentPanel client={client} requestContext={requestContext} />
       {/* Revoked verifiers stay in the table. "Who could approve this change at

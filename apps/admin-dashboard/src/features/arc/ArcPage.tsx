@@ -13,11 +13,11 @@ import { useEffect, useMemo, useState, type FormEvent, type RefObject } from "re
 import {
   EmptyState,
   PageContainer,
-  PageHeader,
   SectionSurface,
   SummaryStrip,
   TableSection,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -414,8 +414,7 @@ export function ArcPage({ activeTenantName, apiTenantId, client, searchRef }: Ar
       <PageContainer width="standard">
         <PageHeader
           description={`Loading policy governance context for ${activeTenantName}.`}
-          eyebrow="Agent readiness"
-          title="Governed policies"
+          title="Policies"
         />
         <SectionSurface title="Resolving authorization">
           <LoadingBlock label="Loading policy authorization" />
@@ -429,8 +428,7 @@ export function ArcPage({ activeTenantName, apiTenantId, client, searchRef }: Ar
       <PageContainer width="standard">
         <PageHeader
           description="Author versioned, source-backed policy and inspect what agents received at runtime."
-          eyebrow="Agent readiness"
-          title="Governed policies"
+          title="Policies"
         />
         <RequestFailure
           onRetry={() => void identityQuery.refetch()}
@@ -837,8 +835,7 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
           </>
         }
         description="Turn approved source material into versioned policy that agents can receive, verify, and explain."
-        eyebrow="Agent readiness"
-        title="Governed policies"
+        title="Policies"
       />
 
       <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-8">

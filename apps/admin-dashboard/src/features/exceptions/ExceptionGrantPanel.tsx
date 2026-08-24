@@ -120,7 +120,12 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
 
   const revokeMutation = useMutation({
     mutationFn: () =>
-      revokeArcException(client, revokeId.trim(), { reason_code: revokeCode.trim() }, requestContext),
+      revokeArcException(
+        client,
+        revokeId.trim(),
+        { reason_code: revokeCode.trim() },
+        requestContext,
+      ),
     onSuccess: () => {
       showToast({ title: "Exception revoked", variant: "success" });
       setRevokeId("");
@@ -174,11 +179,11 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
           screen that looks complete and quietly is not — an operator who
           believes they are looking at the full picture stops looking. */}
       <Notice title="This screen cannot show what is already in force" variant="warning">
-        The service exposes no way to read exceptions back — only to grant and revoke them. So
-        there is no register here of what is standing, against what, or until when, and this page
-        cannot tell you whether the deviation you are about to grant already exists. Until that
-        read path is added, the audit log is the only record, and it reports grants and revocations
-        as events rather than saying what is in force now.
+        The service exposes no way to read exceptions back — only to grant and revoke them. So there
+        is no register here of what is standing, against what, or until when, and this page cannot
+        tell you whether the deviation you are about to grant already exists. Until that read path
+        is added, the audit log is the only record, and it reports grants and revocations as events
+        rather than saying what is in force now.
       </Notice>
 
       <SectionSurface
@@ -257,7 +262,9 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
           ) : null}
 
           <fieldset className="space-y-3 rounded-md border border-border p-3">
-            <legend className="px-1 text-xs font-medium text-muted">The approval, transcribed</legend>
+            <legend className="px-1 text-xs font-medium text-muted">
+              The approval, transcribed
+            </legend>
             <div className="grid gap-3 md:grid-cols-2">
               {textField("evidenceId", "Evidence", "exception-evidence")}
               {textField("verifierId", "Approval verifier", "exception-verifier")}
@@ -324,7 +331,9 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
             Pasted rather than chosen, for the same reason there is no register above.
           </p>
           <Button
-            disabled={revokeId.trim() === "" || revokeCode.trim() === "" || revokeMutation.isPending}
+            disabled={
+              revokeId.trim() === "" || revokeCode.trim() === "" || revokeMutation.isPending
+            }
             type="submit"
             variant="danger"
           >

@@ -193,7 +193,7 @@ const contextLayers = [
   },
   {
     detail: "Recalled claims with citations, confidence, validity, and human-review state.",
-    label: "Living Memory",
+    label: "Claims",
   },
   {
     detail: "Mutable notes, decisions, questions, and saved retrieval context.",
@@ -385,13 +385,13 @@ const startingPoints = [
   },
   {
     detail: "Keep mutable notes, decisions, questions, and saved retrieval context.",
-    href: "/workspaces",
+    href: "/notebooks",
     icon: Boxes,
     label: "Open workspaces",
   },
   {
     detail: "Compare proposed changes with current values, evidence, and impact.",
-    href: "/proposals",
+    href: "/memory/promotions",
     icon: FileCheck2,
     label: "Review proposals",
   },

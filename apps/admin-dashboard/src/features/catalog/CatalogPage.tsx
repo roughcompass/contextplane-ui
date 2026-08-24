@@ -6,11 +6,11 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SummaryStrip,
   TableSection,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -222,7 +222,6 @@ export function CatalogPage({
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Catalog" }]}
           description="Discover and maintain canonical catalog entities and their governed service records."
-          eyebrow="Canonical catalog"
           title="Catalog"
         />
         <RequestFailure
@@ -258,7 +257,6 @@ export function CatalogPage({
         }
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Catalog" }]}
         description="Discover canonical capabilities, concepts and operations, inspect ownership and impact, and maintain lifecycle, interfaces, artifacts, adoptions, and subscriptions in one workflow."
-        eyebrow="Canonical catalog"
         metadata={
           <>
             <StatusBadge tone="success">Service backed</StatusBadge>

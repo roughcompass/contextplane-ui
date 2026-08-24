@@ -14,10 +14,10 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   TableSection,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import { Button, Notice, RequestFailure, SearchField, StatusBadge } from "@repo/ui/primitives";
 
 import {
@@ -403,7 +403,6 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Audit Log" }]}
         description="Trace recorded service activity by actor, action, target, outcome, timestamp, and request correlation."
-        eyebrow="Recorded activity"
         metadata={
           <>
             <StatusBadge>Service-authoritative</StatusBadge>
@@ -427,8 +426,7 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
         <Notice title="What the service recorded — not proof of what happened">
           Filters change the view but do not alter or remove entries. Two things this history does
           not claim: rows are not cryptographically chained, and an audit write that fails is
-          counted rather than raised, so a missing row is not evidence that an action did not
-          occur.
+          counted rather than raised, so a missing row is not evidence that an action did not occur.
         </Notice>
 
         {auditQuery.isError && invalidCursor ? (

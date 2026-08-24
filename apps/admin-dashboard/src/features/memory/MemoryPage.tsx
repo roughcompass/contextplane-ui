@@ -25,11 +25,11 @@ import {
   DetailLayout,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   TableSection,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   DetailsLink,
@@ -72,7 +72,6 @@ import {
   memoryCurationPageSize,
   memoryListHref,
   memoryPersonaOptions,
-  memorySearch,
   memoryTabs,
   readMemoryUrlState,
   recallCaveat,
@@ -178,9 +177,8 @@ function MemoryHeader({ identity }: { identity: WhoAmI }) {
           Record claim
         </a>
       }
-      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Living Memory" }]}
+      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Claims" }]}
       description="Inspect recalled claims with their confidence, evidence, time scope, and human-review state, then see what is waiting for curator attention."
-      eyebrow="Observed context"
       metadata={
         <>
           <StatusBadge tone="info">Observed claims</StatusBadge>
@@ -188,7 +186,7 @@ function MemoryHeader({ identity }: { identity: WhoAmI }) {
           <StatusBadge>{identityName(identity)}</StatusBadge>
         </>
       }
-      title="Living Memory"
+      title="Claims"
     />
   );
 }
@@ -205,10 +203,9 @@ function IdentityFailure({
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Living Memory" }]}
+        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Claims" }]}
         description="Inspect recalled claims, evidence, and curator attention without treating observations as canonical records."
-        eyebrow="Observed context"
-        title="Living Memory"
+        title="Claims"
       />
       <QueryFailure error={error} onRetry={onRetry} />
     </PageContainer>
@@ -769,7 +766,7 @@ function CurationRows({
                   {item.proposal_id ? (
                     <a
                       className="mt-2 inline-flex text-xs font-medium text-accent hover:underline"
-                      href={`/proposals/${encodeURIComponent(item.proposal_id)}`}
+                      href={`/memory/promotions/${encodeURIComponent(item.proposal_id)}`}
                     >
                       Review linked proposal
                     </a>
@@ -1067,11 +1064,10 @@ function ClaimDetailPage({
           }
           breadcrumbs={[
             { href: "/", label: identity.tenant_display_name },
-            { href: backHref, label: "Living Memory" },
+            { href: backHref, label: "Claims" },
             { label: "Claim" },
           ]}
           description="The service did not return this claim. A hidden claim and an unknown claim are intentionally indistinguishable."
-          eyebrow="Observed context"
           title="Claim unavailable"
         />
         <QueryFailure error={claim.error} onRetry={() => void claim.refetch()} />
@@ -1092,11 +1088,10 @@ function ClaimDetailPage({
         }
         breadcrumbs={[
           { href: "/", label: identity.tenant_display_name },
-          { href: backHref, label: "Living Memory" },
+          { href: backHref, label: "Claims" },
           { label: "Claim" },
         ]}
         description={formatClaimValue(item.value)}
-        eyebrow="Observed claim"
         metadata={
           <>
             <StatusBadge tone="warning">Recalled content</StatusBadge>
@@ -1274,10 +1269,13 @@ function MemoryBrowsePage({
   }, []);
 
   function updateState(next: MemoryUrlState, mode: "push" | "replace" = "replace") {
+    // `memoryListHref` rather than a `/memory` literal: the curation tab is its
+    // own address now, and writing the path here would leave the page minting
+    // the query form the shell immediately redirects away from.
     window.history[mode === "push" ? "pushState" : "replaceState"](
       window.history.state,
       "",
-      `/memory${memorySearch(next)}`,
+      memoryListHref(next),
     );
     setState(next);
   }

@@ -3,13 +3,8 @@ import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { BRAND } from "@repo/ui/brand";
-import {
-  EmptyState,
-  PageContainer,
-  PageHeader,
-  PageSkeleton,
-  SectionSurface,
-} from "@repo/ui/layouts";
+import { EmptyState, PageContainer, PageSkeleton, SectionSurface } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   DetailsLink,
@@ -346,7 +341,6 @@ export function OverviewPage({ activeTenantName, apiTenantId, client }: Overview
         <PageHeader
           breadcrumbs={[{ label: activeTenantName }]}
           description="See what needs attention, resume recent work, and follow governed outcomes without leaving the dedicated records and workflows behind."
-          eyebrow="Workspace"
           metadata={<StatusBadge>{activeTenantName}</StatusBadge>}
           title="Overview"
         />
@@ -391,7 +385,6 @@ export function OverviewPage({ activeTenantName, apiTenantId, client }: Overview
         }
         breadcrumbs={[{ label: identity.data.tenant_display_name }]}
         description="See what needs attention, resume recent work, and follow governed outcomes. Full records, filters, and workflows stay in their dedicated destinations."
-        eyebrow="Workspace"
         metadata={
           <>
             <StatusBadge tone="info">Cross-feature summary</StatusBadge>
@@ -410,7 +403,7 @@ export function OverviewPage({ activeTenantName, apiTenantId, client }: Overview
           <div className="grid gap-8 lg:grid-cols-2 lg:gap-0 lg:divide-x lg:divide-border-subtle">
             <div className="lg:pr-8">
               <OverviewGroup
-                action={<DetailsLink href="/proposals">Open proposal queue</DetailsLink>}
+                action={<DetailsLink href="/memory/promotions">Open proposal queue</DetailsLink>}
                 description="High-impact items are prioritized from the first 25 open proposals returned by the service."
                 title="Governance proposals"
               >
@@ -435,7 +428,7 @@ export function OverviewPage({ activeTenantName, apiTenantId, client }: Overview
 
             <div className="lg:pl-8">
               <OverviewGroup
-                action={<DetailsLink href="/memory?tab=curation">Open curation queue</DetailsLink>}
+                action={<DetailsLink href="/memory/review">Open curation queue</DetailsLink>}
                 description="Service-published counts for the whole curation queue; no observed-claim rows are copied here."
                 title="Living Memory curation"
               >
@@ -507,7 +500,7 @@ export function OverviewPage({ activeTenantName, apiTenantId, client }: Overview
 
             <div className="lg:pl-8">
               <OverviewGroup
-                action={<DetailsLink href="/workspaces">Open all workspaces</DetailsLink>}
+                action={<DetailsLink href="/notebooks">Open all workspaces</DetailsLink>}
                 description="The most recently updated active items from the first workspace page returned by the service."
                 title="Recent workspaces"
               >

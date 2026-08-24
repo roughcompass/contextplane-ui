@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { QuarantinePanel } from "./QuarantinePanel";
@@ -15,10 +16,9 @@ export function QuarantinePage({ activeTenantName, apiTenantId, client }: Quaran
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Quarantine" }]}
+        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Withheld" }]}
         description="Withhold claims by where they came from when an ingest or an extractor turns out to have been wrong, see what rests on them first, and put them back."
-        eyebrow="Govern"
-        title="Quarantine"
+        title="Withheld"
       />
       <QuarantinePanel client={client} requestContext={requestContext} />
     </PageContainer>

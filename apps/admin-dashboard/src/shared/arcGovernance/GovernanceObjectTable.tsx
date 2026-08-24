@@ -121,7 +121,10 @@ export function GovernanceObjectTable({
             <tbody className="divide-y divide-border-subtle">
               {rows.map((row) => (
                 <tr key={row.object_id}>
-                  <th className="px-6 py-3 font-mono text-xs font-medium text-foreground" scope="row">
+                  <th
+                    className="px-6 py-3 font-mono text-xs font-medium text-foreground"
+                    scope="row"
+                  >
                     {row.object_id}
                   </th>
                   <td className="px-4 py-3">{row.scope}</td>

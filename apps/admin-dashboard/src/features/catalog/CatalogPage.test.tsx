@@ -481,9 +481,7 @@ describe("CatalogPage", () => {
 
     expect(await within(dialog).findByText("invalid")).toBeVisible();
     expect(within(dialog).getByText("blocked")).toBeVisible();
-    expect(
-      within(dialog).getByText("destination is not a declared endpoint type"),
-    ).toBeVisible();
+    expect(within(dialog).getByText("destination is not a declared endpoint type")).toBeVisible();
   });
 
   it("routes a governed attribute change to the update surface, subject in the path", async () => {

@@ -101,7 +101,7 @@ function renderPage(
 }
 
 beforeEach(() => {
-  window.history.replaceState({}, "", "/workspaces");
+  window.history.replaceState({}, "", "/notebooks");
 });
 
 describe("WorkspacesPage", () => {
@@ -124,7 +124,7 @@ describe("WorkspacesPage", () => {
     });
     const { searchRef } = renderPage(client, { apiTenantId: "tenant-real" });
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Workspaces" })).toBeVisible();
+    expect(await screen.findByRole("heading", { level: 1, name: "Notebooks" })).toBeVisible();
     expect(screen.getByText("Workspace material is mutable working context")).toBeVisible();
     const section = screen.getByRole("region", { name: "Visible workspaces" });
     expect(await within(section).findByRole("link", { name: "Identity migration" })).toBeVisible();
@@ -162,7 +162,7 @@ describe("WorkspacesPage", () => {
     });
     renderPage(client);
 
-    await screen.findByRole("heading", { level: 1, name: "Workspaces" });
+    await screen.findByRole("heading", { level: 1, name: "Notebooks" });
     fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
     fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
     expect(screen.getByText("Enter a workspace name.")).toBeVisible();
@@ -179,7 +179,7 @@ describe("WorkspacesPage", () => {
     expect(await screen.findByText("Workspace created")).toBeVisible();
     expect(screen.getByRole("link", { name: "Open workspace" })).toHaveAttribute(
       "href",
-      `/workspaces/${tenantWorkspace.workspace_id}`,
+      `/notebooks/${tenantWorkspace.workspace_id}`,
     );
     expect(client.request).toHaveBeenCalledWith("/v1/workspaces", {
       body: {
@@ -192,7 +192,7 @@ describe("WorkspacesPage", () => {
   });
 
   it("recovers from an invalid opaque workspace cursor", async () => {
-    window.history.replaceState({}, "", "/workspaces?cursor=expired");
+    window.history.replaceState({}, "", "/notebooks?cursor=expired");
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return identity;
       if (path.includes("cursor=expired")) {
@@ -214,7 +214,7 @@ describe("WorkspacesPage", () => {
   });
 
   it("renders personal workspace material read-only for a consumer and reports pending expiry", async () => {
-    window.history.replaceState({}, "", `/workspaces/${personalWorkspace.workspace_id}?q=identity`);
+    window.history.replaceState({}, "", `/notebooks/${personalWorkspace.workspace_id}?q=identity`);
     const consumer = { ...identity, roles: ["consumer"] };
     const expiredEntry = {
       ...decisionEntry,
@@ -254,7 +254,7 @@ describe("WorkspacesPage", () => {
     expect(screen.queryByRole("button", { name: "Edit entry" })).toBeNull();
     expect(screen.getByRole("link", { name: "Back to workspaces" })).toHaveAttribute(
       "href",
-      "/workspaces?q=identity",
+      "/notebooks?q=identity",
     );
   });
 
@@ -441,7 +441,7 @@ describe("WorkspacesPage", () => {
     window.history.replaceState(
       {},
       "",
-      `/workspaces/${tenantWorkspace.workspace_id}?kind=decision&entry_cursor=opaque-current`,
+      `/notebooks/${tenantWorkspace.workspace_id}?kind=decision&entry_cursor=opaque-current`,
     );
     const noteEntry = {
       ...decisionEntry,

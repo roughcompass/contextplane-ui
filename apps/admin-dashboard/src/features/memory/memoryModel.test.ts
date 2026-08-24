@@ -56,10 +56,12 @@ describe("Living Memory URL and presentation model", () => {
   });
 
   it("keeps curation cursors opaque and excludes inactive claim filters", () => {
-    const state = readMemoryUrlState("?tab=curation&cursor=opaque%2Fnext&q=ignored");
+    // The legacy query form is still read, so a bookmark from before the move
+    // resolves to the same tab rather than silently to the claims list.
+    const state = readMemoryUrlState("?tab=curation&cursor=opaque%2Fnext&q=ignored", "/memory");
 
     expect(state.cursor).toBe("opaque/next");
-    expect(memoryListHref(state)).toBe("/memory?tab=curation&cursor=opaque%2Fnext");
+    expect(memoryListHref(state)).toBe("/memory/review?cursor=opaque%2Fnext");
   });
 
   it("preserves trust and evidence invariants without inventing confidence labels", () => {

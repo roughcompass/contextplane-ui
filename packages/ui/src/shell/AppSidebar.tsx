@@ -36,13 +36,21 @@ export function AppSidebar({
       <nav aria-label="Primary" className="min-h-0 flex-1 overflow-y-auto px-3 py-5">
         <div className="space-y-6">
           {navigation.map((section) => (
-            <section key={section.id} aria-labelledby={`${navigationId}-${section.id}`}>
-              <h2
-                id={`${navigationId}-${section.id}`}
-                className="mb-2 px-3 text-xs font-medium text-muted"
-              >
-                {section.label}
-              </h2>
+            // A section with no label is not a landmark. It renders its list and
+            // nothing else, because an unnamed `region` is one a screen reader
+            // announces and cannot name.
+            <section
+              key={section.id}
+              {...(section.label ? { "aria-labelledby": `${navigationId}-${section.id}` } : {})}
+            >
+              {section.label ? (
+                <h2
+                  id={`${navigationId}-${section.id}`}
+                  className="mb-2 px-3 text-xs font-medium text-muted"
+                >
+                  {section.label}
+                </h2>
+              ) : null}
               <ul className="space-y-1">
                 {section.items.map((item) => {
                   const active = isItemActive(activeHref, item.href);

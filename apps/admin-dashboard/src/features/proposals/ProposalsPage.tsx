@@ -7,13 +7,13 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   SummaryStrip,
   TableSection,
   type SummaryItem,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   DetailsLink,
@@ -108,7 +108,7 @@ function writeProposalListUrlState(state: ProposalListUrlState, mode: "push" | "
 }
 
 function proposalListHref(): string {
-  const url = new URL("/proposals", window.location.origin);
+  const url = new URL("/memory/promotions", window.location.origin);
   const current = new URLSearchParams(window.location.search);
   for (const key of ["state", "page_size", "q", "cursor"]) {
     const value = current.get(key);
@@ -231,9 +231,8 @@ function ProposalsHeader({
 }) {
   return (
     <PageHeader
-      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Proposals" }]}
+      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Promotions" }]}
       description="Review observed claims proposed for promotion into the canonical context graph, with the current value, proposed change, impact classification, and tenant provenance kept together."
-      eyebrow="Memory governance"
       metadata={
         <>
           <StatusBadge tone="info">Tenant-owned subjects</StatusBadge>
@@ -243,7 +242,7 @@ function ProposalsHeader({
           <StatusBadge>{identityName(identity)}</StatusBadge>
         </>
       }
-      title="Proposals"
+      title="Promotions"
     />
   );
 }
@@ -360,7 +359,7 @@ function ProposalRows({ proposals }: { proposals: readonly PromotionProposal[] }
         </thead>
         <tbody className="divide-y divide-border-subtle">
           {proposals.map((proposal) => {
-            const href = `/proposals/${encodeURIComponent(proposal.proposal_id)}${window.location.search}`;
+            const href = `/memory/promotions/${encodeURIComponent(proposal.proposal_id)}${window.location.search}`;
             const changeSummary = summarizeProposalChange(
               proposal.current_value,
               proposal.proposed_value,
@@ -871,7 +870,6 @@ function ProposalDetailPage({
             { label: shortProposalIdentifier(proposalId) },
           ]}
           description="The proposal detail could not be resolved within the current tenant boundary."
-          eyebrow="Memory governance"
           title="Proposal review"
         />
         <QueryFailure
@@ -937,7 +935,6 @@ function ProposalDetailPage({
             {proposal.state === "open" ? "before deciding." : "preserved with it."}
           </>
         }
-        eyebrow="Promotion proposal"
         metadata={
           <>
             <StatusBadge tone={proposalStateTone(proposal.state)}>
@@ -1117,11 +1114,10 @@ export function ProposalsPage({
     return (
       <PageContainer>
         <PageHeader
-          breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Proposals" }]}
+          breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Promotions" }]}
           description="Proposal governance becomes available after the service resolves the bearer credential to an actor and tenant."
-          eyebrow="Memory governance"
           metadata={<StatusBadge tone="warning">Identity unresolved</StatusBadge>}
-          title="Proposals"
+          title="Promotions"
         />
         <QueryFailure error={identityQuery.error} onRetry={() => void identityQuery.refetch()} />
       </PageContainer>

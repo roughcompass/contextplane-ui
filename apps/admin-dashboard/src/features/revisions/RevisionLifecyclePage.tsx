@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { RevisionLifecyclePanel } from "./RevisionLifecyclePanel";
@@ -20,10 +21,9 @@ export function RevisionLifecyclePage({
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Revision lifecycle" }]}
+        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Revisions" }]}
         description="Attach the evidence approving a revision, withdraw an approval, and record that a revision should no longer be relied on — saying which of the two things that means."
-        eyebrow="Govern"
-        title="Revision lifecycle"
+        title="Revisions"
       />
       <RevisionLifecyclePanel client={client} requestContext={requestContext} />
     </PageContainer>

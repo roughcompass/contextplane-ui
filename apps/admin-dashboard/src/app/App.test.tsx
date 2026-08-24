@@ -102,28 +102,37 @@ describe("App", () => {
     expect(screen.queryByRole("status", { name: "Loading page" })).toBeNull();
   });
 
-  it("orders primary navigation by common user intent", async () => {
+  it("groups primary navigation by the question the reader arrived with", async () => {
+    /** Five surfaces, each a question, in the evaluator's own sequence: see what
+     * was served, trace where it came from, decide what is contested, check who
+     * consumed it, change the rules that produced it.
+     *
+     * The full membership is asserted rather than sampled. A regrouping that
+     * quietly loses a destination is a deletion nobody voted for, and the
+     * arithmetic is the only thing that catches one: 24 entries — 23 existing
+     * destinations plus `Needs review`, which is promoted out of the
+     * `?tab=curation` value Overview and `AssertClaimPage` already deep-linked
+     * to as though it were one. */
     mockEmptyOverviewService();
     render(<App />);
 
     await screen.findByRole("heading", { level: 1, name: "Overview" });
 
     const expectedSections = [
-      ["Discover", ["Overview", "Catalog", "Relationships", "Living memory"]],
-      ["Work with context", ["Context Lab", "Tasks", "Workspaces"]],
-      ["Monitor usage", ["Activity", "Agents", "Sessions", "Analytics", "Receipts"]],
+      ["Served", ["Receipts", "Context Lab", "Sessions"]],
+      [
+        "Sources",
+        ["Catalog", "Claims", "Relationships", "Notebooks", "Sources", "Withheld"],
+      ],
+      ["Judgement", ["Needs review", "Curation review", "Promotions", "Exceptions"]],
+      ["Agents", ["Agents", "Tasks", "Activity", "Analytics"]],
       [
         "Governance",
         [
-          "Governed policies",
-          "Proposals",
+          "Policies",
+          "Revisions",
+          "Approvers",
           "Ownership & profiles",
-          "Curation review",
-          "Quarantine",
-          "Approval verifiers",
-          "Exceptions",
-          "Source governance",
-          "Revision lifecycle",
           "Audit log",
           "Settings",
         ],
@@ -145,6 +154,81 @@ describe("App", () => {
           .map((link) => link.textContent),
       ).toEqual(itemLabels);
     }
+
+    const placed = expectedSections.flatMap(([, items]) => items).length;
+    expect(placed + 1).toBe(24);
+  });
+
+  it("leaves Overview ungrouped rather than in a section of one", async () => {
+    /** It is the landing entry and belongs to none of the five questions. A
+     * heading over one item would be a group the reader has to read past, and an
+     * empty heading would be an unnamed landmark a screen reader announces and
+     * cannot name. */
+    mockEmptyOverviewService();
+    render(<App />);
+
+    await screen.findByRole("heading", { level: 1, name: "Overview" });
+    const primaryNavigation = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(within(primaryNavigation).getByRole("link", { name: "Overview" })).toBeVisible();
+    expect(
+      within(primaryNavigation)
+        .getAllByRole("region")
+        .map((region) => region.querySelector("h2")?.textContent),
+    ).not.toContain("");
+  });
+
+  it("renders the surface as the page eyebrow rather than a per-page string", async () => {
+    /** 21 eyebrow strings across three vocabularies each described what a page
+     * was about, which its title already says. What a reader cannot get from a
+     * title is which of five surfaces they are in, and the value now has one
+     * source — the route's own definition — so the eyebrow and the navigation
+     * cannot disagree. */
+    mockEmptyOverviewService();
+    window.history.replaceState({}, "", "/receipts");
+    render(<App />);
+
+    // Scoped to the main region: "Served" is also the nav heading, and finding
+    // it there would pass whether or not the page rendered an eyebrow at all.
+    const main = screen.getByRole("main");
+    await waitFor(() => expect(within(main).getByText("Served")).toBeVisible());
+  });
+
+  it.each([
+    ["/proposals", "/memory/promotions"],
+    ["/proposals/proposal-a", "/memory/promotions/proposal-a"],
+    ["/workspaces", "/notebooks"],
+    ["/workspaces/w-1", "/notebooks/w-1"],
+    ["/memory/assert", "/memory/claims/new"],
+  ])("redirects %s to %s rather than reporting it missing", async (from, to) => {
+    /** An address somebody bookmarked, put in a runbook or pasted into a ticket
+     * keeps working. A not-found page would be technically correct and useless,
+     * and a silent fall-through to some other page would be worse — a copied URL
+     * is supposed to reconstruct the same view.
+     *
+     * Prefixes are carried, so a link to one proposal survives the move rather
+     * than landing on the list. */
+    mockEmptyOverviewService();
+    window.history.replaceState({}, "", from);
+    render(<App />);
+
+    // The address bar is corrected too. Landing on the right page while the URL
+    // still says the old one leaves the reader copying an address that is about
+    // to stop working, and makes the next reload a second redirect.
+    await waitFor(() => expect(window.location.pathname).toBe(to));
+  });
+
+  it("carries the cursor when the curation queue's old address redirects", async () => {
+    /** `?tab=curation` was a destination reachable only as a query *value*, which
+     * is why Overview and the assert-claim page both deep-linked to it as though
+     * it were one. It is an address now, and a bookmark that was paging through
+     * the queue lands on the same page of it. */
+    mockEmptyOverviewService();
+    window.history.replaceState({}, "", "/memory?tab=curation&cursor=opaque-next");
+    render(<App />);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/memory/review"));
+    expect(window.location.search).toBe("?cursor=opaque-next");
   });
 
   it("opens the getting started walkthrough from the shell and navigates from it", async () => {
@@ -228,9 +312,9 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     chooseOption(/^Active tenant/, "Field Labs");
     const shell = container.firstElementChild;
-    const usageNavigation = screen.getByRole("region", { name: "Monitor usage" });
+    const usageNavigation = screen.getByRole("region", { name: "Agents" });
     const analyticsLink = within(usageNavigation).getByRole("link", { name: "Analytics" });
-    const arcLink = screen.getByRole("link", { name: "Governed policies" });
+    const arcLink = screen.getByRole("link", { name: "Policies" });
     const auditLink = screen.getByRole("link", { name: "Audit log" });
 
     expect(fireEvent.click(analyticsLink)).toBe(false);
@@ -259,10 +343,10 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/arc");
     expect(container.firstElementChild).toBe(shell);
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Governed policies" }),
+      await screen.findByRole("heading", { level: 1, name: "Policies" }),
     ).toBeVisible();
     expect(screen.getByText("Policy authoring requires administrator access")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Governed policies" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Policies" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -491,8 +575,13 @@ describe("App", () => {
     const { container } = render(<App />);
     const shell = container.firstElementChild;
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Living Memory" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Living memory" })).toHaveAttribute(
+    // Scoped to the primary navigation: the claim detail's breadcrumb is also a
+    // link named "Claims", and an unscoped query would match whichever came
+    // first rather than the nav item this asserts about.
+    const primaryNavigation = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Claims" })).toBeVisible();
+    expect(within(primaryNavigation).getByRole("link", { name: "Claims" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -507,7 +596,7 @@ describe("App", () => {
     expect(
       screen.getByText("Identity ownership is declared in the service manifest."),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Living memory" })).toHaveAttribute(
+    expect(within(primaryNavigation).getByRole("link", { name: "Claims" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -581,7 +670,7 @@ describe("App", () => {
   });
 
   it("routes proposal detail through the shell without inventing a queue count", async () => {
-    window.history.replaceState({}, "", "/proposals/proposal-open?state=open");
+    window.history.replaceState({}, "", "/memory/promotions/proposal-open?state=open");
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const path =
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
@@ -625,24 +714,24 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { level: 1, name: "Proposal review" })).toBeVisible();
-    const governanceNavigation = screen.getByRole("region", { name: "Governance" });
-    expect(within(governanceNavigation).getByRole("link", { name: "Proposals" })).toHaveAttribute(
+    const governanceNavigation = screen.getByRole("region", { name: "Judgement" });
+    expect(within(governanceNavigation).getByRole("link", { name: "Promotions" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(
-      within(governanceNavigation).getByRole("link", { name: "Proposals" }),
-    ).toHaveAccessibleName("Proposals");
+      within(governanceNavigation).getByRole("link", { name: "Promotions" }),
+    ).toHaveAccessibleName("Promotions");
     expect(within(governanceNavigation).queryByRole("link", { name: "Access" })).toBeNull();
     expect(screen.getByRole("link", { name: "Back to proposals" })).toHaveAttribute(
       "href",
-      "/proposals?state=open",
+      "/memory/promotions?state=open",
     );
   });
 
   it("routes workspace detail through the shell and preserves browse state", async () => {
     const workspaceId = "c0000000-0000-4000-8000-000000000001";
-    window.history.replaceState({}, "", `/workspaces/${workspaceId}?archived=include`);
+    window.history.replaceState({}, "", `/notebooks/${workspaceId}?archived=include`);
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const path =
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
@@ -684,15 +773,15 @@ describe("App", () => {
       await screen.findByRole("heading", { level: 1, name: "Identity migration" }),
     ).toBeVisible();
     const workNavigation = screen.getByRole("region", {
-      name: "Work with context",
+      name: "Sources",
     });
-    expect(within(workNavigation).getByRole("link", { name: "Workspaces" })).toHaveAttribute(
+    expect(within(workNavigation).getByRole("link", { name: "Notebooks" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.getByRole("link", { name: "Back to workspaces" })).toHaveAttribute(
       "href",
-      "/workspaces?archived=include",
+      "/notebooks?archived=include",
     );
   });
 });

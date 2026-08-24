@@ -251,7 +251,7 @@ describe("ArcPage", () => {
     const client = renderPage();
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Governed policies" }),
+      await screen.findByRole("heading", { level: 1, name: "Policies" }),
     ).toBeVisible();
     expect(screen.queryByRole("link", { name: "How it works" })).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "How it works" }));

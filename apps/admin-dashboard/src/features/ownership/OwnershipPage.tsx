@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { OwnershipPanel } from "./OwnershipPanel";
@@ -17,7 +18,6 @@ export function OwnershipPage({ activeTenantName, apiTenantId, client }: Ownersh
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Ownership & profiles" }]}
         description="Who answers for what: owners and assignments in both directions, profile revisions, and the bindings that put a profile into effect."
-        eyebrow="Govern"
         title="Ownership & profiles"
       />
       <OwnershipPanel client={client} requestContext={requestContext} />

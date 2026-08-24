@@ -123,8 +123,8 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
               stating: a partial reference matches across source systems and
               returns receipts about a different thing that shares a name. */}
           <p className="text-xs text-muted">
-            All four coordinates are required. A partial reference would match across source
-            systems and return receipts about something else that happens to share a name.
+            All four coordinates are required. A partial reference would match across source systems
+            and return receipts about something else that happens to share a name.
           </p>
           <Button disabled={!referenceComplete || searchQuery.isFetching} type="submit">
             <Search aria-hidden="true" className="size-4" />
@@ -195,9 +195,8 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
                   {receiptQuery.data.hydration_state}
                 </StatusBadge>
                 <span className="text-xs text-muted">
-                  {receiptQuery.data.item_count} item(s) served,{" "}
-                  {receiptQuery.data.exclusion_count} excluded, resolved{" "}
-                  {receiptQuery.data.resolved_at}
+                  {receiptQuery.data.item_count} item(s) served, {receiptQuery.data.exclusion_count}{" "}
+                  excluded, resolved {receiptQuery.data.resolved_at}
                 </span>
               </div>
             ) : null}
@@ -230,9 +229,7 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
 
             {exclusionsQuery.data ? (
               <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Withheld from this answer
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground">Withheld from this answer</h3>
                 {exclusionsQuery.data.length === 0 ? (
                   <p className="mt-1 text-xs text-muted">
                     Nothing was excluded — and this receipt is hydrated, so that is the answer
@@ -260,7 +257,9 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
               <div>
                 <h3 className="text-sm font-semibold text-foreground">References it cited</h3>
                 {referencesQuery.data.length === 0 ? (
-                  <p className="mt-1 text-xs text-muted">This receipt cited no external reference.</p>
+                  <p className="mt-1 text-xs text-muted">
+                    This receipt cited no external reference.
+                  </p>
                 ) : (
                   <ul className="mt-2 space-y-1">
                     {referencesQuery.data.map((item, index) => (

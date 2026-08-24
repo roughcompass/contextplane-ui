@@ -3,7 +3,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
-import { PageContainer, PageHeader, PageSkeleton, SectionSurface } from "@repo/ui/layouts";
+import { PageContainer, PageSkeleton, SectionSurface } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   DetailsLink,
@@ -116,7 +117,7 @@ function AssertClaimReceiptPanel({ receipt }: { receipt: ClaimAssertionReceipt }
           Inspect the stored claim
         </DetailsLink>
         {outcome.linked ? null : (
-          <DetailsLink href="/memory?tab=curation">Open the curation queue</DetailsLink>
+          <DetailsLink href="/memory/review">Open the curation queue</DetailsLink>
         )}
       </div>
     </Notice>
@@ -212,11 +213,10 @@ export function AssertClaimPage({ activeTenantName, apiTenantId, client }: Asser
       <PageHeader
         breadcrumbs={[
           { href: "/", label: tenantLabel },
-          { href: "/memory", label: "Living Memory" },
+          { href: "/memory", label: "Claims" },
           { label: "Record claim" },
         ]}
         description="State one fact about a subject and cite the evidence behind it. The service stores what you assert as an observation; it does not become a canonical record here."
-        eyebrow="Observed context"
         title="Record claim"
       />
 

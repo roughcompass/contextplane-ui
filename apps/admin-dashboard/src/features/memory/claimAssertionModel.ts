@@ -79,7 +79,7 @@ export function createClaimAssertionDefaults(): ClaimAssertionFormValues {
 }
 
 export function assertClaimHref(): string {
-  return "/memory/assert";
+  return "/memory/claims/new";
 }
 
 /**
