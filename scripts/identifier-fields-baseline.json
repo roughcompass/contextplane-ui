@@ -1,0 +1,111 @@
+{
+  "_comment": "Free-text identifier fields that existed when the gate was written, and the only ones permitted. ADR 0018 decides that a server-assigned identifier is chosen from a list, never typed; these are the debt that decision was written against, not exceptions to it. Every entry is owned by an E22 task and leaves when that task lands. THE RATCHET: a field not listed here fails the gate, and a listed field that no longer exists ALSO fails it -- so the list cannot be padded and cannot go stale. Shrink it; never add to it. A genuinely permanent exception is an inline `identifier-exception:` annotation naming an ADR 0018 class, not an entry here.",
+  "recorded_at": "2026-08-24",
+  "total": 66,
+  "fields": {
+    "apps/admin-dashboard/src/features/activity/ActivityPanel.tsx": [
+      "Producer ID",
+      "Registered source UUID",
+      "Source event ID"
+    ],
+    "apps/admin-dashboard/src/features/agents/AgentsPage.tsx": [
+      "00000000-0000-0000-0000-000000000000 Agent actor UUID"
+    ],
+    "apps/admin-dashboard/src/features/arc/ArcArtifactDialog.tsx": [
+      "Target tenant ID",
+      "production-deployment-safeguards Stable slug Use a durable identifier; every rev"
+    ],
+    "apps/admin-dashboard/src/features/arc/ArcDirectiveEditor.tsx": [
+      "64-character SHA-256 digest Source approval evidence digest This value comes fro",
+      "Draft revision ID",
+      "Target tenant ID",
+      "UUIDs separated by commas Entity IDs",
+      "payments, identity Domain IDs",
+      "verifier-a, verifier-b Verifier IDs"
+    ],
+    "apps/admin-dashboard/src/features/arc/ArcLifecyclePanel.tsx": [
+      "Approval verifier ID",
+      "Authenticated author subject",
+      "Provider ID",
+      "Qualification ID (when required)"
+    ],
+    "apps/admin-dashboard/src/features/arc/ArcPage.tsx": [
+      "Context handle",
+      "UUID Draft ID",
+      "UUID Policy ID",
+      "UUID Resolution receipt ID",
+      "UUID Reviewed baseline revision ID (optional)"
+    ],
+    "apps/admin-dashboard/src/features/arc/ArcSourceEvidenceSection.tsx": [
+      "64-character SHA-256 digest Expected content digest",
+      "Admission policy ID",
+      "Approval locator",
+      "Authority subject",
+      "Provider ID",
+      "Registered connector ID",
+      "UUID Promoted claim ID",
+      "UUID Source evidence ID",
+      "Verifier ID",
+      "commit:abc123 Immutable revision locator"
+    ],
+    "apps/admin-dashboard/src/features/catalog/CapabilityDialog.tsx": [
+      "Optional source identifier External ID"
+    ],
+    "apps/admin-dashboard/src/features/catalog/CapabilityOverviewPanel.tsx": [
+      "Successor capability UUID or \u201cnone\u201d",
+      "UUID, UUID Shared tenant UUIDs"
+    ],
+    "apps/admin-dashboard/src/features/context-lab/ContextLabPage.tsx": [
+      "Center observed claims on one entity Subject entity UUID",
+      "Include an attested policy resolution ARC receipt UUID"
+    ],
+    "apps/admin-dashboard/src/features/exceptions/ExceptionGrantPanel.tsx": ["Exception id"],
+    "apps/admin-dashboard/src/features/memory/AssertClaimPage.tsx": [
+      "system:github/identity-service Subject reference A reference the service can res"
+    ],
+    "apps/admin-dashboard/src/features/memory/MemoryPage.tsx": ["Entity UUID Subject entity ID"],
+    "apps/admin-dashboard/src/features/ownership/OwnershipPanel.tsx": [
+      "Assignment UUID",
+      "Binding UUID",
+      "Owner principal",
+      "Profile revision UUID",
+      "Profile revision UUID",
+      "Target UUID",
+      "Target UUID",
+      "Target core revision UUID",
+      "actor or group principal Owner principal"
+    ],
+    "apps/admin-dashboard/src/features/receipts/ReceiptExplorerPanel.tsx": [
+      "Or open a receipt by id"
+    ],
+    "apps/admin-dashboard/src/features/relationships/RelationshipAuthoringDialog.tsx": [
+      "UUID Destination entity ID",
+      "UUID Source entity ID"
+    ],
+    "apps/admin-dashboard/src/features/relationships/RelationshipsPage.tsx": [
+      "identity-platform Capability UUID or slug"
+    ],
+    "apps/admin-dashboard/src/features/revisions/RevisionLifecyclePanel.tsx": [
+      "Revision",
+      "Revision"
+    ],
+    "apps/admin-dashboard/src/features/settings/SettingsPage.tsx": [
+      "Actor UUID Actor ID",
+      "Entity UUID Entity ID",
+      "Gate ID",
+      "Repeat the actor UUID Confirm actor ID"
+    ],
+    "apps/admin-dashboard/src/features/sources/SourceGovernancePanel.tsx": ["Corpus digest"],
+    "apps/admin-dashboard/src/features/tasks/TaskCoordinationPanel.tsx": [
+      "Actor ID",
+      "Checkpoint UUID",
+      "Content digest",
+      "Intent UUID"
+    ],
+    "apps/admin-dashboard/src/features/verifiers/VerifierEnrolmentPanel.tsx": [
+      "Approval verifier id",
+      "Principal issuer",
+      "Principal subject"
+    ]
+  }
+}

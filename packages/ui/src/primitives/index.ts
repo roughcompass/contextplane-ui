@@ -9,6 +9,13 @@ export { ToastProvider } from "./feedback/Toast";
 export { useToast, type ToastInput, type ToastVariant } from "./feedback/ToastContext";
 export { SearchField, type SearchFieldProps } from "./forms/SearchField";
 export {
+  ResourcePicker,
+  type ResourceOption,
+  type ResourcePage,
+  type ResourcePickerProps,
+  type ResourceQuery,
+} from "./forms/ResourcePicker";
+export {
   SearchableSelect,
   type SearchableSelectOption,
   type SearchableSelectProps,
