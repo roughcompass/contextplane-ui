@@ -1,19 +1,17 @@
 {
   "_comment": "Free-text identifier fields that existed when the gate was written, and the only ones permitted. ADR 0018 decides that a server-assigned identifier is chosen from a list, never typed; these are the debt that decision was written against, not exceptions to it. Every entry is owned by an E22 task and leaves when that task lands. THE RATCHET: a field not listed here fails the gate, and a listed field that no longer exists ALSO fails it -- so the list cannot be padded and cannot go stale. Shrink it; never add to it. A genuinely permanent exception is an inline `identifier-exception:` annotation naming an ADR 0018 class, not an entry here.",
   "recorded_at": "2026-08-24",
-  "total": 47,
+  "total": 41,
   "fields": {
     "apps/admin-dashboard/src/features/activity/ActivityPanel.tsx": [
       "Source event ID"
     ],
     "apps/admin-dashboard/src/features/arc/ArcArtifactDialog.tsx": [
-      "Target tenant ID",
       "production-deployment-safeguards Stable slug Use a durable identifier; every rev"
     ],
     "apps/admin-dashboard/src/features/arc/ArcDirectiveEditor.tsx": [
       "64-character SHA-256 digest Source approval evidence digest This value comes fro",
       "Draft revision ID",
-      "Target tenant ID",
       "UUIDs separated by commas Entity IDs",
       "payments, identity Domain IDs",
       "verifier-a, verifier-b Verifier IDs"
@@ -28,7 +26,6 @@
       "Context handle",
       "UUID Draft ID",
       "UUID Policy ID",
-      "UUID Resolution receipt ID",
       "UUID Reviewed baseline revision ID (optional)"
     ],
     "apps/admin-dashboard/src/features/arc/ArcSourceEvidenceSection.tsx": [
@@ -47,8 +44,7 @@
       "Optional source identifier External ID"
     ],
     "apps/admin-dashboard/src/features/catalog/CapabilityOverviewPanel.tsx": [
-      "Successor capability UUID or \u201cnone\u201d",
-      "UUID, UUID Shared tenant UUIDs"
+      "Successor capability UUID or \u201cnone\u201d"
     ],
     "apps/admin-dashboard/src/features/memory/AssertClaimPage.tsx": [
       "system:github/identity-service Subject reference A reference the service can res"
@@ -75,10 +71,6 @@
     "apps/admin-dashboard/src/features/tasks/TaskCoordinationPanel.tsx": [
       "Checkpoint UUID",
       "Content digest"
-    ],
-    "apps/admin-dashboard/src/features/verifiers/VerifierEnrolmentPanel.tsx": [
-      "Principal issuer",
-      "Principal subject"
     ]
   }
 }

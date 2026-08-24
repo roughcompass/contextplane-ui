@@ -1,8 +1,15 @@
-import { AlertTriangle, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, Save, Trash2, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
-import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  ResourcePicker,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   ContextplaneApiError,
@@ -13,12 +20,14 @@ import {
   getGoverningBinding,
   setCapabilityVisibility,
   updateCapability,
+  listTenants,
   updateEntity,
   type CatalogCapabilityDetail,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type EntityWriteIntent,
 } from "../../shared/api";
+import { filterOptions, tenantOptions } from "../../shared/pickers/sources";
 import { catalogInputClassName, catalogLabelClassName } from "./CapabilityDialog";
 
 /**
@@ -92,7 +101,11 @@ export function CapabilityOverviewPanel({
   );
   const [attributesError, setAttributesError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<(typeof visibilityOptions)[number]>("private");
-  const [sharedTenantIds, setSharedTenantIds] = useState("");
+  // A list rather than a comma-separated string, because a picker adds one at a
+  // time and rejoining them into text only to split it again on submit would
+  // reintroduce the parsing this field exists to remove.
+  const [sharedTenants, setSharedTenants] = useState<readonly { id: string; name: string }[]>([]);
+  const [tenantToAdd, setTenantToAdd] = useState("");
   const [lifecycle, setLifecycle] = useState(capability.lifecycle);
   const [successor, setSuccessor] = useState("none");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -129,6 +142,30 @@ export function CapabilityOverviewPanel({
     void queryClient.invalidateQueries({ queryKey: ["contextplane"] });
     showToast({ message, title: capability.name, variant: "success" });
   }
+
+  // One read, two uses: the picker chooses from it and each chosen chip is
+  // named from it. Two requests for one collection would be two chances for the
+  // chip list and the dropdown to disagree about what a tenant is called.
+  const tenantQuery = useQuery({
+    enabled: visibility === "tenant-shared",
+    queryFn: () => listTenants(client, requestContext),
+    queryKey: ["contextplane", requestContext.tenantId ?? "credential-default", "tenants"],
+  });
+  const allTenantOptions = useMemo(
+    () => tenantOptions(tenantQuery.data ?? []),
+    [tenantQuery.data],
+  );
+  const tenantNames = useMemo(
+    () => Object.fromEntries(allTenantOptions.map((option) => [option.value, option.label])),
+    [allTenantOptions],
+  );
+  const tenants = useMemo(
+    () => async (query: { search: string }) => ({
+      items: filterOptions(allTenantOptions, query.search),
+      next_cursor: null,
+    }),
+    [allTenantOptions],
+  );
 
   const binding = useQuery({
     enabled: isGoverned(route),
@@ -217,10 +254,7 @@ export function CapabilityOverviewPanel({
           visibility,
           ...(visibility === "tenant-shared"
             ? {
-                shared_with_tenants: sharedTenantIds
-                  .split(",")
-                  .map((value) => value.trim())
-                  .filter(Boolean),
+                shared_with_tenants: sharedTenants.map((entry) => entry.id),
               }
             : {}),
         },
@@ -450,16 +484,65 @@ export function CapabilityOverviewPanel({
             value={visibility}
           />
           {visibility === "tenant-shared" ? (
-            <label className={`${catalogLabelClassName} mt-4`}>
-              Shared tenant UUIDs
-              <input
-                required
-                className={catalogInputClassName}
-                onChange={(event) => setSharedTenantIds(event.target.value)}
-                placeholder="UUID, UUID"
-                value={sharedTenantIds}
-              />
-            </label>
+            <div className="mt-4 space-y-3">
+              {/* Added one at a time from the credential's own memberships. A
+                  comma-separated list of UUIDs decides who may see this
+                  capability, and one transposed character shares it with a
+                  tenant nobody chose — silently, because the wrong UUID is
+                  still a valid UUID. */}
+              <div className="flex items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <ResourcePicker
+                    emptyMessage="This credential reaches no other tenant."
+                    label="Share with tenant"
+                    load={tenants}
+                    onValueChange={setTenantToAdd}
+                    searchPlaceholder="Search tenants by name"
+                    value={tenantToAdd}
+                  />
+                </div>
+                <Button
+                  disabled={tenantToAdd === "" || sharedTenants.some((e) => e.id === tenantToAdd)}
+                  onClick={() => {
+                    setSharedTenants((current) =>
+                      current.some((entry) => entry.id === tenantToAdd)
+                        ? current
+                        : [...current, { id: tenantToAdd, name: tenantNames[tenantToAdd] ?? tenantToAdd }],
+                    );
+                    setTenantToAdd("");
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  Add
+                </Button>
+              </div>
+              {sharedTenants.length === 0 ? (
+                <p className="text-xs text-muted">
+                  No tenant chosen yet. Sharing with none is refused rather than treated as
+                  private — those are different decisions and only one of them was made here.
+                </p>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  {sharedTenants.map((entry) => (
+                    <li key={entry.id}>
+                      <Button
+                        onClick={() =>
+                          setSharedTenants((current) => current.filter((e) => e.id !== entry.id))
+                        }
+                        size="compact"
+                        type="button"
+                        variant="secondary"
+                      >
+                        {entry.name}
+                        <X aria-hidden="true" className="size-3.5" />
+                        <span className="sr-only">Stop sharing with {entry.name}</span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           ) : null}
           <div className="mt-4 flex justify-end">
             <Button disabled={visibilityMutation.isPending} type="submit" variant="secondary">

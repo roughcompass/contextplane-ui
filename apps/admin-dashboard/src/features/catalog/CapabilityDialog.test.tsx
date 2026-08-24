@@ -29,6 +29,30 @@ const capability = {
 
 function testClient() {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
+    // E23-T4: sharing is chosen from the credential's own memberships, not
+    // typed as a comma-separated list of UUIDs.
+    if (path === "/v1/tenants") {
+      return {
+        items: [
+          {
+            display_name: "Field Labs",
+            is_current: false,
+            is_provisioned: true,
+            roles: ["admin"],
+            tenant_id: "tenant-b",
+            tenant_slug: "field-labs",
+          },
+          {
+            display_name: "Harbour Retail",
+            is_current: false,
+            is_provisioned: true,
+            roles: ["admin"],
+            tenant_id: "tenant-c",
+            tenant_slug: "harbour",
+          },
+        ],
+      };
+    }
     if (path.includes("/preview-version")) {
       return {
         affected_consumers: [
@@ -297,9 +321,17 @@ describe("CapabilityDialog", () => {
     expect(await within(dialog).findByText(/Capability attributes were updated/u)).toBeVisible();
 
     chooseOption("New visibility", "tenant-shared");
-    fireEvent.change(within(dialog).getByLabelText("Shared tenant UUIDs"), {
-      target: { value: "tenant-b, , tenant-c" },
-    });
+    // Added one at a time and shown by name. A comma-separated list of UUIDs
+    // decides who may see this capability, and a transposed character shares it
+    // with a tenant nobody chose — silently, because a wrong UUID is still one.
+    for (const name of ["Field Labs", "Harbour Retail"]) {
+      fireEvent.click(within(dialog).getByRole("button", { name: /Share with tenant/u }));
+      // `screen`, not `within(dialog)`: the picker's popover is portalled to
+      // the body so it can escape the dialog's overflow clipping.
+      fireEvent.click(await screen.findByRole("option", { name: new RegExp(name) }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    }
+    expect(within(dialog).getByRole("button", { name: /Stop sharing with Field Labs/u })).toBeVisible();
     fireEvent.click(within(dialog).getByRole("button", { name: "Change visibility" }));
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith(

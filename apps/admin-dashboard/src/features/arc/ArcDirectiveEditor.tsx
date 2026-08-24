@@ -2,7 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, SearchableSelect, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, ResourcePicker, SearchableSelect, StatusBadge } from "@repo/ui/primitives";
 
 import {
   arcApplicabilityScopeOptions,
@@ -14,6 +14,7 @@ import {
   arcVisibilityOptions,
 } from "./arcModel";
 import type { ArcSourceEvidence } from "../../shared/api/arcAuthoring";
+import type { PickerSource } from "../../shared/pickers/sources";
 import type {
   ArcArtifactFamily,
   ArcProposalPatchRequest,
@@ -34,6 +35,12 @@ interface ArcDirectiveEditorProps {
   onSave: (patch: ArcProposalPatchRequest) => Promise<void>;
   proposal: ArcProposalVersion;
   source: ArcSourceEvidence;
+  /**
+   * The tenants this credential reaches. Passed in rather than built here for
+   * the same reason `ArcArtifactDialog` takes one: this is a form, and a form
+   * that knows how to fetch has to be handed a client before it can be tested.
+   */
+  tenants: PickerSource;
 }
 
 const inputClassName =
@@ -74,6 +81,7 @@ export function ArcDirectiveEditor({
   onSave,
   proposal,
   source,
+  tenants,
 }: ArcDirectiveEditorProps) {
   const editable = proposal.available_actions.includes("edit");
   const {
@@ -547,22 +555,32 @@ export function ArcDirectiveEditor({
                       )}
                     />
                     {scope === "tenant" ? (
-                      <label className={labelClassName} htmlFor={`arc-rule-${index}-tenant`}>
-                        Target tenant ID
-                        <input
-                          aria-describedby={`arc-rule-${index}-tenant-error`}
-                          aria-invalid={itemErrors?.targetTenantId ? "true" : undefined}
-                          className={`${inputClassName} font-mono`}
-                          id={`arc-rule-${index}-tenant`}
-                          {...register(`applicability.${index}.targetTenantId`, {
-                            required: "Enter the target tenant ID.",
-                          })}
+                      <div>
+                        {/* `Controller` rather than `register`, which is what
+                            the scope select beside it already does: a picker is
+                            a controlled component and registering one twice is
+                            the failure this form's own guidance names. */}
+                        <Controller
+                          control={control}
+                          name={`applicability.${index}.targetTenantId`}
+                          render={({ field }) => (
+                            <ResourcePicker
+                              disabled={!editable}
+                              emptyMessage="This credential reaches no other tenant."
+                              label="Target tenant"
+                              load={tenants}
+                              onValueChange={field.onChange}
+                              searchPlaceholder="Search tenants by name"
+                              value={field.value ?? ""}
+                            />
+                          )}
+                          rules={{ required: "Choose the target tenant." }}
                         />
                         <FieldErrorMessage
                           id={`arc-rule-${index}-tenant-error`}
                           message={itemErrors?.targetTenantId?.message}
                         />
-                      </label>
+                      </div>
                     ) : null}
                     {scope === "domain" ? (
                       <label className={labelClassName} htmlFor={`arc-rule-${index}-domains`}>
