@@ -33,6 +33,25 @@ function testClient(options: { listFails?: string; receiptState?: string } = {})
   const request = vi.fn(async (path: string, requestOptions?: ContextplaneRequestOptions) => {
     void requestOptions;
     if (path.startsWith("/v1/receipts/by-reference")) return { receipts: [receipt] };
+    // The recent-resolutions list E23-T1 added. A receipt id is minted by a
+    // resolution and shown to whoever triggered it, so the reader arriving later
+    // had no way to obtain one.
+    if (path === "/v1/receipts" || path.startsWith("/v1/receipts?")) {
+      return {
+        items: [
+          {
+            exclusion_count: 1,
+            intent_id: null,
+            item_count: 3,
+            receipt_id: RECEIPT_ID,
+            requested_by: "actor-a",
+            resolved_at: "2026-08-24T09:00:00Z",
+            state: "complete",
+          },
+        ],
+        next_before: null,
+      };
+    }
     if (path.endsWith("/exclusions") || path.endsWith("/references")) {
       if (options.listFails) throw refusal(options.listFails);
       return path.endsWith("/exclusions")
@@ -56,11 +75,11 @@ function renderPanel(client: ContextplaneClient) {
   );
 }
 
-function openById(client: ContextplaneClient) {
+async function openById(client: ContextplaneClient) {
   renderPanel(client);
-  fireEvent.change(screen.getByLabelText("Or open a receipt by id"), {
-    target: { value: RECEIPT_ID },
-  });
+  // Chosen from recent resolutions rather than typed.
+  fireEvent.click(screen.getByRole("button", { name: "Or open a recent resolution" }));
+  fireEvent.click(await screen.findByRole("option", { name: /2026-08-24T09:00:00Z/u }));
   fireEvent.click(screen.getByRole("button", { name: "Open this receipt" }));
 }
 
@@ -72,7 +91,7 @@ describe("ReceiptExplorerPanel", () => {
   it("renders an unhydrated refusal as a state, not a failure", async () => {
     /** E11-T2's central point: an explorer that renders the 409 as an error
      * teaches its reader that the system is broken when it is being careful. */
-    openById(testClient({ listFails: "receipt_not_hydrated", receiptState: "pending" }));
+    await openById(testClient({ listFails: "receipt_not_hydrated", receiptState: "pending" }));
 
     expect(await screen.findByText("This receipt is still being written")).toBeVisible();
     expect(screen.getByRole("button", { name: "Re-read" })).toBeVisible();
@@ -82,7 +101,7 @@ describe("ReceiptExplorerPanel", () => {
     /** The entry names one 409 reason; there are two. Waiting fixes the first
      * and fixes nothing about the second, so offering a re-read here would
      * leave somebody refreshing a screen that will never change. */
-    openById(testClient({ listFails: "receipt_withheld" }));
+    await openById(testClient({ listFails: "receipt_withheld" }));
 
     expect(await screen.findByText("This receipt's content was withheld")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Re-read" })).toBeNull();
@@ -93,7 +112,7 @@ describe("ReceiptExplorerPanel", () => {
     /** `GET /receipts/{id}` deliberately does not refuse — it is the poll
      * surface. Folding the three reads together would make the header
      * unreadable exactly when it is the only thing that can be read. */
-    openById(testClient({ listFails: "receipt_not_hydrated", receiptState: "pending" }));
+    await openById(testClient({ listFails: "receipt_not_hydrated", receiptState: "pending" }));
 
     expect(await screen.findByText("pending")).toBeVisible();
     expect(screen.getByText(/4 item\(s\) served/u)).toBeVisible();
@@ -104,19 +123,35 @@ describe("ReceiptExplorerPanel", () => {
      * only means that when the receipt is finished being written. */
     const client = clientFromRequest(
       vi.fn(async (path: string) => {
+        if (path === "/v1/receipts" || path.startsWith("/v1/receipts?")) {
+          return {
+            items: [
+              {
+                exclusion_count: 0,
+                intent_id: null,
+                item_count: 3,
+                receipt_id: RECEIPT_ID,
+                requested_by: "actor-a",
+                resolved_at: "2026-08-24T09:00:00Z",
+                state: "complete",
+              },
+            ],
+            next_before: null,
+          };
+        }
         if (path.endsWith("/exclusions")) return { exclusions: [] };
         if (path.endsWith("/references")) return { references: [] };
         return receipt;
       }),
     );
-    openById(client);
+    await openById(client);
 
     expect(await screen.findByText(/Nothing was excluded/u)).toBeVisible();
     expect(screen.getByText(/rather than the absence of one/u)).toBeVisible();
   });
 
   it("lists what was withheld from the answer", async () => {
-    openById(testClient());
+    await openById(testClient());
 
     expect(await screen.findByText("claim-1")).toBeVisible();
     expect(screen.getByText(/from observed_claims — low_trust/u)).toBeVisible();

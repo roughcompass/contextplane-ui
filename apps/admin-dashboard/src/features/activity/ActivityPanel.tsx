@@ -1,11 +1,12 @@
 import { Bell, Check, RadioTower, RefreshCw, Send } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   StatusBadge,
   useToast,
@@ -22,6 +23,7 @@ import {
   type SignalIngestInput,
   type StructuredServiceResult,
 } from "../../shared/api";
+import { memorySourceSource, principalSource } from "../../shared/pickers/sources";
 
 interface ActivityPanelProps {
   client: ContextplaneClient;
@@ -92,6 +94,19 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
   const [notificationStatus, setNotificationStatus] = useState<"all" | "read" | "unread">("unread");
   const [windowDays, setWindowDays] = useState(30);
   const [sourceId, setSourceId] = useState("");
+
+  // Built once per tenant, rebuilding the context inside: the page constructs
+  // `requestContext` fresh each render, so depending on the object would
+  // re-request on every keystroke.
+  const tenantId = requestContext.tenantId;
+  const memorySources = useMemo(
+    () => memorySourceSource(client, tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
+  const principals = useMemo(
+    () => principalSource(client, tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
   const [sourceSystem, setSourceSystem] = useState("");
   const [sourceEventId, setSourceEventId] = useState("");
   const [producerId, setProducerId] = useState("");
@@ -348,15 +363,16 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
         </p>
         <form className="mt-5 space-y-5" onSubmit={submitSignal}>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <label className={labelClassName}>
-              Registered source UUID
-              <input
-                required
-                className={inputClassName}
-                onChange={(event) => setSourceId(event.target.value)}
-                value={sourceId}
-              />
-            </label>
+            {/* Chosen from the registered sources. A signal attributed to a
+                source that does not exist is refused at ingest; asking a reader
+                to type the id was asking them to get that right from memory. */}
+            <ResourcePicker
+              label="Registered source"
+              load={memorySources}
+              onValueChange={setSourceId}
+              searchPlaceholder="Search registered sources"
+              value={sourceId}
+            />
             <label className={labelClassName}>
               Source system
               <input
@@ -375,15 +391,17 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
                 value={sourceEventId}
               />
             </label>
-            <label className={labelClassName}>
-              Producer ID
-              <input
-                required
-                className={inputClassName}
-                onChange={(event) => setProducerId(event.target.value)}
-                value={producerId}
-              />
-            </label>
+            {/* The principal the signal is attributed to. Attribution is what a
+                claim's authority is later weighed on, so naming the wrong one is
+                not a typo — it is a misattribution nothing downstream can
+                detect. */}
+            <ResourcePicker
+              label="Producer"
+              load={principals}
+              onValueChange={setProducerId}
+              searchPlaceholder="Search principals by name"
+              value={producerId}
+            />
             <SearchableSelect
               allowEmpty={false}
               label="Producer type"

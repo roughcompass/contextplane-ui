@@ -1,11 +1,12 @@
 import { Plus, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   StatusBadge,
   useToast,
@@ -25,6 +26,7 @@ import {
   type RelationshipWriteIntent,
   type RelationshipWriteResult,
 } from "../../shared/api";
+import { capabilitySource } from "../../shared/pickers/sources";
 
 /** The refusal code a stale `If-Match` comes back with. */
 const PRECONDITION_FAILED = "precondition_failed";
@@ -121,6 +123,14 @@ export function RelationshipAuthoringDialog({
   const fieldId = useId();
 
   const requestContext: ContextplaneRequestOptions = apiTenantId ? { tenantId: apiTenantId } : {};
+
+  // Built once per tenant, rebuilding the context inside: the object above is
+  // fresh each render, so depending on it would change the identity of the
+  // `load` the pickers' effects watch and re-request per keystroke.
+  const capabilities = useMemo(
+    () => capabilitySource(client, apiTenantId ? { tenantId: apiTenantId } : {}),
+    [apiTenantId, client],
+  );
   const relationshipId = target.mode === "edit" ? target.relationshipId : null;
 
   // `null` means "whatever is stored". The draft materializes on the first edit,
@@ -374,26 +384,29 @@ export function RelationshipAuthoringDialog({
           </label>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className={labelClassName}>
-              Source entity ID
-              <input
-                className={inputClassName}
-                onChange={(event) => edit({ sourceEntityId: event.target.value })}
-                placeholder="UUID"
-                readOnly={relationshipId !== null}
-                value={values.sourceEntityId}
-              />
-            </label>
-            <label className={labelClassName}>
-              Destination entity ID
-              <input
-                className={inputClassName}
-                onChange={(event) => edit({ destinationEntityId: event.target.value })}
-                placeholder="UUID"
-                readOnly={relationshipId !== null}
-                value={values.destinationEntityId}
-              />
-            </label>
+            {/* Both ends chosen from the catalog. Authoring a relationship is a
+                statement about two named things, and a reader who has to supply
+                two UUIDs is one who has already looked both up somewhere else.
+
+                Disabled rather than hidden once the relationship exists: the
+                endpoints are what it *is*, so showing them and refusing the edit
+                says more than removing them. */}
+            <ResourcePicker
+              disabled={relationshipId !== null}
+              label="Source entity"
+              load={capabilities}
+              onValueChange={(next) => edit({ sourceEntityId: next })}
+              searchPlaceholder="Search by name"
+              value={values.sourceEntityId}
+            />
+            <ResourcePicker
+              disabled={relationshipId !== null}
+              label="Destination entity"
+              load={capabilities}
+              onValueChange={(next) => edit({ destinationEntityId: next })}
+              searchPlaceholder="Search by name"
+              value={values.destinationEntityId}
+            />
           </div>
 
           {relationshipId ? (

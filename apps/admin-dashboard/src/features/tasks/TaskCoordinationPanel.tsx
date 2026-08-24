@@ -1,11 +1,12 @@
 import { CheckCircle2, Link2, Plus, Search, Trash2, Users } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   StatusBadge,
   useToast,
@@ -22,6 +23,7 @@ import {
   type ContextplaneRequestOptions,
   type IntentCheckpoint,
 } from "../../shared/api";
+import { intentSource, principalSource } from "../../shared/pickers/sources";
 
 interface TaskCoordinationPanelProps {
   client: ContextplaneClient;
@@ -102,6 +104,19 @@ export function TaskCoordinationPanel({ client, requestContext }: TaskCoordinati
   const { showToast } = useToast();
   const tenantKey = requestContext.tenantId ?? "credential-default";
   const [intentInput, setIntentInput] = useState("");
+
+  // Built once per tenant, and the context is rebuilt inside rather than closed
+  // over: the page constructs `requestContext` fresh each render, so depending
+  // on the object would re-request on every keystroke.
+  const tenantId = requestContext.tenantId;
+  const intents = useMemo(
+    () => intentSource(client, tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
+  const principals = useMemo(
+    () => principalSource(client, tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
   const [intentId, setIntentId] = useState("");
   const [actorId, setActorId] = useState("");
   const [role, setRole] = useState("contributor");
@@ -217,15 +232,19 @@ export function TaskCoordinationPanel({ client, requestContext }: TaskCoordinati
           </div>
         </div>
         <form className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={loadIntent}>
-          <label className={`${labelClassName} flex-1`}>
-            Intent UUID
-            <input
-              required
-              className={inputClassName}
-              onChange={(event) => setIntentInput(event.target.value)}
+          {/* Chosen from the intents this caller participates in. There is no
+              `intents` table, so the list is the caller's own grants — which is
+              also the rule for reading an intent's material, so nothing here can
+              offer one whose checkpoints they could not then open. */}
+          <div className="flex-1">
+            <ResourcePicker
+              label="Intent"
+              load={intents}
+              onValueChange={setIntentInput}
+              searchPlaceholder="Search by goal"
               value={intentInput}
             />
-          </label>
+          </div>
           <Button type="submit">Load intent</Button>
         </form>
         {intentId ? (
@@ -339,15 +358,16 @@ export function TaskCoordinationPanel({ client, requestContext }: TaskCoordinati
             >
               <h3 className="font-semibold text-foreground">Add participant</h3>
               <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <label className={labelClassName}>
-                  Actor ID
-                  <input
-                    required
-                    className={inputClassName}
-                    onChange={(event) => setActorId(event.target.value)}
-                    value={actorId}
-                  />
-                </label>
+                {/* Adding a participant is a grant. Naming the wrong principal
+                    grants the wrong person access to an intent's material, which
+                    is not something a typed UUID should be able to do. */}
+                <ResourcePicker
+                  label="Actor"
+                  load={principals}
+                  onValueChange={setActorId}
+                  searchPlaceholder="Search principals by name"
+                  value={actorId}
+                />
                 <SearchableSelect
                   allowEmpty={false}
                   label="Role"
@@ -505,15 +525,30 @@ export function TaskCoordinationPanel({ client, requestContext }: TaskCoordinati
                 </div>
               </fieldset>
               {lookupMode === "id" ? (
-                <label className={labelClassName}>
-                  Checkpoint UUID
-                  <input
-                    required
-                    className={inputClassName}
-                    onChange={(event) => setCheckpointId(event.target.value)}
-                    value={checkpointId}
-                  />
-                </label>
+                <div>
+                  {/* Typed rather than chosen, and the reason is a read that does
+                      not exist: a checkpoint is reachable by id and by digest,
+                      and nothing lists the checkpoints on an intent. The
+                      by-digest lookup beside this is the path for somebody
+                      holding a digest instead.
+
+                      The note is a sibling of the label rather than inside it:
+                      text inside a label becomes part of the field's accessible
+                      name, which would rename the field to its own footnote. */}
+                  <label className={labelClassName}>
+                    Checkpoint UUID
+                    <input
+                      required
+                      className={inputClassName}
+                      onChange={(event) => setCheckpointId(event.target.value)}
+                      value={checkpointId}
+                    />
+                  </label>
+                  <p className="mt-1.5 text-xs text-muted">
+                    Typed rather than chosen: nothing lists an intent&rsquo;s checkpoints, only
+                    fetches one by id or by digest.
+                  </p>
+                </div>
               ) : (
                 <label className={labelClassName}>
                   Content digest

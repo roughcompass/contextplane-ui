@@ -35,8 +35,9 @@ import {
   DetailsLink,
   Notice,
   RequestFailure,
-  SearchableSelect,
+  ResourcePicker,
   SearchField,
+  SearchableSelect,
   Skeleton,
   StatusBadge,
 } from "@repo/ui/primitives";
@@ -58,6 +59,7 @@ import {
   type MemoryCurationItem,
   type WhoAmI,
 } from "../../shared/api";
+import { capabilitySource, type PickerSource } from "../../shared/pickers/sources";
 import { assertClaimHref } from "./claimAssertionModel";
 import {
   curationCountSummary,
@@ -373,10 +375,15 @@ function ClaimsRows({ claims, state }: { claims: readonly MemoryClaim[]; state: 
 }
 
 function ClaimFilters({
+  capabilities,
   onChange,
   searchRef,
   state,
 }: {
+  /** The catalog, for the subject filter. Threaded rather than built here: the
+   *  page owns the client, and a source rebuilt per render would change the
+   *  identity of the `load` the picker's effect watches. */
+  capabilities: PickerSource;
   onChange: (state: MemoryUrlState) => void;
   searchRef: RefObject<HTMLInputElement | null>;
   state: MemoryUrlState;
@@ -419,17 +426,16 @@ function ClaimFilters({
       }
       filters={
         <>
-          <label className={labelClassName}>
-            Subject entity ID
-            <input
-              className={inputClassName}
-              onChange={(event) =>
-                onChange({ ...state, query: "", subjectEntityId: event.currentTarget.value })
-              }
-              placeholder="Entity UUID"
-              value={state.subjectEntityId}
-            />
-          </label>
+          {/* Chosen from the catalog. Filtering claims to one subject is a
+              question about that subject, so a reader arrives holding its name
+              and not its UUID. */}
+          <ResourcePicker
+            label="Subject entity"
+            load={capabilities}
+            onValueChange={(next) => onChange({ ...state, query: "", subjectEntityId: next })}
+            searchPlaceholder="Filter claims to one entity"
+            value={state.subjectEntityId}
+          />
           <label className={labelClassName}>
             Predicate
             <input
@@ -516,6 +522,10 @@ function ClaimsPanel({
   updateState: (state: MemoryUrlState) => void;
 }) {
   const context = useMemo(() => requestContext(apiTenantId), [apiTenantId]);
+  // Built once per tenant and threaded into the filter bar. Rebuilding per
+  // render would change the identity of the `load` the picker's effect watches,
+  // re-requesting the catalog on every keystroke.
+  const capabilities = useMemo(() => capabilitySource(client, context), [client, context]);
   const tenantKey = tenantQueryKey(apiTenantId);
   const searching = state.query.trim().length > 0;
   const minConfidence = state.minConfidence ? Number(state.minConfidence) : undefined;
@@ -626,7 +636,12 @@ function ClaimsPanel({
           }
           filters={
             activeQuery.isError ? undefined : (
-              <ClaimFilters onChange={updateState} searchRef={searchRef} state={state} />
+              <ClaimFilters
+                capabilities={capabilities}
+                onChange={updateState}
+                searchRef={searchRef}
+                state={state}
+              />
             )
           }
           filtersId="memory-claim-filters"
