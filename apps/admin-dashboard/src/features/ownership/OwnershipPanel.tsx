@@ -1,11 +1,12 @@
 import { BadgeCheck, Search, ShieldCheck, UserRoundCog } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   StatusBadge,
   useToast,
@@ -28,6 +29,7 @@ import {
   type OwnershipAssignment,
   type StructuredServiceResult,
 } from "../../shared/api";
+import { capabilityPickerSource, principalPickerSource } from "./ownershipPickers";
 
 interface OwnershipPanelProps {
   client: ContextplaneClient;
@@ -114,6 +116,19 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
   const [targetId, setTargetId] = useState("");
   const [ownerPrincipal, setOwnerPrincipal] = useState("");
   const [includePending, setIncludePending] = useState(true);
+
+  // Memoized on the tenant and rebuilt inside rather than closed over: the page
+  // constructs `requestContext` fresh every render, so depending on the object
+  // would change the identity of the `load` the picker's effect depends on and
+  // re-request on every keystroke.
+  const principals = useMemo(
+    () => principalPickerSource(client, requestContext.tenantId ? { tenantId: requestContext.tenantId } : {}),
+    [client, requestContext.tenantId],
+  );
+  const capabilities = useMemo(
+    () => capabilityPickerSource(client, requestContext.tenantId ? { tenantId: requestContext.tenantId } : {}),
+    [client, requestContext.tenantId],
+  );
   const [searchRequest, setSearchRequest] = useState<
     | { includePending: boolean; mode: "owner"; owner: string }
     | { includePending: boolean; kind: string; mode: "target"; target: string }
@@ -292,27 +307,22 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
                   value={targetKind}
                 />
               </label>
-              <label className={labelClassName}>
-                Target UUID
-                <input
-                  required
-                  className={inputClassName}
-                  onChange={(event) => setTargetId(event.target.value)}
-                  value={targetId}
-                />
-              </label>
+              <ResourcePicker
+                label="Target"
+                load={capabilities}
+                onValueChange={setTargetId}
+                searchPlaceholder="Search by name"
+                value={targetId}
+              />
             </div>
           ) : (
-            <label className={labelClassName}>
-              Owner principal
-              <input
-                required
-                className={inputClassName}
-                onChange={(event) => setOwnerPrincipal(event.target.value)}
-                placeholder="actor or group principal"
-                value={ownerPrincipal}
-              />
-            </label>
+            <ResourcePicker
+              label="Owner principal"
+              load={principals}
+              onValueChange={setOwnerPrincipal}
+              searchPlaceholder="Search principals by name"
+              value={ownerPrincipal}
+            />
           )}
           <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
             <input
@@ -366,17 +376,19 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
               assignmentMutation.mutate();
             }}
           >
-            <label className={labelClassName}>
-              Owner principal
-              <input
-                required
-                className={inputClassName}
-                onChange={(event) =>
-                  setAssignment((current) => ({ ...current, owner_principal: event.target.value }))
-                }
-                value={assignment.owner_principal}
-              />
-            </label>
+            {/* The principal an assignment makes accountable. The roster shows
+                the kind alongside the name, and says when nobody has declared
+                one — choosing an owner is a decision about accountability, and
+                "nobody has said what this is" is a fact the chooser needs. */}
+            <ResourcePicker
+              label="Owner principal"
+              load={principals}
+              onValueChange={(next) =>
+                setAssignment((current) => ({ ...current, owner_principal: next }))
+              }
+              searchPlaceholder="Search principals by name"
+              value={assignment.owner_principal}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <label className={labelClassName}>
                 Target kind
@@ -392,20 +404,15 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
                   value={assignment.owned_target_kind}
                 />
               </label>
-              <label className={labelClassName}>
-                Target UUID
-                <input
-                  required
-                  className={inputClassName}
-                  onChange={(event) =>
-                    setAssignment((current) => ({
-                      ...current,
-                      owned_target_id: event.target.value,
-                    }))
-                  }
-                  value={assignment.owned_target_id}
-                />
-              </label>
+              <ResourcePicker
+                label="Target"
+                load={capabilities}
+                onValueChange={(next) =>
+                  setAssignment((current) => ({ ...current, owned_target_id: next }))
+                }
+                searchPlaceholder="Search by name"
+                value={assignment.owned_target_id}
+              />
               <label className={labelClassName}>
                 Role
                 <input
@@ -439,6 +446,11 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
                   value={assignment.source}
                 />
               </label>
+                {/* Typed rather than chosen, and the reason is a service read that does
+                    not exist: `/v1/profiles/revisions` is a `POST` only, so there is no
+                    way to list profile revisions. Recorded here rather than left as a
+                    text box among pickers, where the inconsistency would read as an
+                    oversight. */}
               <label className={labelClassName}>
                 Profile revision UUID
                 <input
@@ -484,6 +496,11 @@ export function OwnershipPanel({ client, requestContext }: OwnershipPanelProps) 
               lookupMutation.mutate();
             }}
           >
+              {/* Typed rather than chosen: an assignment is reachable only as
+                  `GET /v1/ownership/assignments/{assignment_id}` and there is no
+                  collection to choose from. The same disposition as the profile
+                  revisions above, for a different reason, and recorded for the same
+                  one — nine fields on this screen; four became pickers. */}
             <label className={`${labelClassName} flex-1`}>
               Assignment UUID
               <input
@@ -746,6 +763,11 @@ function ProfileLifecyclePanel({
               value={namespace}
             />
           </label>
+            {/* Typed rather than chosen, and the reason is a service read that does
+                not exist: `/v1/profiles/revisions` is a `POST` only, so there is no
+                way to list profile revisions. Recorded here rather than left as a
+                text box among pickers, where the inconsistency would read as an
+                oversight. */}
           <label className={labelClassName}>
             Target core revision UUID
             <input
@@ -769,6 +791,11 @@ function ProfileLifecyclePanel({
           }}
         >
           <h3 className="font-semibold text-foreground">Plan profile binding</h3>
+            {/* Typed rather than chosen, and the reason is a service read that does
+                not exist: `/v1/profiles/revisions` is a `POST` only, so there is no
+                way to list profile revisions. Recorded here rather than left as a
+                text box among pickers, where the inconsistency would read as an
+                oversight. */}
           <label className={labelClassName}>
             Profile revision UUID
             <input
@@ -811,6 +838,11 @@ function ProfileLifecyclePanel({
           }}
         >
           <h3 className="font-semibold text-foreground">Advance binding state</h3>
+            {/* Typed rather than chosen: an assignment is reachable only as
+                `GET /v1/ownership/assignments/{assignment_id}` and there is no
+                collection to choose from. The same disposition as the profile
+                revisions above, for a different reason, and recorded for the same
+                one — nine fields on this screen; four became pickers. */}
           <label className={labelClassName}>
             Binding UUID
             <input
