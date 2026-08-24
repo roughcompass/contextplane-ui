@@ -64,6 +64,9 @@ const secondClaim = {
 
 const curationItem = {
   available_actions: ["link", "discard"],
+  dependant_count: 3,
+  escalated: true,
+  sampling_priority: 0,
   claim_id: claim.claim_id,
   confidence: claim.confidence,
   created_at: "2026-08-12T09:00:00Z",

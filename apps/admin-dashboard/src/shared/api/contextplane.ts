@@ -558,6 +558,55 @@ function parseMemoryCurationItem(value: unknown): MemoryCurationItem {
     subject_entity_id: nullableString(value, "subject_entity_id"),
     subject_reference: requiredString(value, "subject_reference"),
     value: requiredValue(value, "value"),
+    // Why the row sits where it does. Parsed as required rather than defaulted:
+    // a missing rank term silently reading as zero would render "no dependants"
+    // for a subject the service ranked highly, which is worse than an error.
+    escalated: requiredBoolean(value, "escalated"),
+    dependant_count: requiredInteger(value, "dependant_count"),
+    sampling_priority: requiredInteger(value, "sampling_priority"),
+  };
+}
+
+export type DispositionPolicy = components["schemas"]["DispositionPolicyResponse"];
+export type DispositionPolicyList = components["schemas"]["DispositionPolicyListResponse"];
+
+function parseDispositionPolicy(value: unknown): DispositionPolicy {
+  if (!isRecord(value)) throw new Error("Invalid API disposition policy.");
+  return {
+    disposition: requiredString(value, "disposition"),
+    approval_authority: requiredString(value, "approval_authority"),
+    evidence_threshold: requiredString(value, "evidence_threshold"),
+    scope: requiredString(value, "scope"),
+    supersession: requiredString(value, "supersession"),
+    rollback: requiredString(value, "rollback"),
+    target_kind: nullableString(value, "target_kind"),
+  };
+}
+
+/**
+ * What each disposition commits to, before anybody takes one.
+ *
+ * Read from the service rather than restated here. A client copy of these five
+ * dimensions would be a second copy of a governance rule, diverging silently the
+ * first time a policy changed — and the design standard is explicit that the UI
+ * must not invent client-only governance gates.
+ *
+ * The service returns them in declaration order and that order carries meaning:
+ * the first three settle a disagreement on the curator's own authority, the last
+ * three ask an approver outside curation. Preserved, not sorted.
+ */
+export async function listDispositionPolicies(
+  client: ContextplaneClient,
+  context: ContextplaneRequestOptions = {},
+  signal?: AbortSignal,
+): Promise<DispositionPolicyList> {
+  const payload = await client.request(
+    "/v1/memory/disposition-policies",
+    requestOptions(context, signal),
+  );
+  if (!isRecord(payload)) throw new Error("Invalid API disposition policies.");
+  return {
+    items: requiredArray(payload.items, "disposition policies").map(parseDispositionPolicy),
   };
 }
 
