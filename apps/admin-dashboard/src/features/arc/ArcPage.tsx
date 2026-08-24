@@ -22,6 +22,7 @@ import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   Skeleton,
   StatusBadge,
@@ -59,6 +60,7 @@ import {
   type CreateArcArtifactFamilyInput,
   type WhoAmI,
 } from "../../shared/api/contextplane";
+import { receiptSource, tenantSource } from "../../shared/pickers/sources";
 import { ArcArtifactDialog } from "./ArcArtifactDialog";
 import { ArcAuthoringContext } from "./ArcAuthoringContext";
 import { ArcDirectiveEditor } from "./ArcDirectiveEditor";
@@ -488,6 +490,19 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
   const [detailSelectorError, setDetailSelectorError] = useState("");
   const [detailRequestError, setDetailRequestError] = useState<unknown>(null);
   const usageWindow = useMemo(() => getArcUsageWindow(), []);
+
+  // Rebuilt from the tenant rather than from `requestContext`, which this page
+  // constructs fresh each render: depending on the object would change the
+  // identity of the `load` a picker's effect watches and re-request per
+  // keystroke.
+  const tenants = useMemo(
+    () => tenantSource(client, requestContext.tenantId ? { tenantId: requestContext.tenantId } : {}),
+    [client, requestContext.tenantId],
+  );
+  const receipts = useMemo(
+    () => receiptSource(client, requestContext.tenantId ? { tenantId: requestContext.tenantId } : {}),
+    [client, requestContext.tenantId],
+  );
 
   useEffect(() => {
     function restoreArcLocation() {
@@ -1169,6 +1184,7 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
                   onSave={(patch) => editMutation.mutateAsync(patch).then(() => undefined)}
                   proposal={activeProposal}
                   source={activeSource}
+                  tenants={tenants}
                 />
               ) : null}
 
@@ -1209,16 +1225,23 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
             >
               <div className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                  <label className={`${labelClassName} min-w-0 flex-1`} htmlFor="arc-receipt-id">
-                    Resolution receipt ID
-                    <input
-                      className={`${inputClassName} mt-1.5 font-mono`}
-                      id="arc-receipt-id"
-                      onChange={(event) => setReceiptInput(event.currentTarget.value)}
-                      placeholder="UUID"
+                  {/* The list is what the detail read would serve this caller,
+                      so a withheld or unhydrated receipt is absent rather than
+                      offered and refused. A resolution is shown by when it
+                      happened and what it served, because a receipt list
+                      carries no query text — the request is on the detail read,
+                      behind the servability check a list must not route
+                      around. */}
+                  <div className="min-w-0 flex-1">
+                    <ResourcePicker
+                      emptyMessage="No resolution here is readable by this credential."
+                      label="Resolution receipt"
+                      load={receipts}
+                      onValueChange={setReceiptInput}
+                      searchPlaceholder="Search recent resolutions"
                       value={receiptInput}
                     />
-                  </label>
+                  </div>
                   <div className="grid gap-2 sm:flex sm:items-center">
                     <Button
                       className="w-full sm:w-auto"
@@ -1543,6 +1566,7 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
           defaultTenantId={requestContext.tenantId ?? identity.tenant_id}
           onClose={() => setCreateDialogOpen(false)}
           onCreate={(input) => createMutation.mutateAsync(input).then(() => undefined)}
+          tenants={tenants}
         />
       ) : null}
 

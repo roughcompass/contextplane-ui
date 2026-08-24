@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { Button, Notice, SearchableSelect } from "@repo/ui/primitives";
+import { Button, Notice, ResourcePicker, SearchableSelect } from "@repo/ui/primitives";
 
 import { arcArtifactKindOptions, arcOwningScopeOptions } from "./arcModel";
 
@@ -12,11 +12,18 @@ import type {
 } from "../../shared/api/contextplane";
 import { arcArtifactKinds, arcOwningScopes } from "../../shared/api/contextplane";
 import { ContextplaneApiError } from "../../shared/api/client";
+import type { PickerSource } from "../../shared/pickers/sources";
 
 interface ArcArtifactDialogProps {
   defaultTenantId: string;
   onClose: () => void;
   onCreate: (input: CreateArcArtifactFamilyInput) => Promise<void>;
+  /**
+   * The tenants this credential reaches. Passed in rather than built here so
+   * the dialog stays free of the API client: it is a form, and a form that
+   * knows how to fetch is one that has to be given a client to be tested.
+   */
+  tenants: PickerSource;
 }
 
 const inputClassName =
@@ -41,7 +48,12 @@ function createErrorMessage(error: unknown): string {
   return "The policy could not be created.";
 }
 
-export function ArcArtifactDialog({ defaultTenantId, onClose, onCreate }: ArcArtifactDialogProps) {
+export function ArcArtifactDialog({
+  defaultTenantId,
+  onClose,
+  onCreate,
+  tenants,
+}: ArcArtifactDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
@@ -229,17 +241,21 @@ export function ArcArtifactDialog({ defaultTenantId, onClose, onCreate }: ArcArt
             />
 
             {scope === "tenant" ? (
-              <label className={labelClassName} htmlFor={tenantId}>
-                Target tenant ID
-                <input
-                  aria-describedby={tenantError ? `${tenantId}-error` : undefined}
-                  aria-invalid={tenantError ? "true" : undefined}
-                  className={inputClassName}
-                  id={tenantId}
-                  onChange={(event) => {
-                    setTargetTenantId(event.currentTarget.value);
+              <div>
+                {/* A tenant-scoped policy typed into the wrong tenant is
+                    governance that silently applies to somebody else. The list
+                    is the credential's own memberships, so a tenant this caller
+                    cannot reach is not offered rather than accepted and
+                    refused. */}
+                <ResourcePicker
+                  emptyMessage="This credential reaches no other tenant."
+                  label="Target tenant"
+                  load={tenants}
+                  onValueChange={(next) => {
+                    setTargetTenantId(next);
                     if (tenantError) setTenantError("");
                   }}
+                  searchPlaceholder="Search tenants by name"
                   value={targetTenantId}
                 />
                 {tenantError ? (
@@ -251,7 +267,7 @@ export function ArcArtifactDialog({ defaultTenantId, onClose, onCreate }: ArcArt
                     {tenantError}
                   </span>
                 ) : null}
-              </label>
+              </div>
             ) : (
               <Notice
                 className="sm:col-span-2"

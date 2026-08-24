@@ -308,6 +308,11 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-xs font-medium text-muted" htmlFor="verifier-issuer">
                 Principal issuer
+                {/* The verifier's own IdP issued this pair, this service never
+                    assigned it, and there is no collection of workload
+                    identities to enumerate — the same field as the envelope
+                    screen's, and the repo should say one thing about it.
+                    identifier-exception: external-id */}
                 <input
                   className={fieldClassName}
                   id="verifier-issuer"
@@ -317,6 +322,9 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
               </label>
               <label className="text-xs font-medium text-muted" htmlFor="verifier-subject">
                 Principal subject
+                {/* Matched as a pair with the issuer above: the same subject
+                    under a different issuer is a different principal.
+                    identifier-exception: external-id */}
                 <input
                   className={fieldClassName}
                   id="verifier-subject"

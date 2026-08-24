@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ContextplaneApiError } from "../../shared/api/client";
+import type { PickerSource } from "../../shared/pickers/sources";
 import { ArcArtifactDialog } from "./ArcArtifactDialog";
 
 function chooseOption(controlName: string, optionName: string) {
@@ -10,6 +11,18 @@ function chooseOption(controlName: string, optionName: string) {
 }
 
 const tenantId = "b0000000-0000-4000-8000-000000000001";
+
+const tenants: PickerSource = async () => ({
+  items: [
+    { description: "northstar", label: "Northstar Systems", value: tenantId },
+    {
+      description: "field-labs",
+      label: "Field Labs",
+      value: "b0000000-0000-4000-8000-000000000002",
+    },
+  ],
+  next_cursor: null,
+});
 
 function fillRequiredFields() {
   fireEvent.change(screen.getByLabelText(/^Title/), {
@@ -20,9 +33,16 @@ function fillRequiredFields() {
   });
 }
 
-function renderDialog(onCreate = vi.fn(async () => undefined)) {
+function renderDialog(onCreate = vi.fn(async () => undefined), defaultTenantId = tenantId) {
   const onClose = vi.fn();
-  render(<ArcArtifactDialog defaultTenantId={tenantId} onClose={onClose} onCreate={onCreate} />);
+  render(
+    <ArcArtifactDialog
+      defaultTenantId={defaultTenantId}
+      onClose={onClose}
+      onCreate={onCreate}
+      tenants={tenants}
+    />,
+  );
   return { onClose, onCreate };
 }
 
@@ -31,7 +51,7 @@ afterEach(() => {
 });
 
 describe("ArcArtifactDialog", () => {
-  it("validates required policy and tenant fields and clears corrected errors", async () => {
+  it("validates required policy fields and clears corrected errors", async () => {
     const { onCreate } = renderDialog();
 
     expect(screen.getByLabelText(/^Title/)).toHaveFocus();
@@ -42,12 +62,37 @@ describe("ArcArtifactDialog", () => {
     fillRequiredFields();
     expect(screen.queryByText("Enter an artifact title.")).toBeNull();
     expect(screen.queryByText("Enter a stable artifact slug.")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Target tenant ID"), { target: { value: "" } });
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a tenant-scoped policy with no tenant chosen", async () => {
+    /** The picker cannot be emptied by hand, so the only way here is a
+     * credential that arrived without a tenant. That is a real case rather than
+     * a defensive one, and dropping the check with the text box would have let
+     * such a caller create a tenant-scoped policy attached to nothing. */
+    const { onCreate } = renderDialog(vi.fn(async () => undefined), "");
+    fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
+
     expect(await screen.findByText("Enter a tenant ID.")).toBeVisible();
     expect(onCreate).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText(/^Target tenant ID/), { target: { value: tenantId } });
-    expect(screen.queryByText("Enter a tenant ID.")).toBeNull();
+  });
+
+  it("attaches the tenant a chooser picked rather than one they typed", async () => {
+    /** A tenant-scoped policy sent to the wrong tenant is governance that
+     * silently applies to somebody else, and a typed UUID is one transposition
+     * away from being one. */
+    const { onCreate } = renderDialog();
+    fillRequiredFields();
+
+    fireEvent.click(screen.getByRole("button", { name: /Target tenant/u }));
+    fireEvent.click(await screen.findByRole("option", { name: /Field Labs/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ targetTenantId: "b0000000-0000-4000-8000-000000000002" }),
+    );
   });
 
   it("creates a trimmed global standard without attaching a tenant", async () => {
@@ -57,7 +102,7 @@ describe("ArcArtifactDialog", () => {
     chooseOption("Owning scope", "Global");
 
     expect(screen.getByText("Global scope requires operator authority")).toBeVisible();
-    expect(screen.queryByLabelText("Target tenant ID")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Target tenant/u })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Create policy" }));
 
     await waitFor(() => expect(onCreate).toHaveBeenCalledOnce());

@@ -12,6 +12,7 @@ import {
   type ArcGovernanceCollection,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
+  type ReachableTenant,
 } from "../api";
 
 /**
@@ -149,24 +150,41 @@ export function tenantSource(
   client: ContextplaneClient,
   context: ContextplaneRequestOptions,
 ): PickerSource {
-  return async (query) => {
-    const page = await listTenants(client, context);
-    return {
-      items: page
-        .filter((entry) => contains(entry.display_name ?? entry.tenant_slug, query.search))
-        .map(
-          (entry): ResourceOption => ({
-            description: entry.is_provisioned
-              ? entry.tenant_slug
-              : `${entry.tenant_slug} — not provisioned on this deployment`,
-            label: entry.display_name ?? entry.tenant_slug,
-            value: entry.tenant_id,
-          }),
-        ),
-      // Bounded by the credential's own memberships, so there is nothing to page.
-      next_cursor: null,
-    };
-  };
+  return async (query) => ({
+    items: filterOptions(tenantOptions(await listTenants(client, context)), query.search),
+    // Bounded by the credential's own memberships, so there is nothing to page.
+    next_cursor: null,
+  });
+}
+
+/**
+ * The tenant rows as options, without the fetching.
+ *
+ * Separate from `tenantSource` for the one screen that needs the same list
+ * twice — a picker to choose from and a name for each chip it has already
+ * added. Deriving both from one read beats two requests for one collection, and
+ * beats a second copy of "what does a tenant look like to a chooser".
+ */
+export function tenantOptions(tenants: readonly ReachableTenant[]): readonly ResourceOption[] {
+  return tenants.map(
+    (entry): ResourceOption => ({
+      description: entry.is_provisioned
+        ? entry.tenant_slug
+        : `${entry.tenant_slug} — not provisioned on this deployment`,
+      label: entry.display_name ?? entry.tenant_slug,
+      value: entry.tenant_id,
+    }),
+  );
+}
+
+/** Narrow an already-held option list. Matches label or description. */
+export function filterOptions(
+  options: readonly ResourceOption[],
+  search: string,
+): readonly ResourceOption[] {
+  return options.filter(
+    (option) => contains(option.label, search) || contains(option.description ?? "", search),
+  );
 }
 
 /**

@@ -133,6 +133,39 @@ function createClient({
         ],
       };
     }
+    // E23-T4's two pickers: the receipt field chooses from what the detail read
+    // would serve, and the target-tenant field from this credential's own
+    // memberships.
+    if (path === "/v1/receipts" || path.startsWith("/v1/receipts?")) {
+      return {
+        items: [
+          {
+            exclusion_count: 0,
+            intent_id: null,
+            item_count: 4,
+            receipt_id: receipt.receipt_id,
+            requested_by: "actor-a",
+            resolved_at: "2026-08-12T14:28:41Z",
+            state: "hydrated",
+          },
+        ],
+        next_before: null,
+      };
+    }
+    if (path === "/v1/tenants") {
+      return {
+        items: [
+          {
+            display_name: "Northstar Systems",
+            is_current: true,
+            is_provisioned: true,
+            roles: ["admin"],
+            tenant_id: identity.tenant_id,
+            tenant_slug: "northstar",
+          },
+        ],
+      };
+    }
     if (path === "/v1/arc/artifacts" && options?.method === "POST") return artifact;
     if (path.startsWith("/v1/arc/artifacts?") && options?.method === undefined) {
       return { items: [artifact], next_cursor: nextCursor };
@@ -419,9 +452,8 @@ describe("ArcPage", () => {
   it("retrieves receipt explanation and audited just-in-time detail", async () => {
     const client = renderPage();
     fireEvent.click(await screen.findByRole("link", { name: "Runtime evidence" }));
-    fireEvent.change(await screen.findByLabelText("Resolution receipt ID"), {
-      target: { value: receipt.receipt_id },
-    });
+    fireEvent.click(await screen.findByRole("button", { name: /Resolution receipt/u }));
+    fireEvent.click(await screen.findByRole("option", { name: /2026-08-12/u }));
     fireEvent.click(screen.getByRole("button", { name: "Load receipt" }));
     expect(await screen.findByText("policy://production")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Explain selection" }));
@@ -449,9 +481,8 @@ describe("ArcPage", () => {
   it("links receipt-detail validation guidance to the fields that need correction", async () => {
     renderPage();
     fireEvent.click(await screen.findByRole("link", { name: "Runtime evidence" }));
-    fireEvent.change(await screen.findByLabelText("Resolution receipt ID"), {
-      target: { value: receipt.receipt_id },
-    });
+    fireEvent.click(await screen.findByRole("button", { name: /Resolution receipt/u }));
+    fireEvent.click(await screen.findByRole("option", { name: /2026-08-12/u }));
     fireEvent.click(screen.getByRole("button", { name: "Load receipt" }));
     await screen.findByText("policy://production");
     fireEvent.click(screen.getByText("Request authorized directive or source detail"));
