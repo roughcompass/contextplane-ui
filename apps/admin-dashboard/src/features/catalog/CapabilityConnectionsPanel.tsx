@@ -42,7 +42,10 @@ function GovernedRelationshipRow({
   // is the service's word for "you asked from the destination", and reading it
   // as a direction rather than a flag is the difference between a row that
   // explains itself and one that needs the contract open beside it.
-  const other = endpoints.source_entity_id === entityId ? endpoints.destination_entity_id : endpoints.source_entity_id;
+  const other =
+    endpoints.source_entity_id === entityId
+      ? endpoints.destination_entity_id
+      : endpoints.source_entity_id;
   const outgoing = endpoints.source_entity_id === entityId;
 
   return (

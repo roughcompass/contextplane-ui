@@ -116,7 +116,7 @@ export function selectGovernedOutcomes(
 }
 
 export function overviewProposalHref(proposal: PromotionProposal): string {
-  const path = `/proposals/${encodeURIComponent(proposal.proposal_id)}`;
+  const path = `/memory/promotions/${encodeURIComponent(proposal.proposal_id)}`;
   return proposal.state === "open" ? path : `${path}?state=${proposal.state}`;
 }
 
@@ -125,5 +125,5 @@ export function overviewSessionHref(sessionId: string): string {
 }
 
 export function overviewWorkspaceHref(workspaceId: string): string {
-  return `/workspaces/${encodeURIComponent(workspaceId)}`;
+  return `/notebooks/${encodeURIComponent(workspaceId)}`;
 }

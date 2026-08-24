@@ -120,7 +120,7 @@ function assertionCalls(client: ContextplaneClient) {
 }
 
 beforeEach(() => {
-  window.history.replaceState({}, "", "/memory/assert");
+  window.history.replaceState({}, "", "/memory/claims/new");
 });
 
 describe("AssertClaimPage", () => {
@@ -182,7 +182,7 @@ describe("AssertClaimPage", () => {
     expect(screen.getAllByText(/until a curator links it/)).toHaveLength(2);
     expect(screen.getByRole("link", { name: "Open the curation queue" })).toHaveAttribute(
       "href",
-      "/memory?tab=curation",
+      "/memory/review",
     );
   });
 

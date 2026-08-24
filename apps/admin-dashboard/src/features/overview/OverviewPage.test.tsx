@@ -133,11 +133,11 @@ describe("OverviewPage", () => {
 
     expect(screen.getByRole("link", { name: "Open proposal queue" })).toHaveAttribute(
       "href",
-      "/proposals",
+      "/memory/promotions",
     );
     expect(screen.getByRole("link", { name: "Open curation queue" })).toHaveAttribute(
       "href",
-      "/memory?tab=curation",
+      "/memory/review",
     );
     expect(screen.getByRole("link", { name: "Open all sessions" })).toHaveAttribute(
       "href",
@@ -145,7 +145,7 @@ describe("OverviewPage", () => {
     );
     expect(screen.getByRole("link", { name: "Open all workspaces" })).toHaveAttribute(
       "href",
-      "/workspaces",
+      "/notebooks",
     );
     expect(screen.getByRole("link", { name: "Open audit log" })).toHaveAttribute("href", "/audit");
 

@@ -49,9 +49,24 @@ export function isMemoryClaimPersona(value: string | null): value is MemoryClaim
   );
 }
 
-export function readMemoryUrlState(search = window.location.search): MemoryUrlState {
+/**
+ * Which tab an address names.
+ *
+ * The curation queue is `/memory/review` — an address of its own, because
+ * Overview and `AssertClaimPage` were already deep-linking to `?tab=curation`
+ * as though it were a destination, and a destination reachable only as a query
+ * *value* is one nobody can bookmark, name in a runbook, or land on directly.
+ *
+ * The `?tab=curation` form is still read, so a bookmark from before the move
+ * resolves to the same tab rather than silently to the claims list. The shell
+ * rewrites the address; this makes the page right even if it did not.
+ */
+export function readMemoryUrlState(
+  search = window.location.search,
+  pathname = window.location.pathname,
+): MemoryUrlState {
   const parameters = new URLSearchParams(search);
-  const tab = parameters.get("tab");
+  const tab = pathname === "/memory/review" ? "curation" : parameters.get("tab");
   const persona = parameters.get("persona");
   const minConfidence = parameters.get("min_confidence");
 
@@ -72,7 +87,9 @@ export function memorySearch(state: MemoryUrlState): string {
   const parameters = new URLSearchParams();
 
   if (state.tab === "curation") {
-    parameters.set("tab", "curation");
+    // No `tab` parameter: the path carries it now. Writing both would leave two
+    // spellings of one address in circulation, and the redirect would then be
+    // rewriting addresses this app had just minted.
     if (state.cursor) parameters.set("cursor", state.cursor);
   } else {
     if (state.query) parameters.set("q", state.query);
@@ -89,7 +106,7 @@ export function memorySearch(state: MemoryUrlState): string {
 }
 
 export function memoryListHref(state: MemoryUrlState): string {
-  return `/memory${memorySearch(state)}`;
+  return `${state.tab === "curation" ? "/memory/review" : "/memory"}${memorySearch(state)}`;
 }
 
 export function memoryClaimHref(claimId: string, state: MemoryUrlState): string {

@@ -3,13 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
 
 import { BRAND } from "@repo/ui/brand";
-import {
-  EmptyState,
-  PageContainer,
-  PageHeader,
-  PageSkeleton,
-  SectionSurface,
-} from "@repo/ui/layouts";
+import { EmptyState, PageContainer, PageSkeleton, SectionSurface } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -1792,7 +1787,6 @@ export function SettingsPage({ activeTenantName, apiTenantId, client }: Settings
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Settings" }]}
           description={`Configure tenant-level ${BRAND.name} administration through service-authoritative controls.`}
-          eyebrow="Administration"
           title="Settings"
         />
         <QueryFailure error={identity.error} onRetry={() => void identity.refetch()} />
@@ -1810,7 +1804,6 @@ export function SettingsPage({ activeTenantName, apiTenantId, client }: Settings
           { label: "Settings" },
         ]}
         description="Configure integrations, extraction, graph schema, memory governance, personal-data controls, and lifecycle rules for the active tenant."
-        eyebrow="Administration"
         metadata={
           <>
             <StatusBadge tone={isAdministrator ? "success" : "warning"}>

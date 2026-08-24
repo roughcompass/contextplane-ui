@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { TaskCoordinationPanel } from "./TaskCoordinationPanel";
@@ -17,7 +18,6 @@ export function TasksPage({ activeTenantName, apiTenantId, client }: TasksPagePr
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Tasks" }]}
         description="Who is working a task and what has been established on it: participant grants, and the append-only checkpoint chain a second agent resumes from."
-        eyebrow="Work with context"
         title="Tasks"
       />
       <TaskCoordinationPanel client={client} requestContext={requestContext} />

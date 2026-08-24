@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { CurationCockpitPanel } from "./CurationCockpitPanel";
@@ -21,7 +22,6 @@ export function CurationCockpitPage({
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Curation review" }]}
         description="What is waiting for a curator, why the service put each row where it is, and what each decision commits to before it is taken."
-        eyebrow="Govern"
         title="Curation review"
       />
       <CurationCockpitPanel

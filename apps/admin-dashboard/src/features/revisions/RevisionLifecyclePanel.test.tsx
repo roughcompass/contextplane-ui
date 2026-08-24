@@ -85,10 +85,14 @@ describe("RevisionLifecyclePanel", () => {
     renderPanel(testClient());
 
     expect(screen.getByText("The rule no longer applies")).toBeVisible();
-    expect(screen.getByText(/Everything resolved while this revision was in force stands/u)).toBeVisible();
+    expect(
+      screen.getByText(/Everything resolved while this revision was in force stands/u),
+    ).toBeVisible();
 
     expect(screen.getByText("The content was wrong")).toBeVisible();
-    expect(screen.getByText(/every resolution made while this revision was active is now in question/u)).toBeVisible();
+    expect(
+      screen.getByText(/every resolution made while this revision was active is now in question/u),
+    ).toBeVisible();
   });
 
   it("will not act until one of the two has been chosen", () => {
@@ -147,9 +151,7 @@ describe("RevisionLifecyclePanel", () => {
     fillEnding();
     fireEvent.click(screen.getByRole("radio", { name: /The content was wrong/u }));
 
-    expect(
-      screen.getByText(/everything decided under it is now in question/u),
-    ).toBeVisible();
+    expect(screen.getByText(/everything decided under it is now in question/u)).toBeVisible();
   });
 
   it("attaches evidence to the revision path", async () => {

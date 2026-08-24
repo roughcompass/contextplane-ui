@@ -25,8 +25,8 @@ export function NotFoundPage({ activeTenantName, pathname }: NotFoundPageProps) 
       />
       <Notice title="Nothing is here" variant="warning">
         <p>
-          <code>{pathname}</code> did not match a destination. It may have been renamed, or the
-          link may be from an older version of the dashboard.
+          <code>{pathname}</code> did not match a destination. It may have been renamed, or the link
+          may be from an older version of the dashboard.
         </p>
         <p className="mt-2">
           Use the primary navigation, or <a href="/">return to the overview</a>.

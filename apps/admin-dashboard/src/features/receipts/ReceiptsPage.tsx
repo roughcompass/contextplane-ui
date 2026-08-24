@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { ReceiptExplorerPanel } from "./ReceiptExplorerPanel";
@@ -18,7 +19,6 @@ export function ReceiptsPage({ activeTenantName, apiTenantId, client }: Receipts
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Receipts" }]}
         description="Find the receipt for a resolution, see what it served and what it withheld, and follow the references it cited."
-        eyebrow="Explain"
         title="Receipts"
       />
       <ReceiptExplorerPanel client={client} requestContext={requestContext} />

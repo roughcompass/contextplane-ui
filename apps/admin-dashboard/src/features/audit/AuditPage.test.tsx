@@ -222,7 +222,9 @@ describe("AuditPage", () => {
 
     expect(await screen.findByText(/What the service recorded/u)).toBeVisible();
     expect(screen.getByText(/not cryptographically chained/u)).toBeVisible();
-    expect(screen.getByText(/a missing row is not evidence that an action did not occur/u)).toBeVisible();
+    expect(
+      screen.getByText(/a missing row is not evidence that an action did not occur/u),
+    ).toBeVisible();
     expect(screen.queryByText(/immutable/iu)).toBeNull();
   });
 });

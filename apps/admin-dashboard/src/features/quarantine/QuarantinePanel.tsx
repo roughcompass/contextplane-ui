@@ -52,7 +52,11 @@ export function QuarantinePanel({ client, requestContext }: QuarantinePanelProps
 
   const previewMutation = useMutation({
     mutationFn: () =>
-      previewQuarantine(client, { selector: selector as QuarantineSelector, value: value.trim() }, requestContext),
+      previewQuarantine(
+        client,
+        { selector: selector as QuarantineSelector, value: value.trim() },
+        requestContext,
+      ),
     onSuccess: (result) => {
       setPreview(result);
       // Stamped so the screen can say how old the answer is. The graph moves,
@@ -150,8 +154,8 @@ export function QuarantinePanel({ client, requestContext }: QuarantinePanelProps
                 </p>
                 {/* The distinction the service keeps and the screen must not lose. */}
                 <p className="mt-1 text-xs text-muted">
-                  Advisory. Applying withholds <strong>none</strong> of these — they are shown so you
-                  can see what rests on what you are about to withhold.
+                  Advisory. Applying withholds <strong>none</strong> of these — they are shown so
+                  you can see what rests on what you are about to withhold.
                 </p>
               </div>
             </div>

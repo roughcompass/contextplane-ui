@@ -52,7 +52,8 @@ function testClient() {
     if (options?.method === "GET") {
       const [collection] = path.split("?");
       if (collection === "/v1/arc/admin/approval-verifiers") return { items: [ENROLLED_VERIFIER] };
-      if (collection === "/v1/arc/admin/source-connectors") return { items: [REGISTERED_CONNECTOR] };
+      if (collection === "/v1/arc/admin/source-connectors")
+        return { items: [REGISTERED_CONNECTOR] };
       if (collection === "/v1/arc/admin/source-upload-policies") return { items: [] };
       throw new Error(`Unexpected read: ${path}`);
     }
@@ -129,9 +130,7 @@ describe("SourceGovernancePanel", () => {
     // material that does not exist yet.
     renderPanel(testClient());
 
-    expect(
-      screen.getByText(/who may approve material this connector fetches/u),
-    ).toBeVisible();
+    expect(screen.getByText(/who may approve material this connector fetches/u)).toBeVisible();
     expect(screen.getByText(/every future fetch, not just the next one/u)).toBeVisible();
   });
 
@@ -169,9 +168,7 @@ describe("SourceGovernancePanel", () => {
 
     expect(screen.getByRole("listitem")).toHaveTextContent("verifier-a");
     fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("option", { name: /verifier-a/u })).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByRole("option", { name: /verifier-a/u })).toBeNull());
   });
 
   it("lets a chosen verifier be taken back off", async () => {
@@ -235,7 +232,9 @@ describe("SourceGovernancePanel", () => {
     fireEvent.change(screen.getByLabelText("Connector"), { target: { value: "connector-a" } });
     fireEvent.change(screen.getByLabelText("Allowed schemes"), { target: { value: "https" } });
     fireEvent.change(screen.getByLabelText("Allowed hosts"), { target: { value: "a.example" } });
-    fireEvent.change(screen.getByLabelText("Allowed media types"), { target: { value: "text/plain" } });
+    fireEvent.change(screen.getByLabelText("Allowed media types"), {
+      target: { value: "text/plain" },
+    });
     // Chosen from the roster rather than typed: ADR 0018, and the field
     // this one replaced was a comma-separated list of UUIDs.
     fireEvent.click(screen.getByRole("button", { name: "Allowed approval verifiers" }));
@@ -286,7 +285,11 @@ describe("SourceGovernancePanel", () => {
       expect(client.request).toHaveBeenCalledWith(
         "/v1/arc/admin/observation-replay-corpora",
         expect.objectContaining({
-          body: { corpus_digest: "sha256:corpus", generator_version: "2.1.0", owning_scope: "global" },
+          body: {
+            corpus_digest: "sha256:corpus",
+            generator_version: "2.1.0",
+            owning_scope: "global",
+          },
           method: "POST",
         }),
       ),

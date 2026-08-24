@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { ActivityPanel } from "./ActivityPanel";
@@ -17,7 +18,6 @@ export function ActivityPage({ activeTenantName, apiTenantId, client }: Activity
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Activity" }]}
         description="What has arrived and what needs acknowledging: notifications, learning evidence, and signals from outside the plane."
-        eyebrow="Monitor"
         title="Activity"
       />
       <ActivityPanel client={client} requestContext={requestContext} />

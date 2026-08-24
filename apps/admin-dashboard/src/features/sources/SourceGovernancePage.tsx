@@ -1,4 +1,5 @@
-import { PageContainer, PageHeader } from "@repo/ui/layouts";
+import { PageContainer } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
 import { GovernanceObjectTable } from "../../shared/arcGovernance/GovernanceObjectTable";
@@ -33,10 +34,9 @@ export function SourceGovernancePage({
   return (
     <PageContainer>
       <PageHeader
-        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Source governance" }]}
+        breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Sources" }]}
         description="Set what ARC may fetch or accept, who may approve it, and what observation is replayed against. Every later admission inherits these limits."
-        eyebrow="Govern"
-        title="Source governance"
+        title="Sources"
       />
       <SourceGovernancePanel client={client} requestContext={requestContext} />
       {/* The tables sit under the forms rather than beside them, because the

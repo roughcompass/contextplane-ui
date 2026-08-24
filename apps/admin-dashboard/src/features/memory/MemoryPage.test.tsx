@@ -145,7 +145,7 @@ describe("MemoryPage", () => {
     const client = clientFor(fixtureResolver);
     renderPage(client);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Living Memory" })).toBeVisible();
+    expect(await screen.findByRole("heading", { level: 1, name: "Claims" })).toBeVisible();
     expect(await screen.findByText("Recalled content is not canonical")).toBeVisible();
     expect(screen.getAllByText(trustNote)).toHaveLength(1);
     expect(await screen.findByRole("link", { name: "trust-engineering" })).toBeVisible();
@@ -167,7 +167,10 @@ describe("MemoryPage", () => {
 
     fireEvent.keyDown(screen.getByRole("tab", { name: "Claims" }), { key: "ArrowRight" });
     await waitFor(() => expect(screen.getByRole("tab", { name: "Curation queue" })).toHaveFocus());
-    expect(window.location.search).toBe("?tab=curation");
+    // The path carries the tab now: the queue is `/memory/review`, an address
+    // somebody can bookmark, rather than a query value they cannot land on.
+    expect(window.location.pathname).toBe("/memory/review");
+    expect(window.location.search).toBe("");
     expect(
       await screen.findByText("3 total items waiting · 1 contested · 2 unlinked"),
     ).toBeVisible();
@@ -176,14 +179,16 @@ describe("MemoryPage", () => {
     expect(screen.getByText("Discard")).toBeVisible();
     expect(screen.getByRole("link", { name: "Review linked proposal" })).toHaveAttribute(
       "href",
-      "/proposals/proposal-a",
+      "/memory/promotions/proposal-a",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(window.location.search).toBe("?tab=curation&cursor=opaque-next");
+    expect(window.location.pathname).toBe("/memory/review");
+    expect(window.location.search).toBe("?cursor=opaque-next");
     await waitFor(() => expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: "First page" }));
-    expect(window.location.search).toBe("?tab=curation");
+    expect(window.location.pathname).toBe("/memory/review");
+    expect(window.location.search).toBe("");
   });
 
   it("shows one claim with its trust boundary, citations, validity, and oldest-first history", async () => {
@@ -238,7 +243,7 @@ describe("MemoryPage", () => {
   });
 
   it("recovers from an invalid curation cursor without decoding it", async () => {
-    window.history.replaceState({}, "", "/memory?tab=curation&cursor=bad-cursor");
+    window.history.replaceState({}, "", "/memory/review?cursor=bad-cursor");
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return identity;
       if (path === "/v1/memory/curation-queue?counts=true") return { counts: { unlinked: 0 } };
@@ -258,7 +263,10 @@ describe("MemoryPage", () => {
 
     expect(await screen.findByText("This curation cursor is invalid")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Return to first page" }));
-    expect(window.location.search).toBe("?tab=curation");
+    // Back to the first page of the queue, which is the queue's own address with
+    // no cursor rather than the claims list.
+    expect(window.location.pathname).toBe("/memory/review");
+    expect(window.location.search).toBe("");
     expect(await screen.findByText("No items need curator attention")).toBeVisible();
   });
 

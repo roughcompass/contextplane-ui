@@ -22,12 +22,12 @@ import { BRAND } from "@repo/ui/brand";
 import {
   DetailLayout,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   SummaryStrip,
   type SummaryItem,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -176,7 +176,6 @@ function ContextLabHeader({ identity }: { identity: WhoAmI }) {
     <PageHeader
       breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Context Lab" }]}
       description="Test a prompt against the context resolver, inspect the four source layers it returns, and leave item-level relevance feedback without mistaking an observation for canonical truth."
-      eyebrow="Context evaluation"
       metadata={
         <>
           <StatusBadge tone="info">Evaluation workspace</StatusBadge>
@@ -1245,7 +1244,6 @@ export function ContextLabPage({
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Context Lab" }]}
           description="Context Lab becomes available after the service resolves the current bearer credential to an actor and tenant."
-          eyebrow="Context evaluation"
           title="Context Lab"
         />
         <QueryFailure error={identityQuery.error} onRetry={() => void identityQuery.refetch()} />

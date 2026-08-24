@@ -61,7 +61,10 @@ function testClient(identityOverrides: Record<string, unknown> = {}) {
     // apart: the collection enrols on POST and lists on GET. A fake that keyed
     // on the path alone would answer the roster read with an enrolment
     // response, which is the divergence that made this test fail honestly.
-    if (path.startsWith("/v1/arc/admin/approval-verifiers?") || path === "/v1/arc/admin/approval-verifiers") {
+    if (
+      path.startsWith("/v1/arc/admin/approval-verifiers?") ||
+      path === "/v1/arc/admin/approval-verifiers"
+    ) {
       return options?.method === "POST" ? verifier : { items: [ENROLLED] };
     }
     if (path.endsWith("/revoke")) return { ...verifier, revoked_at: "2026-08-22T11:00:00Z" };
@@ -112,9 +115,7 @@ describe("VerifierEnrolmentPanel", () => {
      * same rule would be asserting a control that does not exist. */
     renderPanel(testClient());
 
-    expect(
-      await screen.findByText("Enrolling is not separated from approving"),
-    ).toBeVisible();
+    expect(await screen.findByText("Enrolling is not separated from approving")).toBeVisible();
     expect(screen.getByText(/may later approve with it/u)).toBeVisible();
     expect(screen.getByText(/would be a service change/u)).toBeVisible();
   });
@@ -125,7 +126,9 @@ describe("VerifierEnrolmentPanel", () => {
 
     expect(screen.getByLabelText("Public key (base64)")).toBeVisible();
     expect(screen.queryByLabelText(/private key/iu)).toBeNull();
-    expect(screen.getByText(/Nothing on this screen asks for, generates or transports/u)).toBeVisible();
+    expect(
+      screen.getByText(/Nothing on this screen asks for, generates or transports/u),
+    ).toBeVisible();
   });
 
   it("requesting a challenge enrols nothing", async () => {

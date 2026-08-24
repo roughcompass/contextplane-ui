@@ -68,7 +68,12 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
 
   const attachMutation = useMutation({
     mutationFn: () =>
-      attachArcApprovalEvidence(client, attachRevision.trim(), attachEvidence.trim(), requestContext),
+      attachArcApprovalEvidence(
+        client,
+        attachRevision.trim(),
+        attachEvidence.trim(),
+        requestContext,
+      ),
     onSuccess: () => {
       showToast({ title: "Evidence attached", variant: "success" });
       setAttachRevision("");
@@ -245,9 +250,7 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
           </div>
 
           <fieldset className="grid gap-3 md:grid-cols-2">
-            <legend className="mb-1 text-xs font-medium text-muted">
-              Which of these is true?
-            </legend>
+            <legend className="mb-1 text-xs font-medium text-muted">Which of these is true?</legend>
             {(["revoke", "invalidate"] as const).map((option) => (
               <label
                 className="flex cursor-pointer gap-3 rounded-md border border-border p-3"

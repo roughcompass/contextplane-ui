@@ -154,12 +154,12 @@ describe("overviewModel", () => {
 
   it("builds encoded destination links and preserves outcome list state", () => {
     expect(overviewProposalHref(proposal("proposal / one"))).toBe(
-      "/proposals/proposal%20%2F%20one",
+      "/memory/promotions/proposal%20%2F%20one",
     );
     expect(overviewProposalHref(proposal("accepted", { state: "accepted" }))).toBe(
-      "/proposals/accepted?state=accepted",
+      "/memory/promotions/accepted?state=accepted",
     );
     expect(overviewSessionHref("session / one")).toBe("/sessions/session%20%2F%20one");
-    expect(overviewWorkspaceHref("workspace / one")).toBe("/workspaces/workspace%20%2F%20one");
+    expect(overviewWorkspaceHref("workspace / one")).toBe("/notebooks/workspace%20%2F%20one");
   });
 });

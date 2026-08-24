@@ -3,7 +3,8 @@ import { Bot, RefreshCw } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { EmptyState, PageContainer, PageHeader, SummaryStrip, TableSection } from "@repo/ui/layouts";
+import { EmptyState, PageContainer, SummaryStrip, TableSection } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -218,7 +219,6 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Agents" }]}
         description="How one agent principal is doing, and the instruction in force for it. Accuracy and autonomy are two dimensions of one question — an agent can be accurate but needy, or fast and wrong, and those need different fixes."
-        eyebrow="Monitor"
         title="Agent performance"
       />
 
@@ -269,18 +269,12 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
       <SummaryStrip items={summaryItems} label="Agent performance summary" />
 
       {accuracyQuery.isError ? (
-        <RequestFailure
-          onRetry={() => void accuracyQuery.refetch()}
-          title="Accuracy unavailable"
-        >
+        <RequestFailure onRetry={() => void accuracyQuery.refetch()} title="Accuracy unavailable">
           The adjudicated record for this agent could not be loaded.
         </RequestFailure>
       ) : null}
       {autonomyQuery.isError ? (
-        <RequestFailure
-          onRetry={() => void autonomyQuery.refetch()}
-          title="Autonomy unavailable"
-        >
+        <RequestFailure onRetry={() => void autonomyQuery.refetch()} title="Autonomy unavailable">
           Session intervention counts could not be loaded.
         </RequestFailure>
       ) : null}
@@ -357,12 +351,14 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
                     <div>
                       <p className="font-medium text-foreground">{entry.predicate}</p>
                       <p className="mt-1 text-xs text-muted">
-                        {entry.claim_category} · {formatBasis(entry.incorrect_count, entry.total_count)}{" "}
-                        incorrect
+                        {entry.claim_category} ·{" "}
+                        {formatBasis(entry.incorrect_count, entry.total_count)} incorrect
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <StatusBadge tone={entry.rate !== null && entry.rate >= 0.5 ? "danger" : "warning"}>
+                      <StatusBadge
+                        tone={entry.rate !== null && entry.rate >= 0.5 ? "danger" : "warning"}
+                      >
                         {formatRate(entry.rate)}
                       </StatusBadge>
                       <Button
@@ -546,7 +542,11 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
                   >
                     Confirm rollback
                   </Button>
-                  <Button onClick={() => setRollbackArmed(false)} size="compact" variant="secondary">
+                  <Button
+                    onClick={() => setRollbackArmed(false)}
+                    size="compact"
+                    variant="secondary"
+                  >
                     Keep current
                   </Button>
                 </div>

@@ -18,13 +18,13 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   SummaryStrip,
   TableSection,
   type SummaryItem,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   DetailsLink,
@@ -169,7 +169,7 @@ function writeEntryListUrlState(state: EntryListUrlState, mode: "push" | "replac
 }
 
 function workspaceListHref(): string {
-  const url = new URL("/workspaces", window.location.origin);
+  const url = new URL("/notebooks", window.location.origin);
   const current = new URLSearchParams(window.location.search);
   for (const key of ["q", "archived", "cursor"]) {
     const value = current.get(key);
@@ -280,9 +280,8 @@ function WorkspacesHeader({ action, identity }: { action?: React.ReactNode; iden
   return (
     <PageHeader
       actions={action}
-      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Workspaces" }]}
+      breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Notebooks" }]}
       description="Collect mutable notes, decisions, questions, and saved retrieval context without presenting working material as canonical catalog state."
-      eyebrow="Scoped working memory"
       metadata={
         <>
           <StatusBadge tone="info">Workspace material</StatusBadge>
@@ -290,7 +289,7 @@ function WorkspacesHeader({ action, identity }: { action?: React.ReactNode; iden
           <StatusBadge>{identity.tenant_display_name}</StatusBadge>
         </>
       }
-      title="Workspaces"
+      title="Notebooks"
     />
   );
 }
@@ -443,7 +442,7 @@ function WorkspaceRows({ workspaces }: { workspaces: readonly Workspace[] }) {
         </thead>
         <tbody className="divide-y divide-border-subtle">
           {workspaces.map((workspace) => {
-            const href = `/workspaces/${encodeURIComponent(workspace.workspace_id)}${window.location.search}`;
+            const href = `/notebooks/${encodeURIComponent(workspace.workspace_id)}${window.location.search}`;
             return (
               <tr key={workspace.workspace_id} className="group hover:bg-surface-muted">
                 <th className="px-6 py-4 align-top font-medium" scope="row">
@@ -572,7 +571,7 @@ function WorkspacesListPage({
           <Notice
             action={
               <DetailsLink
-                href={`/workspaces/${encodeURIComponent(createdWorkspace.workspace_id)}`}
+                href={`/notebooks/${encodeURIComponent(createdWorkspace.workspace_id)}`}
               >
                 Open workspace
               </DetailsLink>
@@ -1276,7 +1275,6 @@ function WorkspaceDetailPage({
             { label: shortWorkspaceIdentifier(workspaceId) },
           ]}
           description="The workspace detail could not be resolved within the current actor and tenant visibility boundary."
-          eyebrow="Scoped working memory"
           title="Workspace detail"
         />
         <QueryFailure
@@ -1363,7 +1361,6 @@ function WorkspaceDetailPage({
           workspace.description?.trim() ||
           "No purpose description was provided for this mutable workspace."
         }
-        eyebrow="Workspace material"
         metadata={
           <>
             <StatusBadge tone={workspace.owner_kind === "tenant" ? "info" : "neutral"}>
@@ -1612,11 +1609,10 @@ export function WorkspacesPage({
     return (
       <PageContainer>
         <PageHeader
-          breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Workspaces" }]}
+          breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Notebooks" }]}
           description="Workspace material becomes available after the service resolves the bearer credential to an actor and tenant."
-          eyebrow="Scoped working memory"
           metadata={<StatusBadge tone="warning">Identity unresolved</StatusBadge>}
-          title="Workspaces"
+          title="Notebooks"
         />
         <QueryFailure error={identityQuery.error} onRetry={() => void identityQuery.refetch()} />
       </PageContainer>

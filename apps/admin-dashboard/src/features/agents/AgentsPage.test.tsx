@@ -147,7 +147,9 @@ describe("AgentsPage", () => {
     const client = testClient();
     renderPage(client);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Agent performance" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Agent performance" }),
+    ).toBeVisible();
     expect(screen.getByText("Choose an agent to continue")).toBeVisible();
     expect(client.request).not.toHaveBeenCalled();
   });

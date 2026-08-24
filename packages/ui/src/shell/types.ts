@@ -10,7 +10,15 @@ export interface NavigationItem {
 export interface NavigationSection {
   id: string;
   items: readonly NavigationItem[];
-  label: string;
+  /**
+   * The group heading, or absent for a section that is not a group.
+   *
+   * Absent is not the same as `""`. A landing entry that belongs to no group has
+   * no heading to render, and giving it an empty one would put an unnamed
+   * `region` landmark in the navigation — a landmark a screen reader announces
+   * and cannot name, which is worse than the entry simply being a list item.
+   */
+  label?: string;
 }
 
 export interface TenantOption {

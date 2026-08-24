@@ -13,12 +13,12 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SummaryStrip,
   TableSection,
   type SummaryItem,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import { Button, Notice, RequestFailure, SearchField, StatusBadge } from "@repo/ui/primitives";
 
 import {
@@ -582,7 +582,6 @@ export function AnalyticsPage({
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Analytics" }]}
           description="Understand how agents and applications use organizational context through MCP tools and the REST API."
-          eyebrow="Platform usage"
           title="Analytics"
         />
         <RequestFailure
@@ -607,7 +606,6 @@ export function AnalyticsPage({
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Analytics" }]}
         description="Understand how agents and applications use organizational context through MCP tools and the REST API."
-        eyebrow="Platform usage"
         metadata={
           <>
             <StatusBadge tone="info">Service aggregate</StatusBadge>

@@ -99,7 +99,9 @@ describe("ExceptionGrantPanel", () => {
      * nobody approved. */
     renderPanel(testClient());
 
-    expect(screen.getByText("This form transcribes an approval, it does not make one")).toBeVisible();
+    expect(
+      screen.getByText("This form transcribes an approval, it does not make one"),
+    ).toBeVisible();
     expect(screen.getByText(/Nothing typed here approves anything/u)).toBeVisible();
   });
 

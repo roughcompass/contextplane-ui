@@ -187,7 +187,11 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
           onSubmit={submit(connectorReady, () => connectorMutation.mutate())}
         >
           <div className="grid gap-3 md:grid-cols-2">
-            <ScopeField label="Connector scope" onChange={setConnectorScope} value={connectorScope} />
+            <ScopeField
+              label="Connector scope"
+              onChange={setConnectorScope}
+              value={connectorScope}
+            />
             <label className="text-xs font-medium text-muted" htmlFor="connector-id">
               Connector
               <input

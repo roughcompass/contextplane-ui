@@ -91,12 +91,12 @@ function renderPage(
 }
 
 beforeEach(() => {
-  window.history.replaceState({}, "", "/proposals");
+  window.history.replaceState({}, "", "/memory/promotions");
 });
 
 describe("ProposalsPage", () => {
   it("browses, searches, filters, and cursor-pages tenant promotion proposals", async () => {
-    window.history.replaceState({}, "", "/proposals?page_size=25");
+    window.history.replaceState({}, "", "/memory/promotions?page_size=25");
     const accepted = { ...openProposal, proposal_id: "proposal-accepted", state: "accepted" };
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return identity;
@@ -111,7 +111,7 @@ describe("ProposalsPage", () => {
     });
     const { searchRef } = renderPage(client, { apiTenantId: "tenant-real" });
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Proposals" })).toBeVisible();
+    expect(await screen.findByRole("heading", { level: 1, name: "Promotions" })).toBeVisible();
     expect(screen.getByText("Promotion proposals preserve the truth boundary")).toBeVisible();
     const section = screen.getByRole("region", { name: "Promotion proposals" });
     expect(await within(section).findByRole("link", { name: "Owned by team" })).toBeVisible();
@@ -149,7 +149,7 @@ describe("ProposalsPage", () => {
   });
 
   it("recovers from an invalid opaque cursor without decoding it", async () => {
-    window.history.replaceState({}, "", "/proposals?cursor=expired-cursor");
+    window.history.replaceState({}, "", "/memory/promotions?cursor=expired-cursor");
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return identity;
       if (path.includes("cursor=expired-cursor")) {
@@ -209,7 +209,7 @@ describe("ProposalsPage", () => {
   });
 
   it("shows exact proposal evidence while withholding review actions from a consumer", async () => {
-    window.history.replaceState({}, "", "/proposals/proposal-open?state=open");
+    window.history.replaceState({}, "", "/memory/promotions/proposal-open?state=open");
     const consumer = { ...identity, actor_display_name: null, roles: ["consumer"] };
     const client = clientFor((path) => {
       if (path === "/v1/whoami") return consumer;
@@ -233,12 +233,12 @@ describe("ProposalsPage", () => {
     expect(screen.queryByRole("button", { name: "Accept proposal" })).toBeNull();
     expect(screen.getByRole("link", { name: "Back to proposals" })).toHaveAttribute(
       "href",
-      "/proposals?state=open",
+      "/memory/promotions?state=open",
     );
   });
 
   it("confirms an exact proposed value before recording acceptance", async () => {
-    window.history.replaceState({}, "", "/proposals/proposal-page-two");
+    window.history.replaceState({}, "", "/memory/promotions/proposal-page-two");
     const client = clientFor((path, options) => {
       if (path === "/v1/whoami") return identity;
       if (

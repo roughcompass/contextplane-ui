@@ -14,12 +14,12 @@ import {
   DataToolbar,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   SummaryStrip,
   TableSection,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -1057,7 +1057,6 @@ function RelationshipExplorer({
           { label: "Relationships" },
         ]}
         description="Walk canonical dependencies, reverse dependents, or a transitive blast radius before building on or changing a capability."
-        eyebrow="Dependency intelligence"
         metadata={
           <>
             <StatusBadge tone="info">Canonical graph</StatusBadge>
@@ -1232,7 +1231,6 @@ export function RelationshipsPage({
         <PageHeader
           breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Relationships" }]}
           description="Walk canonical dependencies and change impact without inferring graph totals in the browser."
-          eyebrow="Dependency intelligence"
           title="Relationships"
         />
         <QueryFailure error={identity.error} onRetry={() => void identity.refetch()} />

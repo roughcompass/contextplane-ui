@@ -422,7 +422,9 @@ export function CapabilityDialog({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge tone="info">{detail.data.capability.lifecycle}</StatusBadge>
               <StatusBadge>{detail.data.capability.entityType}</StatusBadge>
-              <span className="break-all font-mono text-xs text-muted">{detail.data.capability.entityId}</span>
+              <span className="break-all font-mono text-xs text-muted">
+                {detail.data.capability.entityId}
+              </span>
             </div>
           ) : null}
         </div>

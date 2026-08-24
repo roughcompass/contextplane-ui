@@ -25,13 +25,13 @@ import {
   DetailLayout,
   EmptyState,
   PageContainer,
-  PageHeader,
   PageSkeleton,
   SectionSurface,
   SummaryStrip,
   TableSection,
   type SummaryItem,
 } from "@repo/ui/layouts";
+import { PageHeader } from "../../shared/navigation/surface";
 import {
   Button,
   Notice,
@@ -211,7 +211,6 @@ function SessionPageHeader({ identity }: { identity: WhoAmI }) {
     <PageHeader
       breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Sessions" }]}
       description="Review the retained interaction history your current agent identity can resume, then inspect each user message, agent action, and tool invocation in sequence."
-      eyebrow="Session memory"
       metadata={
         <>
           <StatusBadge tone="info">Current actor only</StatusBadge>
@@ -238,7 +237,6 @@ function IdentityFailure({
       <PageHeader
         breadcrumbs={[{ href: "/", label: activeTenantName }, { label: "Sessions" }]}
         description="Session memory becomes available after the service resolves the current bearer credential to an actor and tenant."
-        eyebrow="Session memory"
         title="Sessions"
       />
       <QueryFailure error={error} onRetry={onRetry} />
@@ -908,7 +906,6 @@ function SessionDetailPage({
             <code className="break-all text-sm text-foreground">{sessionId}</code>.
           </>
         }
-        eyebrow="Session replay"
         metadata={
           <>
             <StatusBadge tone="info">Current actor only</StatusBadge>
