@@ -1,13 +1,12 @@
 {
   "_comment": "Free-text identifier fields that existed when the gate was written, and the only ones permitted. ADR 0018 decides that a server-assigned identifier is chosen from a list, never typed; these are the debt that decision was written against, not exceptions to it. Every entry is owned by an E22 task and leaves when that task lands. THE RATCHET: a field not listed here fails the gate, and a listed field that no longer exists ALSO fails it -- so the list cannot be padded and cannot go stale. Shrink it; never add to it. A genuinely permanent exception is an inline `identifier-exception:` annotation naming an ADR 0018 class, not an entry here.",
   "recorded_at": "2026-08-24",
-  "total": 40,
+  "total": 28,
   "fields": {
     "apps/admin-dashboard/src/features/arc/ArcArtifactDialog.tsx": [
       "production-deployment-safeguards Stable slug Use a durable identifier; every rev"
     ],
     "apps/admin-dashboard/src/features/arc/ArcDirectiveEditor.tsx": [
-      "64-character SHA-256 digest Source approval evidence digest This value comes fro",
       "Draft revision ID",
       "UUIDs separated by commas Entity IDs",
       "payments, identity Domain IDs",
@@ -15,36 +14,22 @@
     ],
     "apps/admin-dashboard/src/features/arc/ArcLifecyclePanel.tsx": [
       "Approval verifier ID",
-      "Authenticated author subject",
-      "Provider ID",
       "Qualification ID (when required)"
     ],
     "apps/admin-dashboard/src/features/arc/ArcPage.tsx": [
-      "Context handle",
       "UUID Draft ID",
       "UUID Policy ID",
       "UUID Reviewed baseline revision ID (optional)"
     ],
     "apps/admin-dashboard/src/features/arc/ArcSourceEvidenceSection.tsx": [
-      "64-character SHA-256 digest Expected content digest",
       "Admission policy ID",
-      "Approval locator",
-      "Authority subject",
-      "Provider ID",
       "Registered connector ID",
       "UUID Promoted claim ID",
       "UUID Source evidence ID",
-      "Verifier ID",
-      "commit:abc123 Immutable revision locator"
-    ],
-    "apps/admin-dashboard/src/features/catalog/CapabilityDialog.tsx": [
-      "Optional source identifier External ID"
+      "Verifier ID"
     ],
     "apps/admin-dashboard/src/features/catalog/CapabilityOverviewPanel.tsx": [
       "Successor capability UUID or \u201cnone\u201d"
-    ],
-    "apps/admin-dashboard/src/features/memory/AssertClaimPage.tsx": [
-      "system:github/identity-service Subject reference A reference the service can res"
     ],
     "apps/admin-dashboard/src/features/ownership/OwnershipPanel.tsx": [
       "Assignment UUID",
@@ -61,9 +46,6 @@
       "Entity UUID Entity ID",
       "Gate ID",
       "Repeat the actor UUID Confirm actor ID"
-    ],
-    "apps/admin-dashboard/src/features/sources/SourceGovernancePanel.tsx": [
-      "Corpus digest"
     ],
     "apps/admin-dashboard/src/features/tasks/TaskCoordinationPanel.tsx": [
       "Checkpoint UUID",
