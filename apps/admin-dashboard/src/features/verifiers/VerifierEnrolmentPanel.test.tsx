@@ -146,10 +146,15 @@ describe("VerifierEnrolmentPanel", () => {
     );
   });
 
-  it("says the verifier id will not be shown again, because nothing lists them", async () => {
-    /** There is no list endpoint. This render is the only place the id appears,
-     * and an operator who does not record it has to recover it from the audit
-     * log to revoke later. */
+  it("names the credential fingerprint as the part that appears only once", async () => {
+    /** This test asserted the opposite until E22-T16 read it. The panel said no
+     * directory of verifiers existed and this render was the only place the id
+     * appeared — true until E22-T5 built the table below from a read that had
+     * been in the contract the whole time.
+     *
+     * The fingerprint *is* shown once, and for a stated reason: the roster does
+     * not carry credential material, because a list of who may approve does not
+     * need it and a surface holding it would be one more place it can leak. */
     const client = testClient();
     renderPanel(client);
     await fillExactPrincipalForm();
@@ -159,8 +164,10 @@ describe("VerifierEnrolmentPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Complete enrolment/u }));
 
-    expect(await screen.findByText("Record this identifier now")).toBeVisible();
-    expect(screen.getByText(/no directory of enrolled verifiers/u)).toBeVisible();
+    expect(await screen.findByText("Enrolled")).toBeVisible();
+    expect(screen.getByText(/The identifier is listed below and stays there/u)).toBeVisible();
+    expect(screen.getByText(/the roster does not carry credential material/u)).toBeVisible();
+    expect(screen.queryByText(/no directory of enrolled verifiers/u)).toBeNull();
     expect(screen.getByText(VERIFIER_ID)).toBeVisible();
   });
 

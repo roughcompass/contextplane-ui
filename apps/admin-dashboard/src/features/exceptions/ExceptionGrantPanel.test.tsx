@@ -64,15 +64,19 @@ beforeEach(() => {
 });
 
 describe("ExceptionGrantPanel", () => {
-  it("says it cannot show what is already in force, rather than looking complete", () => {
-    /** There is no read path for an exception (E14-T1). An auditor who found a
-     * grant form and no list would reasonably conclude there are none, which is
-     * the opposite of what a documented deviation is for. */
+  it("no longer says the register cannot be built", () => {
+    /** It could. `GET /v1/arc/admin/exceptions` is the register the service made
+     * and nothing called, and its own description says an exception "was
+     * invisible from the moment it was granted" until it existed.
+     *
+     * This test asserted the opposite for as long as the sentence was here,
+     * which is why the sweep reads tests too: a false claim with a test behind
+     * it is one somebody has to argue with rather than notice. */
     renderPanel(testClient());
 
-    expect(screen.getByText("This screen cannot show what is already in force")).toBeVisible();
-    expect(screen.getByText(/only to grant and revoke them/u)).toBeVisible();
-    expect(screen.getByText(/as events rather than saying what is in force now/u)).toBeVisible();
+    expect(screen.queryByText("This screen cannot show what is already in force")).toBeNull();
+    expect(screen.queryByText(/only to grant and revoke them/u)).toBeNull();
+    expect(screen.queryByText(/no way to read exceptions back/u)).toBeNull();
   });
 
   it("says what an exception with no end date actually is, before offering one", () => {

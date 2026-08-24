@@ -4,13 +4,15 @@ import { isRecord, requiredString } from "./parse";
 /**
  * Granting and withdrawing an ARC exception.
  *
- * ## Two things this adapter cannot do
+ * ## The write half only, and one thing this adapter cannot do
  *
- * **It cannot list what is standing.** The contract has `POST` to create and
- * `POST .../revoke`, and no read path — see E14-T1, where thirteen of fourteen
- * ARC admin paths turn out to be write-only. So an exception is invisible from
- * the moment it is granted, and `revokeArcException` takes an id the caller
- * must already hold.
+ * **The register is in `arcGovernanceObjects.ts`.** This module grants and
+ * revokes; `GET /v1/arc/admin/exceptions` lists. The sentence that used to be
+ * here — that the contract has no read path, so an exception is invisible from
+ * the moment it is granted — was true when E14-T1 counted thirteen of fourteen
+ * ARC admin paths as write-only, and stopped being true when the service built
+ * the register. Nothing called it, so three files went on asserting an absence
+ * for as long as it took somebody to look.
  *
  * **It cannot produce an approval.** `ArcExceptionApproval` is a completed
  * approval envelope — evidence id, verifier, digest, audit reference, timestamp
