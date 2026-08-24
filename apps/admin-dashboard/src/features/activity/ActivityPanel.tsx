@@ -384,6 +384,10 @@ export function ActivityPanel({ client, requestContext }: ActivityPanelProps) {
             </label>
             <label className={labelClassName}>
               Source event ID
+              {/* The upstream system's own id for the event being reported, which
+                  is what makes a re-sent signal idempotent. This service never
+                  assigned it and cannot enumerate another system's events.
+                  identifier-exception: external-id */}
               <input
                 required
                 className={inputClassName}

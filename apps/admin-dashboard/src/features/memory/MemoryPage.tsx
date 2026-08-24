@@ -14,7 +14,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type KeyboardEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -74,6 +73,7 @@ import {
   memoryCurationPageSize,
   memoryListHref,
   memoryPersonaOptions,
+  memoryTabHref,
   memoryTabs,
   readMemoryUrlState,
   recallCaveat,
@@ -214,63 +214,44 @@ function IdentityFailure({
   );
 }
 
-function MemoryTabs({
-  activeTab,
-  onChange,
-}: {
-  activeTab: MemoryTab;
-  onChange: (tab: MemoryTab) => void;
-}) {
-  function moveFocus(index: number) {
-    const tab = memoryTabs[index];
-    if (!tab) return;
-    onChange(tab.id);
-    window.requestAnimationFrame(() => {
-      document.querySelector<HTMLButtonElement>(`#memory-tab-${tab.id}`)?.focus();
-    });
-  }
-
+/**
+ * The two areas, as links rather than as a tablist.
+ *
+ * They were `role="tab"` buttons, and that was right while both were one
+ * address. They are not: E22-T10 promoted the curation queue to `/memory/review`
+ * and listed it under **Judgement** while the claims list stays under
+ * **Sources**, so switching here is a navigation between two destinations in two
+ * different surfaces — and the WAI pattern for tabs that are separate addresses
+ * is links.
+ *
+ * It is not only semantics. As buttons, the switch wrote the address with
+ * `pushState` and the shell never heard about it, so the page could sit at
+ * `/memory/review` while the chrome kept saying `Sources` and marked `Claims` as
+ * the current destination. Links go through the shell's own interception, which
+ * is the thing that keeps the eyebrow and the navigation agreeing (E23-T6).
+ */
+function MemoryTabs({ activeTab, state }: { activeTab: MemoryTab; state: MemoryUrlState }) {
   return (
-    <div
+    <nav
       aria-label="Living Memory areas"
       className="mb-6 grid grid-cols-2 border-b border-border"
-      role="tablist"
     >
-      {memoryTabs.map((tab, index) => (
-        <button
+      {memoryTabs.map((tab) => (
+        <a
           key={tab.id}
-          aria-controls={`memory-panel-${tab.id}`}
-          aria-selected={activeTab === tab.id}
-          className={`min-h-11 border-b-2 px-4 py-3 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+          aria-current={activeTab === tab.id ? "page" : undefined}
+          className={`min-h-11 px-4 py-3 text-center text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent border-b-2 ${
             activeTab === tab.id
               ? "border-accent font-semibold text-foreground"
               : "border-transparent text-muted hover:text-foreground"
           }`}
+          href={memoryTabHref(tab.id, state)}
           id={`memory-tab-${tab.id}`}
-          onClick={() => onChange(tab.id)}
-          onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
-            if (event.key === "ArrowRight") {
-              event.preventDefault();
-              moveFocus((index + 1) % memoryTabs.length);
-            } else if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              moveFocus((index - 1 + memoryTabs.length) % memoryTabs.length);
-            } else if (event.key === "Home") {
-              event.preventDefault();
-              moveFocus(0);
-            } else if (event.key === "End") {
-              event.preventDefault();
-              moveFocus(memoryTabs.length - 1);
-            }
-          }}
-          role="tab"
-          tabIndex={activeTab === tab.id ? 0 : -1}
-          type="button"
         >
           {tab.label}
-        </button>
+        </a>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -600,7 +581,7 @@ function ClaimsPanel({
   const inconsistentCaveat = claims.length > 0 && !caveat;
 
   return (
-    <div id="memory-panel-claims" aria-labelledby="memory-tab-claims" role="tabpanel">
+    <div id="memory-panel-claims" aria-labelledby="memory-tab-claims">
       <div className="space-y-6">
         {caveat ? (
           <Notice title="Recalled content is not canonical" variant="warning">
@@ -834,7 +815,7 @@ function CurationPanel({
     queue.error instanceof ContextplaneApiError && queue.error.code === "invalid_cursor";
 
   return (
-    <div id="memory-panel-curation" aria-labelledby="memory-tab-curation" role="tabpanel">
+    <div id="memory-panel-curation" aria-labelledby="memory-tab-curation">
       <div className="space-y-6">
         <Notice title="This queue separates observation from governance">
           Queue rows are unresolved or contested observations, not canonical records.
@@ -1295,14 +1276,10 @@ function MemoryBrowsePage({
     setState(next);
   }
 
-  function changeTab(tab: MemoryTab) {
-    updateState({ ...state, cursor: "", tab }, "push");
-  }
-
   return (
     <PageContainer>
       <MemoryHeader identity={identity} />
-      <MemoryTabs activeTab={state.tab} onChange={changeTab} />
+      <MemoryTabs activeTab={state.tab} state={state} />
       {state.tab === "curation" ? (
         <CurationPanel
           {...(apiTenantId ? { apiTenantId } : {})}

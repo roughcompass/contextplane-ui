@@ -109,6 +109,18 @@ export function memoryListHref(state: MemoryUrlState): string {
   return `${state.tab === "curation" ? "/memory/review" : "/memory"}${memorySearch(state)}`;
 }
 
+/**
+ * The address of one area, from where the reader is now.
+ *
+ * The cursor is dropped and the filters are not carried across: the two areas
+ * filter on different things, and a cursor issued for one list is not a
+ * position in the other. Switching areas starts at the top of the one you
+ * arrived at, which is what a reader means by switching.
+ */
+export function memoryTabHref(tab: MemoryTab, state: MemoryUrlState): string {
+  return memoryListHref({ ...state, cursor: "", tab });
+}
+
 export function memoryClaimHref(claimId: string, state: MemoryUrlState): string {
   return `/memory/claims/${encodeURIComponent(claimId)}${memorySearch(state)}`;
 }

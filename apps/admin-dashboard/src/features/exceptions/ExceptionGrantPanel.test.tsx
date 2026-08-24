@@ -156,13 +156,20 @@ describe("ExceptionGrantPanel", () => {
     ).toBeVisible();
   });
 
-  it("says the granted id will not be shown again", async () => {
+  it("does not tell the operator to write the identifier down", async () => {
+    /** Inverted rather than deleted, which is what keeps the claim from coming
+     * back. This asserted a limitation the product does not have: the register
+     * is on this page and the revoke form below chooses from it, so "record
+     * this now, it will not be shown again" sent an operator to a notebook for
+     * a value two controls away. */
     renderPanel(testClient());
     fillGrantForm();
     fireEvent.click(screen.getByRole("button", { name: /Grant this exception/u }));
 
-    expect(await screen.findByText("Record this identifier now")).toBeVisible();
+    expect(await screen.findByText("It is in the register")).toBeVisible();
     expect(screen.getByText(EXCEPTION_ID)).toBeVisible();
+    expect(screen.queryByText(/Record this identifier/u)).toBeNull();
+    expect(screen.queryByText(/only time it is shown/u)).toBeNull();
   });
 
   it("revokes through the item path, not the collection that grants", async () => {
