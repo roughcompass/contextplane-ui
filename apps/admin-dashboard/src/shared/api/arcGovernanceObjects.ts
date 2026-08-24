@@ -8,11 +8,11 @@ import {
 } from "./parse";
 
 /**
- * Reading back the five ARC governance objects a registration produces.
+ * Reading back the six ARC governance objects a registration produces.
  *
- * ## One shape, five collections, and why that is the service's decision
+ * ## One shape, six collections, and why that is the service's decision
  *
- * All five answer in the same envelope — `{ items: GovernanceObject[] }` — and
+ * All six answer in the same envelope — `{ items: GovernanceObject[] }` — and
  * that is not a coincidence this adapter is exploiting. The service says so
  * plainly: the six ARC governance objects *"agree on intent and disagree on
  * schema — three spellings of scope, three of tenant, and three notions of 'in
@@ -20,15 +20,15 @@ import {
  * tables behind it are deliberately not normalised, because normalising them
  * would mean inventing a state for an object that cannot be revoked.
  *
- * So there is one parser here and five thin callers, rather than five parsers
+ * So there is one parser here and six thin callers, rather than six parsers
  * that would each have to be corrected when the shape moves.
  *
  * ## What `detail` is, and what this adapter does not do with it
  *
  * `detail` is the kind-specific remainder — a connector's allowed hosts, a
  * corpus's generator version — and it is carried through **unvalidated**, as
- * `Record<string, unknown>`. Narrowing it here would mean five type guards over
- * five schemas the shared endpoint is explicitly not promising, and a guard that
+ * `Record<string, unknown>`. Narrowing it here would mean six type guards over
+ * six schemas the shared endpoint is explicitly not promising, and a guard that
  * refused an unfamiliar key would turn a service that added a field into a
  * dashboard that shows nothing. Whoever renders a `detail` field narrows the
  * one field they render, at the point they render it.
@@ -48,14 +48,14 @@ export interface ArcGovernanceObject {
   created_at: string;
   /**
    * The kind-specific remainder, carried through unvalidated. See the module
-   * note: narrowing it here would be five guards over five schemas the shared
+   * note: narrowing it here would be six guards over six schemas the shared
    * endpoint does not promise.
    */
   detail: Record<string, unknown>;
   in_force: boolean;
   /** When it stops being in force, if that is known. Revocation sets it. */
   in_force_until: string | null;
-  /** Which of the five collections this row is from, as the service names it. */
+  /** Which of the six collections this row is from, as the service names it. */
   kind: string;
   /** The identifier a form asks for. A digest for a corpus, a UUID elsewhere. */
   object_id: string;
@@ -73,10 +73,15 @@ export interface ArcGovernanceObjectQuery {
   revisionId?: string;
 }
 
-/** The five paths, named once so a caller cannot spell one of them differently. */
+/** The six paths, named once so a caller cannot spell one of them differently. */
 const PATHS = {
   approvalEvidence: "/v1/arc/admin/approval-evidence",
   approvalVerifiers: "/v1/arc/admin/approval-verifiers",
+  // The sixth, and the one whose absence the dashboard was still asserting in
+  // three files. `GET /v1/arc/admin/exceptions` is the register the service
+  // built and nothing called — its own description says an exception "was
+  // invisible from the moment it was granted" until it existed.
+  exceptions: "/v1/arc/admin/exceptions",
   replayCorpora: "/v1/arc/admin/observation-replay-corpora",
   sourceConnectors: "/v1/arc/admin/source-connectors",
   sourceUploadPolicies: "/v1/arc/admin/source-upload-policies",

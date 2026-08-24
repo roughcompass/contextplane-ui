@@ -174,18 +174,6 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
 
   return (
     <div className="space-y-6">
-      {/* The register this screen is supposed to have. It cannot be built: there
-          is no read path for an exception (E14-T1). Saying so is better than a
-          screen that looks complete and quietly is not — an operator who
-          believes they are looking at the full picture stops looking. */}
-      <Notice title="This screen cannot show what is already in force" variant="warning">
-        The service exposes no way to read exceptions back — only to grant and revoke them. So there
-        is no register here of what is standing, against what, or until when, and this page cannot
-        tell you whether the deviation you are about to grant already exists. Until that read path
-        is added, the audit log is the only record, and it reports grants and revocations as events
-        rather than saying what is in force now.
-      </Notice>
-
       <SectionSurface
         description="An exception is a governed statement that a directive does not apply here, for a reason, until a date."
         title="Grant an exception"

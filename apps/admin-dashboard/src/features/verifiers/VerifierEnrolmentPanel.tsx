@@ -461,15 +461,24 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
 
         {enrolled ? (
           <div className="border-t border-border-subtle px-6 py-4">
-            {/* Not a receipt an operator can go back and look up. Nothing lists
-                verifiers, so this render is the only place the id appears. */}
-            <Notice title="Record this identifier now" variant="warning">
+            {/* The urgency here was real and is not any more, which is the sort
+                of sentence that outlives its reason. It said no directory of
+                verifiers existed, so this render was the only place the id ever
+                appeared — true until E22-T5 built the table below from a read
+                that had been in the contract the whole time.
+
+                The fingerprint is the part that genuinely appears once: the
+                roster deliberately does not carry credential material, because
+                a list of who may approve does not need it and a surface that
+                held it would be one more place it can leak. */}
+            <Notice title="Enrolled" variant="success">
               <code className="text-xs">{enrolled.approval_verifier_id}</code> is enrolled for{" "}
               {enrolled.evidence_types.join(", ")} until {enrolled.valid_to}, with credential
               fingerprint <code className="text-xs">{enrolled.credential_fingerprint}</code>.
               <span className="mt-1 block">
-                There is no directory of enrolled verifiers. This screen cannot show it to you
-                again, and revoking it later needs this identifier.
+                The identifier is listed below and stays there, including after it is revoked. The
+                credential fingerprint is not: the roster does not carry credential material, so
+                this is the only place it appears.
               </span>
             </Notice>
           </div>
@@ -522,10 +531,14 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
               value={revokeNote}
             />
           </label>
+          {/* The third copy of the same false claim on this screen, and the one
+              that outlived its own field: E22-T5 made this a picker over the
+              roster, and the sentence explaining why it could not be one stayed
+              beside it. */}
           <p className="text-xs text-muted">
-            Pasted rather than chosen from a list because the service exposes no way to enumerate
-            enrolled verifiers. An identifier not written down at enrolment has to be recovered from
-            the audit log.
+            Chosen from the roster below, which lists every enrolled verifier including revoked
+            ones. Only verifiers still in force are offered here: revoking one already revoked is a
+            no-op the service refuses.
           </p>
           <Button
             disabled={
