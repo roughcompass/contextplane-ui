@@ -45,6 +45,64 @@ describe("AppShell", () => {
     );
   });
 
+  it("marks one destination current when two share a path prefix", () => {
+    /** Prefix matching is what makes `/catalog/abc` light up "Catalog", and it
+     * broke the moment two destinations sat in a parent/child relationship:
+     * `/memory/review` matched both "Needs review" and "Living memory", so two
+     * items claimed `aria-current="page"` in two different sections and a
+     * screen reader announced the reader as being in two places at once.
+     *
+     * The longest match wins, computed across sections rather than within one,
+     * because the pair that collided was split across two. */
+    render(
+      <AppShell
+        activeHref="/memory/review"
+        activeTenantId="tenant-a"
+        navigation={[
+          { id: "sources", items: [{ href: "/memory", label: "Living memory" }], label: "Sources" },
+          {
+            id: "judgement",
+            items: [{ href: "/memory/review", label: "Needs review" }],
+            label: "Judgement",
+          },
+        ]}
+        tenants={tenants}
+        user={{ initials: "TC", name: "Test Consumer" }}
+      >
+        <h1>Review</h1>
+      </AppShell>,
+    );
+
+    const primary = screen.getByRole("navigation", { name: "Primary" });
+    expect(
+      within(primary)
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("aria-current") === "page")
+        .map((link) => link.textContent),
+    ).toEqual(["Needs review"]);
+  });
+
+  it("still marks the list current from a detail address beneath it", () => {
+    /** The behaviour the prefix rule exists for, kept: a reader on one
+     * capability is still in the Catalog. */
+    render(
+      <AppShell
+        activeHref="/catalog/capability-a"
+        activeTenantId="tenant-a"
+        navigation={navigation}
+        tenants={tenants}
+        user={{ initials: "TC", name: "Test Consumer" }}
+      >
+        <h1>One capability</h1>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole("link", { name: "Capabilities" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   it("shows the active tenant and signed-in user", () => {
     renderShell();
 

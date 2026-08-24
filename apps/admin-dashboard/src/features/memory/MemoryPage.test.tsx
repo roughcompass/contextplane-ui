@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,7 +150,7 @@ describe("MemoryPage", () => {
     expect(screen.getAllByText(trustNote)).toHaveLength(1);
     expect(await screen.findByRole("link", { name: "trust-engineering" })).toBeVisible();
     expect(screen.getByText("2 citations")).toBeVisible();
-    expect(screen.getByRole("tab", { name: "Claims" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("link", { name: "Claims" })).toHaveAttribute("aria-current", "page");
 
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     fireEvent.change(screen.getByRole("searchbox", { name: "Search recalled claims" }), {
@@ -165,12 +165,22 @@ describe("MemoryPage", () => {
       ),
     );
 
-    fireEvent.keyDown(screen.getByRole("tab", { name: "Claims" }), { key: "ArrowRight" });
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Curation queue" })).toHaveFocus());
-    // The path carries the tab now: the queue is `/memory/review`, an address
-    // somebody can bookmark, rather than a query value they cannot land on.
+    // The queue is a *link* now, not a tab, because it is a second address in a
+    // second surface — and its href drops the claim search rather than carrying
+    // a filter the queue does not have.
+    expect(screen.getByRole("link", { name: "Curation queue" })).toHaveAttribute(
+      "href",
+      "/memory/review",
+    );
+
+    cleanup();
+    window.history.replaceState({}, "", "/memory/review");
+    renderPage(client);
     expect(window.location.pathname).toBe("/memory/review");
     expect(window.location.search).toBe("");
+    expect(
+      await screen.findByRole("link", { name: "Curation queue" }),
+    ).toHaveAttribute("aria-current", "page");
     expect(
       await screen.findByText("3 total items waiting · 1 contested · 2 unlinked"),
     ).toBeVisible();

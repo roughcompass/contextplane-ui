@@ -17,14 +17,20 @@ import {
  * function there answers "what is being approved". Different question, different
  * reader.
  *
- * ## What this adapter cannot do, and why the screen has to say so
+ * ## Where the directory is, and why it is not here
  *
- * **There is no list endpoint.** The contract has three verifier operations —
- * create a challenge, complete it, revoke one — and no way to enumerate what is
- * enrolled. So `revokeApprovalVerifier` takes an id the caller must already
- * hold, and the id is shown exactly once, by the call that mints it. A screen
- * that quietly assumed a directory would strand an operator at the one moment
- * they need this: revoking a verifier enrolled by somebody else, months ago.
+ * This module holds the three *write* steps — create a challenge, complete it,
+ * revoke one. Enumerating what is enrolled is `GET /v1/arc/admin/approval-
+ * verifiers`, read through `arcGovernanceObjects.ts` along with the five other
+ * ARC governance collections, because "list a governance collection" is one
+ * shape answered once rather than six adapters.
+ *
+ * **This docstring used to say the directory did not exist**, and
+ * `revokeApprovalVerifier`'s said the id it returns is shown exactly once. Both
+ * were written before the read was wired and both survived it. That mattered
+ * beyond tidiness: the case those sentences named — revoking a verifier
+ * somebody else enrolled months ago — is the one the register answers, and the
+ * copy sent an operator looking for a value they did not need.
  */
 
 /** Whose trust root this is. `tenant` requires a `target_tenant_id`; `global` forbids one. */
@@ -182,8 +188,9 @@ export async function createArcEnrollmentChallenge(
 /**
  * Step two: complete the challenge with proof of possession.
  *
- * The returned `approval_verifier_id` is the only time it is shown — nothing
- * lists verifiers afterwards.
+ * The returned `approval_verifier_id` is convenience rather than the only copy:
+ * the verifier joins the register the moment this succeeds, and `/verifiers`
+ * shows it there.
  */
 export async function enrolArcApprovalVerifier(
   client: ContextplaneClient,

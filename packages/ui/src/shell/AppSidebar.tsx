@@ -12,8 +12,34 @@ export interface AppSidebarProps extends HTMLAttributes<HTMLElement> {
   ref?: Ref<HTMLElement>;
 }
 
-function isItemActive(activeHref: string, itemHref: string) {
+function matches(activeHref: string, itemHref: string) {
   return activeHref === itemHref || (itemHref !== "/" && activeHref.startsWith(`${itemHref}/`));
+}
+
+/**
+ * The one item that is current, or none.
+ *
+ * Prefix matching is what makes a detail page mark its list — `/catalog/abc`
+ * lights up "Catalog", which is right. It stops being right the moment two
+ * destinations sit in a parent/child path relationship: `/memory/review` matched
+ * both "Needs review" and "Claims", so two items claimed `aria-current="page"`
+ * in two different sections and a screen reader announced the reader as being
+ * in two places.
+ *
+ * The longest match wins, which keeps the detail-page behaviour and makes the
+ * exact address beat the ancestor it happens to sit under. Computed across every
+ * section rather than within one, because the pair that collided was split
+ * across two.
+ */
+function currentHref(activeHref: string, navigation: readonly NavigationSection[]): string | null {
+  let best: string | null = null;
+  for (const section of navigation) {
+    for (const item of section.items) {
+      if (!matches(activeHref, item.href)) continue;
+      if (best === null || item.href.length > best.length) best = item.href;
+    }
+  }
+  return best;
 }
 
 export function AppSidebar({
@@ -26,6 +52,7 @@ export function AppSidebar({
   ...props
 }: AppSidebarProps) {
   const navigationId = useId();
+  const current = currentHref(activeHref, navigation);
 
   return (
     <aside
@@ -53,7 +80,7 @@ export function AppSidebar({
               ) : null}
               <ul className="space-y-1">
                 {section.items.map((item) => {
-                  const active = isItemActive(activeHref, item.href);
+                  const active = item.href === current;
                   const external = item.href.startsWith("http");
 
                   return (

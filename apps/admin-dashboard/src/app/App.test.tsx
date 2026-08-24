@@ -195,6 +195,34 @@ describe("App", () => {
     await waitFor(() => expect(within(main).getByText("Served")).toBeVisible());
   });
 
+  it("stands the curation queue in Judgement, not in Sources", async () => {
+    /** `/memory/review` and `/memory` are one page and two destinations, listed
+     * in two different surfaces. Both resolved to the `memory` route, whose
+     * surface is `Sources` — so the destination E22-T10 promoted into Judgement
+     * announced the wrong surface and marked `Claims` as the current nav item.
+     *
+     * That is precisely the failure the surface slot replaced 21 per-page
+     * eyebrow strings to prevent, surviving on the one destination that wave
+     * created (E23-T6). Asserted through the shell, because the defect was in
+     * how the shell resolved an address and no page test could see it. */
+    mockEmptyOverviewService();
+    window.history.replaceState({}, "", "/memory/review");
+    render(<App />);
+
+    const main = screen.getByRole("main");
+    await waitFor(() => expect(within(main).getByText("Judgement")).toBeVisible());
+    expect(within(main).queryByText("Sources")).toBeNull();
+
+    const navigation = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(navigation).getByRole("link", { name: "Needs review" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(navigation).getByRole("link", { name: "Claims" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
   it.each([
     ["/proposals", "/memory/promotions"],
     ["/proposals/proposal-a", "/memory/promotions/proposal-a"],

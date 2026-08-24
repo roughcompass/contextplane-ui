@@ -320,6 +320,7 @@ type AppRoute =
   | "context-lab"
   | "exceptions"
   | "memory"
+  | "memory-review"
   | "not-found"
   | "overview"
   | "ownership"
@@ -441,6 +442,25 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     href: "/memory",
     load: () => import("../features/memory"),
     surface: "Sources",
+    usesIdentity: true,
+  },
+  /**
+   * The same page as `memory`, and deliberately a second entry.
+   *
+   * `routeDefinitions` maps one route to one surface, and `/memory/review` is
+   * listed under **Judgement** while `/memory` is under **Sources**. Resolving
+   * both to `memory` made the promoted destination report the wrong surface and
+   * mark the wrong nav item current — the one failure the surface slot exists to
+   * prevent, on the one destination E22-T10 created (E23-T6).
+   *
+   * The component is identical; `memoryModel` reads the area from the address.
+   * What differs is where the reader is standing, which is what these two
+   * fields are for.
+   */
+  "memory-review": {
+    href: "/memory/review",
+    load: () => import("../features/memory"),
+    surface: "Judgement",
     usesIdentity: true,
   },
   "not-found": {
@@ -611,9 +631,12 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/memory/promotions" || pathname.startsWith("/memory/promotions/")) {
     return "proposals";
   }
-  // `/memory/review` is the curation queue as an address of its own. It resolves
-  // to the same route because it is the same page on a different tab; the tab is
-  // read from the address by `memoryModel`, not decided here.
+  // `/memory/review` is the curation queue as an address of its own, and its own
+  // route: the page is the same, the surface is not. Ordered before the general
+  // `/memory/` catch, which is the hazard this function's docstring already
+  // names and which reappears every time a second address moves under one
+  // parent.
+  if (pathname === "/memory/review") return "memory-review";
   if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memory";
   if (pathname === "/ownership") return "ownership";
   if (pathname === "/quarantine") return "quarantine";
@@ -1300,7 +1323,7 @@ function AppShellRoot() {
               activeTenantName={activeTenantName}
               client={apiClient}
             />
-          ) : route === "memory" ? (
+          ) : route === "memory" || route === "memory-review" ? (
             <MemoryPage
               {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
               activeTenantName={activeTenantName}

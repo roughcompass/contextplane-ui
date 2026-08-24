@@ -21,10 +21,14 @@ interface ExceptionsPageProps {
  * **This page used to say the register could not be built.** The service's own
  * read describes itself as *"the register an exception is supposed to have"*,
  * and says that until it existed an exception "was invisible from the moment it
- * was granted". It has existed; nothing called it. Three files here still
- * asserted its absence — the notice this replaces, its test, and the adapter's
- * docstring — which is the shape E22-T16 exists to sweep: copy describing a
- * limitation the product does not have.
+ * was granted". It has existed; nothing called it.
+ *
+ * E22-T16 named three files still asserting its absence and swept two: the
+ * adapter's docstring and one notice. The grant panel's *"Nothing lists
+ * exceptions, so this is the only time it is shown"* survived, under a
+ * paragraph here saying it had not — so the sweep's own record was the last
+ * false claim standing (E23-T6). It is corrected, and its test is inverted
+ * rather than deleted, which is what keeps the sentence from coming back.
  */
 export function ExceptionsPage({ activeTenantName, apiTenantId, client }: ExceptionsPageProps) {
   const requestContext: ContextplaneRequestOptions = apiTenantId ? { tenantId: apiTenantId } : {};

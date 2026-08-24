@@ -284,10 +284,10 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
 
         {granted ? (
           <div className="border-t border-border-subtle px-6 py-4">
-            <Notice title="Record this identifier now" variant="warning">
-              <code className="text-xs">{granted.exception_id}</code> is {granted.status}. Nothing
-              lists exceptions, so this is the only time it is shown, and revoking it later needs
-              this identifier.
+            <Notice title="It is in the register" variant="success">
+              <code className="text-xs">{granted.exception_id}</code> is {granted.status}. It is in
+              the register above, and the revoke form below chooses from that register — so there
+              is nothing here to write down.
             </Notice>
           </div>
         ) : null}
