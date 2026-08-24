@@ -181,6 +181,17 @@ describe("SourceGovernancePanel", () => {
     expect(screen.queryByRole("listitem")).toBeNull();
   });
 
+  it("says why the corpus digest is the one field still typed", async () => {
+    /** ADR 0018's exception class, annotated rather than left as an
+     * inconsistency a reader has to explain to themselves. Nine fields on this
+     * screen became pickers; this one is the act that first tells Contextplane
+     * the digest exists, so there is nothing yet to choose from. */
+    renderPanel(testClient());
+
+    expect(screen.getByText(/nothing yet to choose from/u)).toBeVisible();
+    expect(screen.getByLabelText("Corpus digest")).toHaveAttribute("id", "corpus-digest");
+  });
+
   it("says a regenerated corpus is a different corpus", () => {
     renderPanel(testClient());
 

@@ -104,6 +104,8 @@ export {
 } from "./arcGovernanceObjects";
 export {
   approveArcReplayCorpus,
+  revokeArcSourceGrant,
+  type ArcGrantKind,
   registerArcSourceConnector,
   registerArcSourceUploadPolicy,
   type ArcReplayCorpus,

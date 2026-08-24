@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { ToastProvider } from "@repo/ui/primitives";
 
 import { clientFromRequest } from "../api";
 import { GovernanceObjectTable } from "./GovernanceObjectTable";
@@ -18,20 +20,26 @@ const LIVE = {
 
 const REVOKED = { ...LIVE, in_force: false, object_id: "connector-b", scope: "tenant" };
 
-function renderTable(request: (path: string) => Promise<unknown>) {
+function renderTable(
+  request: (path: string, options?: { method?: string }) => Promise<unknown>,
+  { revocable }: { revocable?: "connector" | "upload-policy" } = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { gcTime: 0, retry: false, staleTime: 0 } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <GovernanceObjectTable
-        client={clientFromRequest(request)}
-        collection="sourceConnectors"
-        description="Every connector registered for this tenant."
-        identifierLabel="Connector"
-        requestContext={{}}
-        title="Registered source connectors"
-      />
+      <ToastProvider>
+        <GovernanceObjectTable
+          client={clientFromRequest(request)}
+          collection="sourceConnectors"
+          description="Every connector registered for this tenant."
+          identifierLabel="Connector"
+          requestContext={{}}
+          {...(revocable ? { revocable } : {})}
+          title="Registered source connectors"
+        />
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }
@@ -82,5 +90,110 @@ describe("GovernanceObjectTable", () => {
 
     await screen.findByText("connector-a");
     expect(request).toHaveBeenCalledWith("/v1/arc/admin/source-connectors", expect.anything());
+  });
+});
+
+describe("GovernanceObjectTable revocation", () => {
+  it("offers no revoke on a collection this screen does not own the ending of", async () => {
+    /** Approval evidence and verifiers are ended from their own screens, where
+     * the argument about what revoking means is already made. A button here
+     * would be the same act with the warning removed. */
+    renderTable(async () => ({ items: [LIVE] }));
+
+    await screen.findByText("connector-a");
+    expect(screen.queryByRole("button", { name: "Revoke" })).toBeNull();
+  });
+
+  it("offers revoke only on a registration still in force", async () => {
+    /** Revoking one already revoked is a no-op the service refuses, and offering
+     * it invites the attempt. */
+    renderTable(async () => ({ items: [LIVE, REVOKED] }), { revocable: "connector" });
+
+    await screen.findByText("connector-a");
+    expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(1);
+  });
+
+  it("says what revoking does and does not do before it happens", async () => {
+    /** A reader who thinks revoking undoes what a grant already permitted will
+     * revoke to undo something and find they have not. */
+    renderTable(async () => ({ items: [LIVE] }), { revocable: "connector" });
+
+    await screen.findByText("connector-a");
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+
+    expect(screen.getByText(/every future admission/u)).toBeVisible();
+    expect(screen.getByText(/does not unmake anything already admitted/u)).toBeVisible();
+  });
+
+  it("will not revoke without a reason", async () => {
+    renderTable(async () => ({ items: [LIVE] }), { revocable: "connector" });
+
+    await screen.findByText("connector-a");
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+
+    expect(screen.getByRole("button", { name: "Revoke this registration" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Why"), { target: { value: "credential rotated" } });
+    expect(screen.getByRole("button", { name: "Revoke this registration" })).toBeEnabled();
+  });
+
+  it("revokes through the item path, not the collection that registers", async () => {
+    /** E19-T7's defect: the collection path registers, so a revoke sent there
+     * would mint a second record instead of ending one. Asserting the body alone
+     * would pass while it happened. */
+    const request = vi.fn(async (path: string) => {
+      if (path.endsWith("/revoke")) return {};
+      return { items: [LIVE] };
+    });
+    renderTable(request, { revocable: "connector" });
+
+    await screen.findByText("connector-a");
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+    fireEvent.change(screen.getByLabelText("Why"), { target: { value: "credential rotated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Revoke this registration" }));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        "/v1/arc/admin/source-connectors/connector-a/revoke",
+        expect.objectContaining({ body: { reason: "credential rotated" }, method: "POST" }),
+      ),
+    );
+  });
+
+  it("sends an upload policy's revocation to the upload-policy path", async () => {
+    /** Two kinds, two paths, and the kind is what chooses. A connector's path
+     * would revoke nothing and report success on a policy that still stands. */
+    const request = vi.fn(async (path: string) => {
+      if (path.endsWith("/revoke")) return {};
+      return { items: [LIVE] };
+    });
+    renderTable(request, { revocable: "upload-policy" });
+
+    await screen.findByText("connector-a");
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+    fireEvent.change(screen.getByLabelText("Why"), { target: { value: "superseded" } });
+    fireEvent.click(screen.getByRole("button", { name: "Revoke this registration" }));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        "/v1/arc/admin/source-upload-policies/connector-a/revoke",
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("says the revocation failed rather than reporting it as done", async () => {
+    const request = vi.fn(async (path: string) => {
+      if (path.endsWith("/revoke")) throw new Error("the grant is already revoked");
+      return { items: [LIVE] };
+    });
+    renderTable(request, { revocable: "connector" });
+
+    await screen.findByText("connector-a");
+    fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
+    fireEvent.change(screen.getByLabelText("Why"), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Revoke this registration" }));
+
+    expect(await screen.findByText("Could not revoke")).toBeVisible();
+    expect(screen.getByText("the grant is already revoked")).toBeVisible();
   });
 });

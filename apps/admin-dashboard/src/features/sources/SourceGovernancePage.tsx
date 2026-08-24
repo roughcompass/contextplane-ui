@@ -50,6 +50,7 @@ export function SourceGovernancePage({
         description="Every connector registered for this tenant, including ones that have been revoked — a fetch that used to work and now refuses is usually explained by a row here, not by its absence."
         identifierLabel="Connector"
         requestContext={requestContext}
+        revocable="connector"
         title="Registered source connectors"
       />
       <GovernanceObjectTable
@@ -58,6 +59,7 @@ export function SourceGovernancePage({
         description="Every upload policy, on the same terms."
         identifierLabel="Policy"
         requestContext={requestContext}
+        revocable="upload-policy"
         title="Registered upload policies"
       />
       <GovernanceObjectTable

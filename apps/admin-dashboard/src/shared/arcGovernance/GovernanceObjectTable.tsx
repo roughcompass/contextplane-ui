@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { EmptyState, TableSection } from "@repo/ui/layouts";
-import { RequestFailure, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
   listArcGovernanceObjects,
+  revokeArcSourceGrant,
+  type ArcGrantKind,
   type ArcGovernanceCollection,
   type ArcGovernanceObject,
   type ContextplaneClient,
@@ -17,6 +20,16 @@ export interface GovernanceObjectTableProps {
   description: string;
   /** What the identifier column is called on this collection. */
   identifierLabel: string;
+  /**
+   * Which kind of grant a row here is, when it can be revoked.
+   *
+   * Absent for the collections whose revoke path this screen does not own —
+   * approval evidence and verifiers are ended from their own screens, where the
+   * argument about what revoking means is already made. A revoke button on a
+   * table that did not carry that argument would be the same act with the
+   * warning removed.
+   */
+  revocable?: ArcGrantKind;
   requestContext: ContextplaneRequestOptions;
   title: string;
 }
@@ -58,8 +71,38 @@ export function GovernanceObjectTable({
   description,
   identifierLabel,
   requestContext,
+  revocable,
   title,
 }: GovernanceObjectTableProps) {
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [revoking, setRevoking] = useState<ArcGovernanceObject | null>(null);
+  const [reason, setReason] = useState("");
+
+  const revoke = useMutation({
+    mutationFn: async () => {
+      if (!revocable || !revoking) return;
+      await revokeArcSourceGrant(client, revocable, revoking.object_id, reason.trim(), requestContext);
+    },
+    onError: (error: unknown) => {
+      showToast({
+        message: error instanceof Error ? error.message : "The request did not complete.",
+        title: "Could not revoke",
+        variant: "danger",
+      });
+    },
+    onSuccess: () => {
+      showToast({
+        message:
+          "It no longer governs future admissions. What it governed while it stood is unchanged.",
+        title: "Revoked",
+      });
+      setRevoking(null);
+      setReason("");
+      void queryClient.invalidateQueries({ queryKey: ["arc-governance"] });
+    },
+  });
+
   const query = useQuery({
     queryFn: () => listArcGovernanceObjects(client, collection, {}, requestContext),
     // The tenant is part of the identity because the same collection under two
@@ -116,6 +159,11 @@ export function GovernanceObjectTable({
                 <th className="px-6 py-3 font-medium" scope="col">
                   Registered
                 </th>
+                {revocable ? (
+                  <th className="px-6 py-3 font-medium" scope="col">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -134,12 +182,67 @@ export function GovernanceObjectTable({
                     </StatusBadge>
                   </td>
                   <td className="px-6 py-3 text-muted">{row.created_at}</td>
+                  {revocable ? (
+                    <td className="px-6 py-3 text-right">
+                      {row.in_force ? (
+                        <Button
+                          onClick={() => {
+                            setRevoking(row);
+                            setReason("");
+                          }}
+                          size="compact"
+                          variant="ghost"
+                        >
+                          Revoke
+                        </Button>
+                      ) : null}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {revoking ? (
+        <div className="border-t border-border-subtle px-6 py-4">
+          {/* The argument, at the moment of the act rather than in a doc.
+              Revoking ends future authority; it does not unmake what this grant
+              already governed, and a reader who thinks it does will revoke to
+              undo something and find they have not. */}
+          <Notice title={`Revoke ${revoking.object_id}?`} variant="warning">
+            This ends what <strong>every future admission</strong> through it would have inherited.
+            It does not unmake anything already admitted under it, and the registration stays
+            visible here so the reason a past admission was permitted is still readable.
+          </Notice>
+          <label className="mt-3 block text-xs font-medium text-muted" htmlFor="revoke-reason">
+            Why
+            <input
+              className="mt-1.5 min-h-11 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle focus:border-accent focus:outline-2 focus:outline-offset-2 focus:outline-accent"
+              id="revoke-reason"
+              onChange={(event) => setReason(event.target.value)}
+              value={reason}
+            />
+          </label>
+          <p className="mt-1.5 text-xs text-muted">
+            Required. A revocation with no reason leaves the next reader to work out why authority
+            was withdrawn, from a row that no longer does anything.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              disabled={reason.trim() === "" || revoke.isPending}
+              onClick={() => revoke.mutate()}
+              variant="danger"
+            >
+              Revoke this registration
+            </Button>
+            <Button onClick={() => setRevoking(null)} variant="ghost">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </TableSection>
   );
 }
