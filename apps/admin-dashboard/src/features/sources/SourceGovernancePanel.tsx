@@ -12,6 +12,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { VerifierAuthorityPicker } from "../../shared/arcGovernance/VerifierAuthorityPicker";
 
 interface SourceGovernancePanelProps {
   client: ContextplaneClient;
@@ -62,13 +63,15 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
   const [schemes, setSchemes] = useState("");
   const [hosts, setHosts] = useState("");
   const [connectorMedia, setConnectorMedia] = useState("");
-  const [connectorVerifiers, setConnectorVerifiers] = useState("");
+  // Arrays rather than raw text: the picker returns identifiers it read back
+  // from the service, so there is nothing left for `toList` to salvage.
+  const [connectorVerifiers, setConnectorVerifiers] = useState<readonly string[]>([]);
   const [connectorMaxBytes, setConnectorMaxBytes] = useState("");
 
   const [policyScope, setPolicyScope] = useState<ArcOwningScope | "">("");
   const [policyId, setPolicyId] = useState("");
   const [policyMedia, setPolicyMedia] = useState("");
-  const [policyVerifiers, setPolicyVerifiers] = useState("");
+  const [policyVerifiers, setPolicyVerifiers] = useState<readonly string[]>([]);
   const [policyMaxBytes, setPolicyMaxBytes] = useState("");
 
   const [corpusScope, setCorpusScope] = useState<ArcOwningScope | "">("");
@@ -83,7 +86,7 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
           allowed_hosts: toList(hosts),
           allowed_media_types: toList(connectorMedia),
           allowed_schemes: toList(schemes),
-          allowed_verifier_ids: toList(connectorVerifiers),
+          allowed_verifier_ids: connectorVerifiers,
           connector_id: connectorId.trim(),
           max_bytes: Number(connectorMaxBytes),
           owning_scope: connectorScope as ArcOwningScope,
@@ -100,7 +103,7 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
         client,
         {
           allowed_media_types: toList(policyMedia),
-          allowed_verifier_ids: toList(policyVerifiers),
+          allowed_verifier_ids: policyVerifiers,
           max_bytes: Number(policyMaxBytes),
           owning_scope: policyScope as ArcOwningScope,
           policy_id: policyId.trim(),
@@ -131,7 +134,7 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
     toList(schemes).length > 0 &&
     toList(hosts).length > 0 &&
     toList(connectorMedia).length > 0 &&
-    toList(connectorVerifiers).length > 0 &&
+    connectorVerifiers.length > 0 &&
     Number.isInteger(Number(connectorMaxBytes)) &&
     Number(connectorMaxBytes) > 0;
 
@@ -139,7 +142,7 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
     policyScope !== "" &&
     policyId.trim() !== "" &&
     toList(policyMedia).length > 0 &&
-    toList(policyVerifiers).length > 0 &&
+    policyVerifiers.length > 0 &&
     Number.isInteger(Number(policyMaxBytes)) &&
     Number(policyMaxBytes) > 0;
 
@@ -159,14 +162,20 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
           authoring flow: none of these three governs one change. Each is a
           standing grant that every later admission inherits, and nothing about
           the act of registering one looks like it changes what governance
-          concludes. */}
+          concludes.
+
+          The last sentence used to read "None of them can be read back
+          afterwards, so what is registered here is not visible anywhere else."
+          The tables below this form are that sentence being false, and it was
+          false before they existed — the five list endpoints were in the
+          committed contract the whole time. Deleting the whole notice would have
+          dropped a real warning with it, which is why only the false half went. */}
       <Notice title="These are standing grants, not one-off settings" variant="warning">
         Nothing registered here applies to a single change. A connector or upload policy sets the
         limits that <strong>every future admission through it</strong> inherits — including, in the
         verifier list, who is allowed to approve that material. A replay corpus decides what
         &ldquo;the change behaved correctly&rdquo; is measured against for every qualification that
-        cites it. None of them can be read back afterwards, so what is registered here is not
-        visible anywhere else.
+        cites it.
       </Notice>
 
       <SectionSurface
@@ -229,23 +238,20 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
               />
             </label>
           </div>
-          <label className="block text-xs font-medium text-muted" htmlFor="connector-verifiers">
-            Allowed approval verifiers
-            <input
-              className={fieldClassName}
-              id="connector-verifiers"
-              onChange={(event) => setConnectorVerifiers(event.target.value)}
-              value={connectorVerifiers}
-            />
-          </label>
           {/* Named rather than left as one field among six: it is the only one
               here that widens who may approve, and it is the one whose effect is
-              least visible from its own name. */}
-          <p className="text-xs text-muted">
-            This list decides <strong>who may approve material this connector fetches</strong>. It
-            is the widest thing on this form: adding a verifier here grants approval authority over
-            every future fetch, not just the next one.
-          </p>
+              least visible from its own name. The picker adds the fact the
+              warning could only assert — how much authority each candidate
+              already holds — which is the argument E22-T5 said gets stronger
+              rather than weaker once verifiers are readable. */}
+          <VerifierAuthorityPicker
+            client={client}
+            hint="This list decides who may approve material this connector fetches. It is the widest thing on this form: adding a verifier here grants approval authority over every future fetch, not just the next one."
+            label="Allowed approval verifiers"
+            onChange={setConnectorVerifiers}
+            tenantId={requestContext.tenantId}
+            value={connectorVerifiers}
+          />
           <Button disabled={!connectorReady || connectorMutation.isPending} type="submit">
             Register this connector
           </Button>
@@ -291,15 +297,14 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
               />
             </label>
           </div>
-          <label className="block text-xs font-medium text-muted" htmlFor="policy-verifiers">
-            Approval verifiers for uploads
-            <input
-              className={fieldClassName}
-              id="policy-verifiers"
-              onChange={(event) => setPolicyVerifiers(event.target.value)}
-              value={policyVerifiers}
-            />
-          </label>
+          <VerifierAuthorityPicker
+            client={client}
+            hint="The same grant on the upload path: a verifier here may approve everything pushed in through this policy, for as long as the policy stands."
+            label="Approval verifiers for uploads"
+            onChange={setPolicyVerifiers}
+            tenantId={requestContext.tenantId}
+            value={policyVerifiers}
+          />
           <Button disabled={!policyReady || policyMutation.isPending} type="submit">
             Register this upload policy
           </Button>

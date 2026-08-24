@@ -41,12 +41,29 @@ const verifier = {
   valid_to: "2027-08-22T09:00:00Z",
 };
 
+/** What the roster read answers with, for the revoke picker to offer. */
+const ENROLLED = {
+  created_at: "2026-08-22T09:00:00Z",
+  detail: {},
+  in_force: true,
+  in_force_until: null,
+  kind: "approval_verifier",
+  object_id: VERIFIER_ID,
+  scope: "tenant",
+  target_tenant_id: null,
+};
+
 function testClient(identityOverrides: Record<string, unknown> = {}) {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
-    void options;
     if (path === "/v1/arc/admin/operator-identity") return { ...identity, ...identityOverrides };
     if (path.endsWith("/enrollment-challenges")) return challenge;
-    if (path === "/v1/arc/admin/approval-verifiers") return verifier;
+    // The same path serves two operations, and the method is what tells them
+    // apart: the collection enrols on POST and lists on GET. A fake that keyed
+    // on the path alone would answer the roster read with an enrolment
+    // response, which is the divergence that made this test fail honestly.
+    if (path.startsWith("/v1/arc/admin/approval-verifiers?") || path === "/v1/arc/admin/approval-verifiers") {
+      return options?.method === "POST" ? verifier : { items: [ENROLLED] };
+    }
     if (path.endsWith("/revoke")) return { ...verifier, revoked_at: "2026-08-22T11:00:00Z" };
     throw new Error(`Unexpected path: ${path}`);
   });
@@ -182,9 +199,10 @@ describe("VerifierEnrolmentPanel", () => {
      * body alone would pass while it happened. */
     const client = testClient();
     renderPanel(client);
-    fireEvent.change(screen.getByLabelText("Approval verifier id"), {
-      target: { value: VERIFIER_ID },
-    });
+    // Chosen from the roster rather than typed. ADR 0018, and it matters most
+    // here: revoking the wrong verifier ends the wrong person's authority.
+    fireEvent.click(screen.getByRole("button", { name: "Approval verifier" }));
+    fireEvent.click(await screen.findByRole("option", { name: new RegExp(VERIFIER_ID, "u") }));
     fireEvent.change(screen.getByLabelText("Reason code"), { target: { value: "key_rotated" } });
     fireEvent.click(screen.getByRole("button", { name: "Revoke this verifier" }));
 
@@ -193,6 +211,34 @@ describe("VerifierEnrolmentPanel", () => {
         `/v1/arc/admin/approval-verifiers/${VERIFIER_ID}/revoke`,
         expect.objectContaining({ body: { reason_code: "key_rotated" }, method: "POST" }),
       ),
+    );
+  });
+
+  it("offers enrolled verifiers by name rather than asking for a UUID", async () => {
+    /** ADR 0018: a reader cannot type a value they have no way to obtain. This
+     * field asked for one, and the roster read that would have supplied it was
+     * in the committed contract the whole time. */
+    renderPanel(testClient());
+
+    fireEvent.click(screen.getByRole("button", { name: "Approval verifier" }));
+
+    expect(await screen.findByRole("option", { name: new RegExp(VERIFIER_ID, "u") })).toBeVisible();
+    expect(screen.queryByLabelText("Approval verifier id")).toBeNull();
+  });
+
+  it("offers only verifiers still in force", async () => {
+    /** Revoking one already revoked is a no-op the service refuses, and
+     * offering it invites the attempt. The picker asks for the live set; the
+     * table below the form is where a revoked one is still visible. */
+    const client = testClient();
+    renderPanel(client);
+
+    fireEvent.click(screen.getByRole("button", { name: "Approval verifier" }));
+    await screen.findByRole("option", { name: new RegExp(VERIFIER_ID, "u") });
+
+    expect(client.request).toHaveBeenCalledWith(
+      "/v1/arc/admin/approval-verifiers?in_force_only=true",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 

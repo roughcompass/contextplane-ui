@@ -1,6 +1,7 @@
 import { PageContainer, PageHeader } from "@repo/ui/layouts";
 
 import type { ContextplaneClient, ContextplaneRequestOptions } from "../../shared/api";
+import { GovernanceObjectTable } from "../../shared/arcGovernance/GovernanceObjectTable";
 import { VerifierEnrolmentPanel } from "./VerifierEnrolmentPanel";
 
 interface VerifiersPageProps {
@@ -29,6 +30,25 @@ export function VerifiersPage({ activeTenantName, apiTenantId, client }: Verifie
         title="Approval verifiers"
       />
       <VerifierEnrolmentPanel client={client} requestContext={requestContext} />
+      {/* Revoked verifiers stay in the table. "Who could approve this change at
+          the time" is a question about a past state, and a list showing only
+          current authority cannot answer it. */}
+      <GovernanceObjectTable
+        client={client}
+        collection="approvalVerifiers"
+        description="Every enrolled verifier, including revoked ones. Revoking ends future authority; it does not unmake an approval already given, and the row is what says who gave it."
+        identifierLabel="Verifier"
+        requestContext={requestContext}
+        title="Enrolled approval verifiers"
+      />
+      <GovernanceObjectTable
+        client={client}
+        collection="approvalEvidence"
+        description="Every piece of approval evidence filed against a revision. Evidence that is no longer in force was revoked after the fact — the approval it recorded still happened."
+        identifierLabel="Evidence"
+        requestContext={requestContext}
+        title="Approval evidence"
+      />
     </PageContainer>
   );
 }

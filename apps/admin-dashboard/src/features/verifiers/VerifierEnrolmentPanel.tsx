@@ -1,9 +1,16 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { KeyRound, RefreshCw } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  ResourcePicker,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   createArcEnrollmentChallenge,
@@ -18,6 +25,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { governancePickerSource } from "../../shared/arcGovernance/governancePickerSource";
 
 interface VerifierEnrolmentPanelProps {
   client: ContextplaneClient;
@@ -107,6 +115,17 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
   const [revokeId, setRevokeId] = useState("");
   const [revokeCode, setRevokeCode] = useState("");
   const [revokeNote, setRevokeNote] = useState("");
+
+  // Memoized on the client and the tenant, and the context is rebuilt inside
+  // rather than closed over: the page constructs `requestContext` fresh on every
+  // render, so depending on the object would rebuild the source every render —
+  // throwing away the collection it holds, re-requesting on every keystroke, and
+  // changing the identity of the `load` the picker's effect depends on.
+  const tenantId = requestContext.tenantId;
+  const verifierSource = useMemo(
+    () => governancePickerSource(client, "approvalVerifiers", tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
 
   const identity = useQuery({
     queryFn: () => getArcOperatorIdentity(client, requestContext),
@@ -469,15 +488,21 @@ export function VerifierEnrolmentPanel({ client, requestContext }: VerifierEnrol
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor="revoke-verifier-id">
-              Approval verifier id
-              <input
-                className={fieldClassName}
-                id="revoke-verifier-id"
-                onChange={(event) => setRevokeId(event.target.value)}
-                value={revokeId}
-              />
-            </label>
+            {/* ADR 0018: a field whose value is a server-assigned identifier is
+                chosen from a list, never typed. It matters most here — an
+                operator revoking the wrong verifier ends the wrong person's
+                approval authority, and a UUID typed from memory is exactly how
+                that happens. Only verifiers in force are offered: revoking one
+                already revoked is a no-op the service would refuse, and
+                offering it invites the attempt. */}
+            <ResourcePicker
+              label="Approval verifier"
+              load={verifierSource.load}
+              onValueChange={setRevokeId}
+              resolve={verifierSource.resolve}
+              searchPlaceholder="Search enrolled verifiers"
+              value={revokeId}
+            />
             <label className="text-xs font-medium text-muted" htmlFor="revoke-reason-code">
               Reason code
               <input
