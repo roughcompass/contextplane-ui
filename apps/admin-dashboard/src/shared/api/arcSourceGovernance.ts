@@ -170,3 +170,46 @@ export async function approveArcReplayCorpus(
     owning_scope: requiredString(item, "owning_scope", "Replay corpus owning_scope") as ArcOwningScope,
   };
 }
+
+/**
+ * End a connector's or an upload policy's standing grant.
+ *
+ * ## Both paths, one function, and the item path is the whole point
+ *
+ * The collection path *registers*; the item path revokes. E19-T7's defect is a
+ * body sent to the collection when the item was meant — which mints a second
+ * record instead of ending one, and a test asserting the body and the method but
+ * not the path passes while it happens. The path is built here from a kind the
+ * caller names, so a call site cannot assemble the wrong one.
+ *
+ * ## Revoking is not deleting, and the difference is what the tables show
+ *
+ * The registration stays and reports `in_force: false`. What it governed while
+ * it stood is not unmade by ending it, and a reader asking why a fetch that used
+ * to work now refuses is looking for exactly this row.
+ *
+ * ## The reason is required by the contract, and it is required for a reader
+ *
+ * A revocation with no reason leaves the next person to re-derive why authority
+ * was withdrawn, from a row that no longer does anything.
+ */
+export type ArcGrantKind = "connector" | "upload-policy";
+
+const REVOKE_PATHS: Readonly<Record<ArcGrantKind, string>> = {
+  connector: "/v1/arc/admin/source-connectors",
+  "upload-policy": "/v1/arc/admin/source-upload-policies",
+};
+
+export async function revokeArcSourceGrant(
+  client: ContextplaneClient,
+  kind: ArcGrantKind,
+  objectId: string,
+  reason: string,
+  context: ContextplaneRequestOptions = {},
+): Promise<void> {
+  await client.request(`${REVOKE_PATHS[kind]}/${encodeURIComponent(objectId)}/revoke`, {
+    ...context,
+    body: { reason },
+    method: "POST",
+  });
+}

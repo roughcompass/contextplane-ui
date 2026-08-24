@@ -11,12 +11,22 @@ import {
   revokeArcRevision,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
+  type ArcRevision,
 } from "../../shared/api";
 import { governancePickerSource } from "../../shared/arcGovernance/governancePickerSource";
 
 interface RevisionLifecyclePanelProps {
   client: ContextplaneClient;
   requestContext: ContextplaneRequestOptions;
+  /**
+   * The revision the reader opened from the index, if any.
+   *
+   * Both forms below act on a revision, and until E22-T8's read existed the only
+   * way to name one was to type a UUID. A revision chosen from the list arrives
+   * here and fills both — which is what turns two forms into two actions on a
+   * record.
+   */
+  selected?: ArcRevision | null;
 }
 
 const fieldClassName =
@@ -46,7 +56,11 @@ const ENDINGS: Readonly<Record<Ending, { blurb: string; confirm: string; title: 
   },
 };
 
-export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifecyclePanelProps) {
+export function RevisionLifecyclePanel({
+  client,
+  requestContext,
+  selected = null,
+}: RevisionLifecyclePanelProps) {
   const { showToast } = useToast();
   const [attachRevision, setAttachRevision] = useState("");
   const [attachEvidence, setAttachEvidence] = useState("");
@@ -55,6 +69,13 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
   const [endingRevision, setEndingRevision] = useState("");
   const [endingReason, setEndingReason] = useState("");
   const [ending, setEnding] = useState<Ending | null>(null);
+
+  // Both forms follow the revision the reader opened. Derived during render
+  // rather than pushed into state by an effect: which revision a form is about
+  // is a function of what is open, and an effect would let the two disagree for
+  // a frame — on a screen whose two actions are both irreversible.
+  const attachRevisionValue = selected?.revision_id ?? attachRevision;
+  const endingRevisionValue = selected?.revision_id ?? endingRevision;
 
   // See the note on the same memo in `VerifierEnrolmentPanel`: the context is
   // rebuilt inside rather than closed over, because the page constructs a fresh
@@ -70,7 +91,7 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
     mutationFn: () =>
       attachArcApprovalEvidence(
         client,
-        attachRevision.trim(),
+        attachRevisionValue.trim(),
         attachEvidence.trim(),
         requestContext,
       ),
@@ -101,8 +122,8 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
   const endingMutation = useMutation({
     mutationFn: (chosen: Ending) =>
       chosen === "revoke"
-        ? revokeArcRevision(client, endingRevision.trim(), endingReason.trim(), requestContext)
-        : invalidateArcRevision(client, endingRevision.trim(), endingReason.trim(), requestContext),
+        ? revokeArcRevision(client, endingRevisionValue.trim(), endingReason.trim(), requestContext)
+        : invalidateArcRevision(client, endingRevisionValue.trim(), endingReason.trim(), requestContext),
     onSuccess: (_result, chosen) => {
       showToast({
         title: chosen === "revoke" ? "Revision revoked" : "Revision invalidated",
@@ -114,11 +135,11 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
     },
   });
 
-  const endingReady = endingRevision.trim() !== "" && endingReason.trim() !== "";
+  const endingReady = endingRevisionValue.trim() !== "" && endingReason.trim() !== "";
 
   function submitAttach(event: FormEvent) {
     event.preventDefault();
-    if (attachRevision.trim() !== "" && attachEvidence.trim() !== "") attachMutation.mutate();
+    if (attachRevisionValue.trim() !== "" && attachEvidence.trim() !== "") attachMutation.mutate();
   }
 
   return (
@@ -129,15 +150,19 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
       >
         <form className="space-y-3 px-6 py-4" onSubmit={submitAttach}>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor="attach-revision">
-              Revision
-              <input
-                className={fieldClassName}
-                id="attach-revision"
-                onChange={(event) => setAttachRevision(event.target.value)}
-                value={attachRevision}
-              />
-            </label>
+            {/* The revision this acts on, shown rather than asked for. ADR 0018
+                says a server-assigned identifier is chosen and never typed, and
+                this panel renders only once one has been chosen — so a text box
+                here would be a second way to name a choice already made, and the
+                one way somebody could name a different revision than the one
+                they are looking at. */}
+            <div>
+              <span className="block text-xs font-medium text-muted">Revision</span>
+              <p className="mt-1.5 text-sm text-foreground" data-testid="attach-revision">
+                <span className="font-medium">{selected?.artifact_slug ?? selected?.artifact_id}</span>
+                <span className="block font-mono text-xs text-muted">{attachRevisionValue}</span>
+              </p>
+            </div>
             <label className="text-xs font-medium text-muted" htmlFor="attach-evidence">
               Evidence
               <input
@@ -150,7 +175,7 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
           </div>
           <Button
             disabled={
-              attachRevision.trim() === "" ||
+              attachRevisionValue.trim() === "" ||
               attachEvidence.trim() === "" ||
               attachMutation.isPending
             }
@@ -229,15 +254,19 @@ export function RevisionLifecyclePanel({ client, requestContext }: RevisionLifec
           </Notice>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor="ending-revision">
-              Revision
-              <input
-                className={fieldClassName}
-                id="ending-revision"
-                onChange={(event) => setEndingRevision(event.target.value)}
-                value={endingRevision}
-              />
-            </label>
+            {/* The revision this acts on, shown rather than asked for. ADR 0018
+                says a server-assigned identifier is chosen and never typed, and
+                this panel renders only once one has been chosen — so a text box
+                here would be a second way to name a choice already made, and the
+                one way somebody could name a different revision than the one
+                they are looking at. */}
+            <div>
+              <span className="block text-xs font-medium text-muted">Revision</span>
+              <p className="mt-1.5 text-sm text-foreground" data-testid="ending-revision">
+                <span className="font-medium">{selected?.artifact_slug ?? selected?.artifact_id}</span>
+                <span className="block font-mono text-xs text-muted">{endingRevisionValue}</span>
+              </p>
+            </div>
             <label className="text-xs font-medium text-muted" htmlFor="ending-reason">
               Reason
               <input

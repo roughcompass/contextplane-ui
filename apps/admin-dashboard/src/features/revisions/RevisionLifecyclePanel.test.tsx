@@ -45,21 +45,44 @@ function testClient() {
   return clientFromRequest(request);
 }
 
+/** The revision the reader opened from the index, which is the only way in. */
+const SELECTED = {
+  activated_at: null,
+  approval_evidence_id: null,
+  artifact_id: "a-1",
+  artifact_kind: "policy",
+  artifact_slug: "deprecation-review",
+  content_digest: "sha256:aaa",
+  created_at: "2026-08-19T09:00:00Z",
+  effective_from: null,
+  effective_until: null,
+  has_approval_evidence: false,
+  is_draft: false,
+  is_terminal: false,
+  lifecycle_state: "active",
+  resolutions_under_revision: 42,
+  review_expired: false,
+  review_expires_at: null,
+  revision_id: REVISION_ID,
+  revoked_at: null,
+  source_revision_locator: null,
+  source_system: null,
+};
+
 function renderPanel(client: ContextplaneClient) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RevisionLifecyclePanel client={client} requestContext={{}} />
+        {/* Always with a selection: the page renders this panel only once a
+            revision is open, and both acts are about that revision. */}
+        <RevisionLifecyclePanel client={client} requestContext={{}} selected={SELECTED} />
       </ToastProvider>
     </QueryClientProvider>,
   );
 }
 
 function fillEnding() {
-  fireEvent.change(screen.getByLabelText("Revision", { selector: "#ending-revision" }), {
-    target: { value: REVISION_ID },
-  });
   fireEvent.change(screen.getByLabelText("Reason", { selector: "#ending-reason" }), {
     target: { value: "Superseded by revision 12." },
   });
@@ -157,9 +180,6 @@ describe("RevisionLifecyclePanel", () => {
   it("attaches evidence to the revision path", async () => {
     const client = testClient();
     renderPanel(client);
-    fireEvent.change(screen.getByLabelText("Revision", { selector: "#attach-revision" }), {
-      target: { value: REVISION_ID },
-    });
     fireEvent.change(screen.getByLabelText("Evidence", { selector: "#attach-evidence" }), {
       target: { value: EVIDENCE_ID },
     });

@@ -96,6 +96,18 @@ export {
   type ArcRevisionAction,
 } from "./arcRevisionLifecycle";
 export {
+  listPrincipals,
+  type Principal,
+  type PrincipalPage,
+  type PrincipalQuery,
+} from "./actors";
+export {
+  listArcRevisions,
+  type ArcRevision,
+  type ArcRevisionPage,
+  type ArcRevisionQuery,
+} from "./arcRevisions";
+export {
   listArcGovernanceObjects,
   listArcGovernanceOptions,
   type ArcGovernanceCollection,
@@ -104,6 +116,8 @@ export {
 } from "./arcGovernanceObjects";
 export {
   approveArcReplayCorpus,
+  revokeArcSourceGrant,
+  type ArcGrantKind,
   registerArcSourceConnector,
   registerArcSourceUploadPolicy,
   type ArcReplayCorpus,

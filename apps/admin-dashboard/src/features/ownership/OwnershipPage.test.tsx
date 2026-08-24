@@ -39,6 +39,40 @@ function testClient() {
       return { items: [ownership] };
     }
     if (path.startsWith("/v1/ownership/assignments")) return ownership;
+    // The two rosters the pickers read. `/v1/admin/actors` is E22-T7's; the
+    // capability list is the catalog's own.
+    if (path.startsWith("/v1/admin/actors")) {
+      return {
+        items: [
+          {
+            actor_id: "actor-a",
+            actor_kind: "human",
+            created_at: "2026-08-01T00:00:00Z",
+            declared_at: "2026-08-01T00:00:00Z",
+            declared_by: "actor-a",
+            display_name: "Ada Okonjo",
+            is_declared: true,
+            oidc_subject: "ada",
+            owner_principal: null,
+          },
+        ],
+        next_cursor: null,
+      };
+    }
+    if (path.startsWith("/v1/capabilities")) {
+      return {
+        items: [
+          {
+            created_at: "2026-08-01T00:00:00Z",
+            entity_id: "target-a",
+            entity_type: "capability",
+            external_id: null,
+            name: "Checkout service",
+          },
+        ],
+        next_cursor: null,
+      };
+    }
     if (path.startsWith("/v1/profiles/")) return { state: "accepted" };
     throw new Error(`Unexpected path: ${path}`);
   });
@@ -90,18 +124,18 @@ describe("OwnershipPage", () => {
     fireEvent.change(within(searchSection).getByLabelText("Target kind"), {
       target: { value: "capability" },
     });
-    fireEvent.change(within(searchSection).getByLabelText("Target UUID"), {
-      target: { value: "target-a" },
-    });
+    // Chosen from the catalog rather than typed: ADR 0018, and a reader who
+    // does not already hold the UUID has no way to produce one.
+    fireEvent.click(within(searchSection).getByRole("button", { name: "Target" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Checkout service/u }));
     fireEvent.click(within(searchSection).getByRole("button", { name: "Search ownership" }));
     expect(await screen.findByRole("button", { name: "Manage state" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Manage state" }));
     expect(screen.getAllByText(/assignment-a/u).length).toBeGreaterThan(0);
 
     fireEvent.click(within(searchSection).getByLabelText("Targets owned by principal"));
-    fireEvent.change(within(searchSection).getByLabelText("Owner principal"), {
-      target: { value: "actor-a" },
-    });
+    fireEvent.click(within(searchSection).getByRole("button", { name: "Owner principal" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Ada Okonjo/u }));
     fireEvent.click(within(searchSection).getByRole("button", { name: "Search ownership" }));
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith(
@@ -120,15 +154,13 @@ describe("OwnershipPage", () => {
       .getByRole("heading", { level: 2, name: "Assign ownership" })
       .closest("section");
     if (!assignmentSection) throw new Error("Assignment section was not rendered.");
-    fireEvent.change(within(assignmentSection).getByLabelText("Owner principal"), {
-      target: { value: "actor-a" },
-    });
+    fireEvent.click(within(assignmentSection).getByRole("button", { name: "Owner principal" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Ada Okonjo/u }));
     fireEvent.change(within(assignmentSection).getByLabelText("Target kind"), {
       target: { value: "capability" },
     });
-    fireEvent.change(within(assignmentSection).getByLabelText("Target UUID"), {
-      target: { value: "target-a" },
-    });
+    fireEvent.click(within(assignmentSection).getByRole("button", { name: "Target" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Checkout service/u }));
     fireEvent.change(within(assignmentSection).getByLabelText("Profile revision UUID"), {
       target: { value: "revision-a" },
     });
@@ -216,5 +248,80 @@ describe("OwnershipPage", () => {
     renderPage(clientFromRequest(request));
 
     expect(await screen.findByText("Conformance unavailable")).toBeVisible();
+  });
+
+  it("offers principals by name, and says when nobody has declared one", async () => {
+    /** ADR 0018: a reader cannot type a value they have no way to obtain, and
+     * the roster that supplies it landed in E22-T7. The kind comes with the
+     * name because choosing an owner is a decision about accountability, and
+     * "nobody has said what this is" is a fact the chooser needs. */
+    const client = testClient();
+    renderPage(client);
+    await screen.findByText("Service-reported conformance");
+
+    const assignmentSection = screen
+      .getByRole("heading", { level: 2, name: "Assign ownership" })
+      .closest("section");
+    if (!assignmentSection) throw new Error("Assignment section was not rendered.");
+    fireEvent.click(within(assignmentSection).getByRole("button", { name: "Owner principal" }));
+
+    const option = await screen.findByRole("option", { name: /Ada Okonjo/u });
+    expect(option).toHaveTextContent("human");
+    // No text box asks for a principal any more, on either the search or the
+    // assign form. The picker's own search field is named separately.
+    expect(screen.queryAllByRole("textbox", { name: "Owner principal" })).toEqual([]);
+  });
+
+  it("says an undeclared principal is undeclared rather than showing a blank kind", async () => {
+    const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
+      if (options?.method === "DELETE") return undefined;
+      if (path === "/v1/profiles/conformance") return { profile: "policy", state: "active" };
+      if (path.startsWith("/v1/admin/actors")) {
+        return {
+          items: [
+            {
+              actor_id: "actor-b",
+              actor_kind: "unknown",
+              created_at: "2026-08-01T00:00:00Z",
+              declared_at: null,
+              declared_by: null,
+              display_name: "ci-runner",
+              is_declared: false,
+              oidc_subject: "ci",
+              owner_principal: null,
+            },
+          ],
+          next_cursor: null,
+        };
+      }
+      if (path.startsWith("/v1/ownership") || path.startsWith("/v1/profiles/")) return { items: [] };
+      if (path.startsWith("/v1/capabilities")) return { items: [], next_cursor: null };
+      throw new Error(`Unexpected path: ${path}`);
+    });
+    renderPage(clientFromRequest(request));
+    await screen.findByText("Service-reported conformance");
+
+    const assignmentSection = screen
+      .getByRole("heading", { level: 2, name: "Assign ownership" })
+      .closest("section");
+    if (!assignmentSection) throw new Error("Assignment section was not rendered.");
+    fireEvent.click(within(assignmentSection).getByRole("button", { name: "Owner principal" }));
+
+    expect(await screen.findByText(/nobody has declared this principal/u)).toBeVisible();
+  });
+
+  it("records why the remaining identifier fields are still typed", async () => {
+    /** E22-T12's own instruction: record the disposition per field rather than
+     * shipping text boxes on a screen where others became pickers and letting
+     * the inconsistency read as an oversight.
+     *
+     * Three profile-revision fields have no list — `/v1/profiles/revisions` is a
+     * `POST` only, which the entry believed was a read. Two assignment fields are
+     * reachable by id with no collection. */
+    renderPage(testClient());
+    await screen.findByText("Service-reported conformance");
+
+    expect(screen.getAllByLabelText("Profile revision UUID").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Assignment UUID")).toBeVisible();
   });
 });

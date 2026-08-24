@@ -344,11 +344,25 @@ export function SourceGovernancePanel({ client, requestContext }: SourceGovernan
               />
             </label>
           </div>
-          {/* The digest is the corpus, not a label for it. */}
+          {/* The digest is the corpus, not a label for it.
+
+              **And it is the one identifier field on this screen that stays a
+              text box.** ADR 0018 says a server-assigned identifier is chosen
+              from a list, never typed — and its exception is a value the server
+              has not assigned yet. This is that: approving a corpus is the act
+              that first makes the digest known here, so there is no collection
+              to choose from. Applying the rule anyway would mean offering the
+              reader a list of corpora that are already approved, on the form for
+              approving one that is not. The table below is where the approved
+              ones are. */}
           <p className="text-xs text-muted">
             The digest <strong>is</strong> the corpus. A regenerated corpus with the same generator
             version has a different digest and needs its own approval — which is what keeps
             &ldquo;it behaved correctly&rdquo; meaning one thing across qualifications.
+          </p>
+          <p className="text-xs text-muted">
+            Typed rather than chosen, unlike every other identifier on this screen: this is the act
+            that first tells Contextplane the digest exists, so there is nothing yet to choose from.
           </p>
           <Button disabled={!corpusReady || corpusMutation.isPending} type="submit">
             Approve this corpus
