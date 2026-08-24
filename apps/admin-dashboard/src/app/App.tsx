@@ -23,7 +23,7 @@ import {
   UserCog,
   Workflow,
 } from "lucide-react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   lazy,
   startTransition,
@@ -44,6 +44,7 @@ import {
   type ColorTheme,
   type NavigationSection,
   type TenantOption,
+  type UserSummary,
 } from "@repo/ui/shell";
 
 import {
@@ -57,6 +58,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type MemoryClaimPersona,
+  type WhoAmI,
 } from "../shared/api";
 import { createBrowserAccessTokenProvider } from "../shared/auth/runtimeAuth";
 import { NotFoundPage } from "../shared/navigation/NotFoundPage";
@@ -661,26 +663,56 @@ function initialTheme(): ColorTheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/**
+ * Who the shell says is reading, from `whoami` rather than from a literal.
+ *
+ * The header rendered `Morgan Morris` and initials `MM` for every reader, on
+ * every deployment, while the shell was already resolving `whoami` two lines
+ * away. The service answered the question, the shell asked it, and the answer
+ * was discarded.
+ *
+ * Three states, kept apart because they mean different things to somebody
+ * looking at the chrome to work out whose session they are in:
+ *
+ * - resolved, with a display name — show it;
+ * - resolved, no display name — show the actor id, truncated. An identity that
+ *   exists and is unnamed is not the same as no identity, and a placeholder
+ *   name would be the defect this replaces, one deployment later;
+ * - unresolved — say so. `Signing in…` is honest while the query is in flight
+ *   and after it fails; inventing a reader is what produced `Morgan Morris`.
+ *
+ * No `role`. Under the one-operator decision the chrome has no role to display,
+ * and the previous value was `routeDefinitions[route].role` — the current
+ * page's notional persona, relabelling the reader on every navigation. That is
+ * the defect, not a placeholder for a better value.
+ */
+function readerSummary(identity: WhoAmI | undefined): UserSummary {
+  if (!identity) return { initials: "—", name: "Signing in…" };
+  const name = identity.actor_display_name?.trim();
+  if (name) return { initials: initialsOf(name), name };
+  return { initials: "—", name: `Actor ${identity.actor_id.slice(0, 8)}` };
+}
+
+function initialsOf(name: string): string {
+  const parts = name.split(/\s+/u).filter(Boolean);
+  const letters = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts;
+  return letters
+    .map((part) => part?.[0] ?? "")
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+/**
+ * The providers, and nothing else.
+ *
+ * Split out when the header started reading `whoami`: a `useQuery` in this
+ * component's body runs *outside* the `QueryClientProvider` this component
+ * renders, so the shell's own data has to live one level down. Keeping the
+ * split explicit is better than the alternative shape — passing the resolved
+ * identity down as a prop from a parent that cannot subscribe to it.
+ */
 export function App() {
-  const [activeTenantId, setActiveTenantId] = useState("northstar");
-  const [gettingStartedOpen, setGettingStartedOpen] = useState(false);
-  const [pathname, setPathname] = useState(window.location.pathname);
-  const [routeNavigationPending, setRouteNavigationPending] = useState(false);
-  const [tenantChangePending, setTenantChangePending] = useState(false);
-  const [theme, setTheme] = useState<ColorTheme>(initialTheme);
-  const [accessTokenProvider] = useState(() =>
-    createBrowserAccessTokenProvider({
-      getHostAccessToken: () => window.contextplane?.getAccessToken,
-      hostname: window.location.hostname,
-      isDevelopment: import.meta.env.MODE === "development",
-    }),
-  );
-  const [apiClient] = useState(() =>
-    createContextplaneClient({
-      getAccessToken: () => accessTokenProvider.getAccessToken(),
-      onUnauthorized: () => accessTokenProvider.invalidate(),
-    }),
-  );
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -701,6 +733,38 @@ export function App() {
         },
       }),
   );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AppShellRoot />
+      </ToastProvider>
+    </QueryClientProvider>
+  );
+}
+
+function AppShellRoot() {
+  const [activeTenantId, setActiveTenantId] = useState("northstar");
+  const [gettingStartedOpen, setGettingStartedOpen] = useState(false);
+  const [pathname, setPathname] = useState(window.location.pathname);
+  const [routeNavigationPending, setRouteNavigationPending] = useState(false);
+  const [tenantChangePending, setTenantChangePending] = useState(false);
+  const [theme, setTheme] = useState<ColorTheme>(initialTheme);
+  const [accessTokenProvider] = useState(() =>
+    createBrowserAccessTokenProvider({
+      getHostAccessToken: () => window.contextplane?.getAccessToken,
+      hostname: window.location.hostname,
+      isDevelopment: import.meta.env.MODE === "development",
+    }),
+  );
+  const [apiClient] = useState(() =>
+    createContextplaneClient({
+      getAccessToken: () => accessTokenProvider.getAccessToken(),
+      onUnauthorized: () => accessTokenProvider.invalidate(),
+    }),
+  );
+  // The client lives in `App`, above the provider. See its docstring.
+  const queryClient = useQueryClient();
   const focusMainOnRouteChange = useRef(false);
   const gettingStartedButtonRef = useRef<HTMLButtonElement>(null);
   const gettingStartedFocusFrame = useRef<number | null>(null);
@@ -912,232 +976,228 @@ export function App() {
 
   const activeHref = routeDefinitions[route].href;
   const navigationPending = routeNavigationPending || tenantChangePending;
-  const userRole = routeDefinitions[route].role;
+  // The same query key the two prefetches above populate, so the header shows
+  // what the shell has already resolved rather than issuing a third request.
+  const identity = useQuery({
+    enabled: routeUsesIdentity(route),
+    queryFn: ({ signal }) => getWhoAmI(apiClient, apiRequestContext(activeApiTenantId), signal),
+    queryKey: ["contextplane", queryTenantKey(activeApiTenantId), "identity"],
+    staleTime: 5 * 60 * 1000,
+  });
   const skeletonControls = route === "audit" ? 5 : 2;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <AppShell
-          activeHref={activeHref}
-          activeTenantId={activeTenantId}
-          gettingStartedButtonRef={gettingStartedButtonRef}
-          navigation={navigation}
-          navigationFooter={
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <ShieldCheck aria-hidden="true" className="size-4 text-success" />
-              <span>Service contract current</span>
-            </div>
-          }
-          onClick={navigateWithoutReload}
-          onFocusCapture={preloadNavigation}
-          onOpenGettingStarted={() => setGettingStartedOpen(true)}
-          onPointerOver={preloadNavigation}
-          onTenantChange={scheduleTenantChange}
-          onThemeToggle={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-          search={
-            <EntitySearch
-              {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-              client={apiClient}
-              onResolved={(entityId) => {
-                const destination = new URL(window.location.href);
-                destination.pathname = "/catalog";
-                destination.search = `?capability=${encodeURIComponent(entityId)}&panel=overview`;
-                window.history.pushState(window.history.state, "", destination);
-                scheduleNavigation(destination);
-              }}
-            />
-          }
-          tenants={tenants}
-          theme={theme}
-          user={{
-            initials: "MM",
-            name: "Morgan Morris",
-            role: userRole,
+    <AppShell
+      activeHref={activeHref}
+      activeTenantId={activeTenantId}
+      gettingStartedButtonRef={gettingStartedButtonRef}
+      navigation={navigation}
+      navigationFooter={
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <ShieldCheck aria-hidden="true" className="size-4 text-success" />
+          <span>Service contract current</span>
+        </div>
+      }
+      onClick={navigateWithoutReload}
+      onFocusCapture={preloadNavigation}
+      onOpenGettingStarted={() => setGettingStartedOpen(true)}
+      onPointerOver={preloadNavigation}
+      onTenantChange={scheduleTenantChange}
+      onThemeToggle={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
+      search={
+        <EntitySearch
+          {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+          client={apiClient}
+          onResolved={(entityId) => {
+            const destination = new URL(window.location.href);
+            destination.pathname = "/catalog";
+            destination.search = `?capability=${encodeURIComponent(entityId)}&panel=overview`;
+            window.history.pushState(window.history.state, "", destination);
+            scheduleNavigation(destination);
           }}
+        />
+      }
+      tenants={tenants}
+      theme={theme}
+      user={readerSummary(identity.data)}
+    >
+      {navigationPending ? (
+        <div
+          aria-label="Loading destination"
+          className="fixed top-16 right-0 left-0 z-40 h-0.5 overflow-hidden bg-accent-subtle lg:left-64"
+          role="status"
         >
-          {navigationPending ? (
-            <div
-              aria-label="Loading destination"
-              className="fixed top-16 right-0 left-0 z-40 h-0.5 overflow-hidden bg-accent-subtle lg:left-64"
-              role="status"
-            >
-              <div className="h-full w-full bg-accent motion-safe:animate-pulse" />
-            </div>
-          ) : null}
-          <Suspense fallback={<PageSkeleton controls={skeletonControls} />}>
-            {route === "overview" ? (
-              <OverviewPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "audit" ? (
-              <AuditPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            ) : route === "arc" ? (
-              <ArcPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            ) : route === "analytics" ? (
-              <AnalyticsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            ) : route === "context-lab" ? (
-              <ContextLabPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            ) : route === "sessions" ? (
-              <SessionsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-                selectedSessionId={sessionIdForPathname(pathname)}
-              />
-            ) : route === "curation" ? (
-              <CurationCockpitPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "quarantine" ? (
-              <QuarantinePage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "verifiers" ? (
-              <VerifiersPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "exceptions" ? (
-              <ExceptionsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "sources" ? (
-              <SourceGovernancePage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "revisions" ? (
-              <RevisionLifecyclePage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "receipts" ? (
-              <ReceiptsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "agents" ? (
-              <AgentsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "activity" ? (
-              <ActivityPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "ownership" ? (
-              <OwnershipPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "tasks" ? (
-              <TasksPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "not-found" ? (
-              <NotFoundPage activeTenantName={activeTenantName} pathname={pathname} />
-            ) : route === "assert-claim" ? (
-              <AssertClaimPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "memory" ? (
-              <MemoryPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-                selectedClaimId={memoryClaimIdForPathname(pathname)}
-              />
-            ) : route === "proposals" ? (
-              <ProposalsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-                selectedProposalId={proposalIdForPathname(pathname)}
-              />
-            ) : route === "relationships" ? (
-              <RelationshipsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            ) : route === "settings" ? (
-              <SettingsPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-              />
-            ) : route === "workspaces" ? (
-              <WorkspacesPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-                selectedWorkspaceId={workspaceIdForPathname(pathname)}
-              />
-            ) : (
-              <CatalogPage
-                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
-                activeTenantName={activeTenantName}
-                client={apiClient}
-                searchRef={searchRef}
-              />
-            )}
-          </Suspense>
-          {gettingStartedOpen ? (
-            <Suspense fallback={null}>
-              <GettingStartedDialog
-                activeTenantName={activeTenantName}
-                onClose={closeGettingStarted}
-              />
-            </Suspense>
-          ) : null}
-        </AppShell>
-      </ToastProvider>
-    </QueryClientProvider>
+          <div className="h-full w-full bg-accent motion-safe:animate-pulse" />
+        </div>
+      ) : null}
+      <Suspense fallback={<PageSkeleton controls={skeletonControls} />}>
+        {route === "overview" ? (
+          <OverviewPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "audit" ? (
+          <AuditPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        ) : route === "arc" ? (
+          <ArcPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        ) : route === "analytics" ? (
+          <AnalyticsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        ) : route === "context-lab" ? (
+          <ContextLabPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        ) : route === "sessions" ? (
+          <SessionsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+            selectedSessionId={sessionIdForPathname(pathname)}
+          />
+        ) : route === "curation" ? (
+          <CurationCockpitPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "quarantine" ? (
+          <QuarantinePage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "verifiers" ? (
+          <VerifiersPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "exceptions" ? (
+          <ExceptionsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "sources" ? (
+          <SourceGovernancePage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "revisions" ? (
+          <RevisionLifecyclePage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "receipts" ? (
+          <ReceiptsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "agents" ? (
+          <AgentsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "activity" ? (
+          <ActivityPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "ownership" ? (
+          <OwnershipPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "tasks" ? (
+          <TasksPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "not-found" ? (
+          <NotFoundPage activeTenantName={activeTenantName} pathname={pathname} />
+        ) : route === "assert-claim" ? (
+          <AssertClaimPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "memory" ? (
+          <MemoryPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+            selectedClaimId={memoryClaimIdForPathname(pathname)}
+          />
+        ) : route === "proposals" ? (
+          <ProposalsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+            selectedProposalId={proposalIdForPathname(pathname)}
+          />
+        ) : route === "relationships" ? (
+          <RelationshipsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        ) : route === "settings" ? (
+          <SettingsPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+          />
+        ) : route === "workspaces" ? (
+          <WorkspacesPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+            selectedWorkspaceId={workspaceIdForPathname(pathname)}
+          />
+        ) : (
+          <CatalogPage
+            {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+            activeTenantName={activeTenantName}
+            client={apiClient}
+            searchRef={searchRef}
+          />
+        )}
+      </Suspense>
+      {gettingStartedOpen ? (
+        <Suspense fallback={null}>
+          <GettingStartedDialog activeTenantName={activeTenantName} onClose={closeGettingStarted} />
+        </Suspense>
+      ) : null}
+    </AppShell>
   );
 }
