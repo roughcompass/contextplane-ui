@@ -16,6 +16,7 @@ import {
   MessageSquareText,
   Receipt,
   Settings,
+  Scale,
   ShieldAlert,
   ShieldCheck,
   Stamp,
@@ -135,6 +136,11 @@ const QuarantinePage = lazy(async () => {
   return { default: feature.QuarantinePage };
 });
 
+const CurationCockpitPage = lazy(async () => {
+  const feature = await import("../features/curation");
+  return { default: feature.CurationCockpitPage };
+});
+
 const VerifiersPage = lazy(async () => {
   const feature = await import("../features/verifiers");
   return { default: feature.VerifiersPage };
@@ -241,6 +247,7 @@ const navigation: readonly NavigationSection[] = [
       { href: "/arc", icon: <ShieldCheck className="size-4" />, label: "Governed policies" },
       { href: "/proposals", icon: <Workflow className="size-4" />, label: "Proposals" },
       { href: "/ownership", icon: <UserCog className="size-4" />, label: "Ownership & profiles" },
+      { href: "/curation", icon: <Scale className="size-4" />, label: "Curation review" },
       { href: "/quarantine", icon: <ShieldAlert className="size-4" />, label: "Quarantine" },
       { href: "/verifiers", icon: <KeyRound className="size-4" />, label: "Approval verifiers" },
       { href: "/exceptions", icon: <FileWarning className="size-4" />, label: "Exceptions" },
@@ -268,6 +275,7 @@ type AppRoute =
   | "ownership"
   | "proposals"
   | "receipts"
+  | "curation"
   | "quarantine"
   | "relationships"
   | "revisions"
@@ -386,6 +394,12 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     role: "Producer",
     usesIdentity: true,
   },
+  curation: {
+    href: "/curation",
+    load: () => import("../features/curation"),
+    role: "Producer",
+    usesIdentity: true,
+  },
   quarantine: {
     href: "/quarantine",
     load: () => import("../features/quarantine"),
@@ -467,6 +481,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/catalog") return "catalog";
   if (pathname === "/context-lab") return "context-lab";
   if (pathname === "/memory/assert") return "assert-claim";
+  if (pathname === "/curation") return "curation";
   if (pathname === "/memory" || pathname.startsWith("/memory/")) return "memory";
   if (pathname === "/ownership") return "ownership";
   if (pathname === "/proposals" || pathname.startsWith("/proposals/")) return "proposals";
@@ -992,6 +1007,12 @@ export function App() {
                 client={apiClient}
                 searchRef={searchRef}
                 selectedSessionId={sessionIdForPathname(pathname)}
+              />
+            ) : route === "curation" ? (
+              <CurationCockpitPage
+                {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+                activeTenantName={activeTenantName}
+                client={apiClient}
               />
             ) : route === "quarantine" ? (
               <QuarantinePage

@@ -118,6 +118,53 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/audit/actors/{subject_actor_id}/reads": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Reads Of Subject
+     * @description Who has looked at this actor, and what they said.
+     *
+     *     The direction that makes the record more than bookkeeping: a log only its
+     *     own author can read disciplines nobody.
+     */
+    get: operations["reads_of_subject_v1_admin_audit_actors__subject_actor_id__reads_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/audit/actors/{subject_actor_id}:drilldown": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Read Actor Metric
+     * @description One actor's figure, after the reason for asking is on the record.
+     *
+     *     The justification is written **first, in the same transaction**. If it
+     *     cannot be written the caller gets nothing: a read that could not be recorded
+     *     is a read that does not happen.
+     */
+    post: operations["read_actor_metric_v1_admin_audit_actors__subject_actor_id__drilldown_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/claim-quarantines": {
     parameters: {
       query?: never;
@@ -136,6 +183,37 @@ export interface paths {
      *     incident review would take it as evidence the content was contained.
      */
     post: operations["apply_quarantine_v1_admin_claim_quarantines_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/claim-quarantines/{quarantine_id}:evidence": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Export Quarantine Evidence
+     * @description One quarantine's ledger row, recorded members, and withheld receipts.
+     *
+     *     Guarded in the service rather than here, because the roles differ from the
+     *     rest of this router: an auditor may export but may not withhold, so the
+     *     route admits any tenant context and `QuarantineEvidenceService` refuses
+     *     anything outside its own `EVIDENCE_ROLES` with a `403`. Putting that check in a
+     *     dependency would leave it out of the MCP transport, which is where a
+     *     router-only guard always goes missing.
+     *
+     *     A reverted quarantine still exports. The ledger keeps its row and its
+     *     members after revert by design, and the period during which content was
+     *     withheld is exactly what somebody asking for this document is asking about.
+     */
+    get: operations["export_quarantine_evidence_v1_admin_claim_quarantines__quarantine_id__evidence_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -837,6 +915,95 @@ export interface paths {
     patch: operations["_patch_pii_pattern_v1_admin_pii_patterns__pattern_id__patch"];
     trace?: never;
   };
+  "/v1/admin/reporting-obligations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Nominate Obligation
+     * @description Record that something may need reporting, without deciding whether it does.
+     */
+    post: operations["nominate_obligation_v1_admin_reporting_obligations_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/reporting-obligations/{obligation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Obligation
+     * @description One obligation, scoped to the caller's tenant.
+     */
+    get: operations["get_obligation_v1_admin_reporting_obligations__obligation_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/reporting-obligations/{obligation_id}/classify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Classify Obligation
+     * @description Decide one obligation's materiality, on the record.
+     *
+     *     Refuses a second classification rather than overwriting: the first answer is
+     *     the one somebody acted on, and an overwrite would leave the trail describing
+     *     only the most recent opinion.
+     */
+    post: operations["classify_obligation_v1_admin_reporting_obligations__obligation_id__classify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/reporting-obligations:backlog": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Obligation Backlog
+     * @description How many obligations are waiting, and how long the longest has waited.
+     *
+     *     A read rather than a scheduled report, and both numbers rather than one: a
+     *     scheduled job that silently stops turns a backlog into "whenever somebody
+     *     looks", and a count with no age cannot tell a morning's work from a
+     *     six-month lapse.
+     */
+    get: operations["obligation_backlog_v1_admin_reporting_obligations_backlog_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/sync-runs": {
     parameters: {
       query?: never;
@@ -1414,6 +1581,35 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/arc/admin/approval-evidence": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Approval Evidence
+     * @description The approvals on record, and whether each still stands.
+     *
+     *     `revision_id` narrows to one revision's approvals, which is the question the
+     *     revision-lifecycle surface actually asks: it can attach evidence and until
+     *     now had no way to see what was attached.
+     *
+     *     **Whether an approval still stands is a join here, not a column** — revocation
+     *     lives in its own table — and both halves are checked: an approval inside its
+     *     validity window that has been withdrawn is withdrawn, and reading only the
+     *     window would show it as good.
+     */
+    get: operations["list_approval_evidence_v1_arc_admin_approval_evidence_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/arc/admin/approval-evidence/{evidence_id}/revoke": {
     parameters: {
       query?: never;
@@ -1445,7 +1641,19 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Approval Verifiers
+     * @description Enrolled verifiers visible to this tenant, newest first.
+     *
+     *     Includes the **global** verifiers as well as the tenant's own, because a
+     *     global verifier can approve for this tenant and a list that omitted them
+     *     would answer "who may approve here" wrongly by exactly the set that matters
+     *     most.
+     *
+     *     The public key is not returned. A list of who may approve does not need the
+     *     material, and a surface that carried it would be one more place it can leak.
+     */
+    get: operations["list_approval_verifiers_v1_arc_admin_approval_verifiers_get"];
     put?: never;
     /**
      * Register Approval Verifier
@@ -1527,7 +1735,21 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Approved Exceptions
+     * @description Exceptions granted for this tenant, newest first.
+     *
+     *     The register an exception is supposed to have. An exception is *defined* as
+     *     a documented deviation, and until this existed one was invisible from the
+     *     moment it was granted.
+     *
+     *     Statements are returned only where the deployment stores them as plaintext;
+     *     where they are encrypted at rest this does not reach for a key.
+     *     `detail.has_statement` is what tells a reader "none was given" from "not
+     *     shown here", because a list that decrypted every row would turn "which
+     *     exceptions exist" into a bulk disclosure of why each was granted.
+     */
+    get: operations["list_approved_exceptions_v1_arc_admin_exceptions_get"];
     put?: never;
     /**
      * Approve Context Exception
@@ -1577,7 +1799,14 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Replay Corpora
+     * @description What observation is replayed against, and until when.
+     *
+     *     The only one of the three source grants that lapses on its own, which is why
+     *     this is where `in_force_until` carries a date.
+     */
+    get: operations["list_replay_corpora_v1_arc_admin_observation_replay_corpora_get"];
     put?: never;
     /**
      * Approve Observation Replay Corpus
@@ -1731,7 +1960,16 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Source Connectors
+     * @description What ARC may fetch, from where, and who may approve what comes back.
+     *
+     *     `in_force_until` is null even for a live connector, and that is not a gap: a
+     *     connector has no expiry, so withdrawal is the only thing that ends one. The
+     *     corpora list below is the one where that field carries a date, and comparing
+     *     the two tells a reader something true about how the grants differ.
+     */
+    get: operations["list_source_connectors_v1_arc_admin_source_connectors_get"];
     put?: never;
     /**
      * Register Source Connector
@@ -1752,7 +1990,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/arc/admin/source-upload-policies": {
+  "/v1/arc/admin/source-connectors/{connector_id}/revoke": {
     parameters: {
       query?: never;
       header?: never;
@@ -1760,6 +1998,39 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
+    put?: never;
+    /**
+     * Revoke Source Connector
+     * @description Withdraw a connector. It admits nothing further; what it admitted stands.
+     *
+     *     Until this existed a connector could not be withdrawn at all — no column, no
+     *     route, no query — which made the widest control in this surface the one with
+     *     no off switch. A connector names who may approve everything it fetches, so a
+     *     permissive one registered during a migration was permanent.
+     *
+     *     **The withdrawal reaches forward only.** Material already admitted was
+     *     validly admitted, and `revoked_at` is what lets an auditor place any
+     *     admission on one side of it or the other.
+     */
+    post: operations["revoke_source_connector_v1_arc_admin_source_connectors__connector_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/source-upload-policies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Source Upload Policies
+     * @description The same grant, for material pushed in rather than fetched.
+     */
+    get: operations["list_source_upload_policies_v1_arc_admin_source_upload_policies_get"];
     put?: never;
     /**
      * Register Source Upload Policy
@@ -1772,6 +2043,26 @@ export interface paths {
      *     byte ceiling, and verifier allowlist registered here.
      */
     post: operations["register_source_upload_policy_v1_arc_admin_source_upload_policies_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/source-upload-policies/{policy_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke Source Upload Policy
+     * @description Withdraw an upload policy. Same rule and same reach as a connector.
+     */
+    post: operations["revoke_source_upload_policy_v1_arc_admin_source_upload_policies__policy_id__revoke_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4200,6 +4491,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/memory/disposition-policies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Disposition Policies
+     * @description What each disposition commits to, before anybody takes one.
+     *
+     *     Served rather than published as documentation, because a reviewer choosing
+     *     between six dispositions is choosing between six different approval
+     *     authorities, evidence bars, blast radiuses and rollback stories — and a
+     *     client that restated them would be a second copy of a governance rule,
+     *     diverging from this one silently the first time a policy changed.
+     *
+     *     No tenant context and no authorization: this is the vocabulary the service
+     *     accepts, identical for every caller, and it discloses nothing about any
+     *     tenant's data. Gating it would only mean a reviewer sees a set of buttons
+     *     whose consequences they cannot read.
+     *
+     *     Ordered as `DISPOSITIONS` declares them, which is deliberate: the first
+     *     three settle a disagreement on the curator's own authority and the last
+     *     three ask an approver outside curation for a write. That grouping is a
+     *     property of the vocabulary, and a client sorting alphabetically would lose
+     *     it — so it is preserved here rather than left to the caller to rediscover.
+     */
+    get: operations["list_disposition_policies_v1_memory_disposition_policies_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/memory/promotion-proposals": {
     parameters: {
       query?: never;
@@ -5500,6 +5828,63 @@ export interface components {
       satisfied: boolean;
     };
     /**
+     * ActorDrilldownRequest
+     * @description One question about one actor, and why it is being asked.
+     *
+     *     A POST for a read, deliberately. This request *writes* — the justification is
+     *     recorded before the figure is returned — and a GET that wrote a row would be
+     *     a GET a caller could be made to issue by a link.
+     */
+    ActorDrilldownRequest: {
+      /**
+       * Justification
+       * @description Why this read is being made. Free text on purpose: a dropdown produces the reason nearest the top, and the point is a sentence somebody has to be willing to have read back to them.
+       */
+      justification: string;
+      /**
+       * Metric
+       * @description One of ['claims_authored', 'cases_disposed'].
+       */
+      metric: string;
+      /**
+       * Window End
+       * Format: date-time
+       */
+      window_end: string;
+      /**
+       * Window Start
+       * Format: date-time
+       */
+      window_start: string;
+    };
+    /** ActorDrilldownResponse */
+    ActorDrilldownResponse: {
+      /** Metric */
+      metric: string;
+      /**
+       * Read Id
+       * Format: uuid
+       */
+      read_id: string;
+      /**
+       * Subject Actor Id
+       * Format: uuid
+       */
+      subject_actor_id: string;
+      /** Value */
+      value: number;
+      /**
+       * Window End
+       * Format: date-time
+       */
+      window_end: string;
+      /**
+       * Window Start
+       * Format: date-time
+       */
+      window_start: string;
+    };
+    /**
      * ActorRef
      * @description Response-only. Never accepted in a request body -- see
      *     `arc_authoring_enums.RESERVED_ACTOR_FIELDS`.
@@ -6386,6 +6771,18 @@ export interface components {
       | "accept_qualification"
       | "activate";
     /**
+     * BacklogResponse
+     * @description The unclassified backlog, and how long the longest has waited.
+     *
+     *     Both, because the count alone is not actionable.
+     */
+    BacklogResponse: {
+      /** Oldest Age Seconds */
+      oldest_age_seconds: number;
+      /** Unclassified Count */
+      unclassified_count: number;
+    };
+    /**
      * BaselineDiffChange
      * @description One field-level change in `BaselineDiffResponse.changes`.
      */
@@ -7029,6 +7426,26 @@ export interface components {
       /** Value */
       value: unknown;
     };
+    /**
+     * ClassifyObligationRequest
+     * @description A decision somebody made, with the reason they made it.
+     *
+     *     `unclassified` is absent from this type on purpose: it is where a row starts
+     *     and is not a conclusion a decision can reach. Allowing it would let an actor
+     *     clear a classification while leaving their name recorded as having made one.
+     */
+    ClassifyObligationRequest: {
+      /**
+       * Materiality
+       * @enum {string}
+       */
+      materiality: "material" | "not_material";
+      /**
+       * Note
+       * @description Why. A one-word rationale is the same as none.
+       */
+      note: string;
+    };
     /** ConfirmationResponse */
     ConfirmationResponse: {
       /** Bucket */
@@ -7474,6 +7891,8 @@ export interface components {
       created_at: string;
       /** Disposition */
       disposition: string | null;
+      /** Disposition Actor Kind */
+      disposition_actor_kind: string | null;
       /** Evidence Threshold */
       evidence_threshold: string | null;
       /** Owner Id */
@@ -7659,6 +8078,28 @@ export interface components {
     DiscardResponse: {
       /** Status */
       status: string;
+    };
+    /** DispositionPolicyListResponse */
+    DispositionPolicyListResponse: {
+      /** Items */
+      items: components["schemas"]["DispositionPolicyResponse"][];
+    };
+    /** DispositionPolicyResponse */
+    DispositionPolicyResponse: {
+      /** Approval Authority */
+      approval_authority: string;
+      /** Disposition */
+      disposition: string;
+      /** Evidence Threshold */
+      evidence_threshold: string;
+      /** Rollback */
+      rollback: string;
+      /** Scope */
+      scope: string;
+      /** Supersession */
+      supersession: string;
+      /** Target Kind */
+      target_kind: string | null;
     };
     /**
      * DraftPatchResponse
@@ -8641,6 +9082,44 @@ export interface components {
       /** Source Evidence Id */
       source_evidence_id?: string | null;
     };
+    /** GovernanceObjectListResponse */
+    GovernanceObjectListResponse: {
+      /** Items */
+      items: components["schemas"]["GovernanceObjectResponse"][];
+    };
+    /**
+     * GovernanceObjectResponse
+     * @description One governed object, in the shape every kind answers in.
+     *
+     *     Shared because four screens read these alike, and *not* produced by a union
+     *     query: the six ARC governance objects agree on intent and disagree on schema
+     *     — three spellings of scope, three of tenant, and three notions of "in force",
+     *     one of which does not exist. The shape is a contract; normalising the tables
+     *     behind it would mean inventing a state for the object that cannot be revoked.
+     */
+    GovernanceObjectResponse: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Detail */
+      detail: {
+        [key: string]: unknown;
+      };
+      /** In Force */
+      in_force: boolean;
+      /** In Force Until */
+      in_force_until: string | null;
+      /** Kind */
+      kind: string;
+      /** Object Id */
+      object_id: string;
+      /** Scope */
+      scope: string;
+      /** Target Tenant Id */
+      target_tenant_id: string | null;
+    };
     /**
      * GrantCreate
      * @description Add one participant to a task.
@@ -8905,6 +9384,13 @@ export interface components {
       /** Subject */
       subject: string;
     };
+    /** JustifiedReadsResponse */
+    JustifiedReadsResponse: {
+      /** Items */
+      items: {
+        [key: string]: unknown;
+      }[];
+    };
     /**
      * LifecycleTransitionRequest
      * @description Body for POST /capabilities/{id}/lifecycle — deprecate or reinstate, naming the successor or "none".
@@ -9048,6 +9534,17 @@ export interface components {
       supported_context_bundle_content_profiles?: string[];
     };
     /**
+     * NominateObligationRequest
+     * @description What may need reporting, in the reporter's own words.
+     */
+    NominateObligationRequest: {
+      /**
+       * Summary
+       * @description An obligation nobody can identify later is not a record.
+       */
+      summary: string;
+    };
+    /**
      * NormalizedSignalReference
      * @description A reference as stored identity sees it: the same fields, plus the key.
      *
@@ -9136,6 +9633,37 @@ export interface components {
       items: components["schemas"]["NotificationItem"][];
       /** Next Cursor */
       next_cursor: string | null;
+    };
+    /**
+     * ObligationResponse
+     * @description One obligation. The classification fields are all set or all null.
+     */
+    ObligationResponse: {
+      /** Classification Note */
+      classification_note: string | null;
+      /** Classified At */
+      classified_at: string | null;
+      /** Classified By */
+      classified_by: string | null;
+      /** Materiality */
+      materiality: string;
+      /**
+       * Nominated At
+       * Format: date-time
+       */
+      nominated_at: string;
+      /**
+       * Nominated By
+       * Format: uuid
+       */
+      nominated_by: string;
+      /**
+       * Obligation Id
+       * Format: uuid
+       */
+      obligation_id: string;
+      /** Summary */
+      summary: string;
     };
     /**
      * ObservationClassPredicate
@@ -10255,6 +10783,59 @@ export interface components {
       value: string;
     };
     /**
+     * QuarantineEvidenceResponse
+     * @description Everything recorded about one quarantine, as one document.
+     *
+     *     `matched_count` is the ledger's figure from apply time and `members` is the
+     *     recorded set; both are returned rather than one derived from the other,
+     *     because if they ever disagree that disagreement is the finding and a bundle
+     *     that computed one from the other could not show it.
+     *
+     *     `members` carries ids and not claim content, deliberately. This export says
+     *     *which* claims were withheld, not *what they said* — serving the withheld
+     *     content back through a new surface would be a way around the withholding.
+     */
+    QuarantineEvidenceResponse: {
+      /**
+       * Applied At
+       * Format: date-time
+       */
+      applied_at: string;
+      /**
+       * Applied By
+       * Format: uuid
+       */
+      applied_by: string;
+      /** Is Reverted */
+      is_reverted: boolean;
+      /** Matched Count */
+      matched_count: number;
+      /** Members */
+      members: string[];
+      /** Predicate */
+      predicate: {
+        [key: string]: unknown;
+      };
+      /**
+       * Provenance
+       * @description What this document evidences, stated in the document because it travels away from this API.
+       */
+      provenance: string;
+      /**
+       * Quarantine Id
+       * Format: uuid
+       */
+      quarantine_id: string;
+      /** Reason */
+      reason: string;
+      /** Reverted At */
+      reverted_at: string | null;
+      /** Reverted By */
+      reverted_by: string | null;
+      /** Withheld Receipts */
+      withheld_receipts: components["schemas"]["WithheldReceiptResponse"][];
+    };
+    /**
      * QuarantinePredicate
      * @description Which claims to withhold, in the closed provenance vocabulary.
      */
@@ -10350,6 +10931,10 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /** Dependant Count */
+      dependant_count: number;
+      /** Escalated */
+      escalated: boolean;
       /** Human Backed */
       human_backed: boolean;
       /** Predicate */
@@ -10358,6 +10943,8 @@ export interface components {
       proposal_id: string | null;
       /** Reason */
       reason: string;
+      /** Sampling Priority */
+      sampling_priority: number;
       /** Subject Entity Id */
       subject_entity_id: string | null;
       /** Subject Reference */
@@ -11157,6 +11744,17 @@ export interface components {
       revision_id: string;
       /** Revoked At */
       revoked_at?: string | null;
+    };
+    /**
+     * RevokeGrantRequest
+     * @description Why a standing source grant is being withdrawn.
+     */
+    RevokeGrantRequest: {
+      /**
+       * Reason
+       * @description A withdrawn grant with no stated cause is unreviewable afterwards.
+       */
+      reason: string;
     };
     /** RevokeRequest */
     RevokeRequest: {
@@ -12520,6 +13118,22 @@ export interface components {
       tenant_slug: string;
     };
     /**
+     * WithheldReceiptResponse
+     * @description One receipt this quarantine withheld, and when.
+     */
+    WithheldReceiptResponse: {
+      /**
+       * Receipt Id
+       * Format: uuid
+       */
+      receipt_id: string;
+      /**
+       * Withheld At
+       * Format: date-time
+       */
+      withheld_at: string;
+    };
+    /**
      * WorkspaceCreateRequest
      * @description Request body for POST /v1/workspaces.
      */
@@ -12712,6 +13326,74 @@ export interface operations {
       };
     };
   };
+  reads_of_subject_v1_admin_audit_actors__subject_actor_id__reads_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        subject_actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JustifiedReadsResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  read_actor_metric_v1_admin_audit_actors__subject_actor_id__drilldown_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        subject_actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ActorDrilldownRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ActorDrilldownResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   apply_quarantine_v1_admin_claim_quarantines_post: {
     parameters: {
       query?: never;
@@ -12732,6 +13414,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["QuarantineResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  export_quarantine_evidence_v1_admin_claim_quarantines__quarantine_id__evidence_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        quarantine_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuarantineEvidenceResponse"];
         };
       };
       /** @description Validation Error */
@@ -13698,6 +14411,125 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  nominate_obligation_v1_admin_reporting_obligations_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NominateObligationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ObligationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_obligation_v1_admin_reporting_obligations__obligation_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        obligation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ObligationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  classify_obligation_v1_admin_reporting_obligations__obligation_id__classify_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        obligation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ClassifyObligationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ObligationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  obligation_backlog_v1_admin_reporting_obligations_backlog_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BacklogResponse"];
         };
       };
     };
@@ -14738,6 +15570,38 @@ export interface operations {
       };
     };
   };
+  list_approval_evidence_v1_arc_admin_approval_evidence_get: {
+    parameters: {
+      query?: {
+        revision_id?: string | null;
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   revoke_approval_evidence_v1_arc_admin_approval_evidence__evidence_id__revoke_post: {
     parameters: {
       query?: never;
@@ -14760,6 +15624,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_approval_verifiers_v1_arc_admin_approval_verifiers_get: {
+    parameters: {
+      query?: {
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
         };
       };
       /** @description Validation Error */
@@ -14874,6 +15769,37 @@ export interface operations {
       };
     };
   };
+  list_approved_exceptions_v1_arc_admin_exceptions_get: {
+    parameters: {
+      query?: {
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   approve_context_exception_v1_arc_admin_exceptions_post: {
     parameters: {
       query?: never;
@@ -14929,6 +15855,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_replay_corpora_v1_arc_admin_observation_replay_corpora_get: {
+    parameters: {
+      query?: {
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
         };
       };
       /** @description Validation Error */
@@ -15137,6 +16094,37 @@ export interface operations {
       };
     };
   };
+  list_source_connectors_v1_arc_admin_source_connectors_get: {
+    parameters: {
+      query?: {
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   register_source_connector_v1_arc_admin_source_connectors_post: {
     parameters: {
       query?: never;
@@ -15170,6 +16158,72 @@ export interface operations {
       };
     };
   };
+  revoke_source_connector_v1_arc_admin_source_connectors__connector_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        connector_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RevokeGrantRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_source_upload_policies_v1_arc_admin_source_upload_policies_get: {
+    parameters: {
+      query?: {
+        in_force_only?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GovernanceObjectListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   register_source_upload_policy_v1_arc_admin_source_upload_policies_post: {
     parameters: {
       query?: never;
@@ -15190,6 +16244,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SourceUploadPolicyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revoke_source_upload_policy_v1_arc_admin_source_upload_policies__policy_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        policy_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RevokeGrantRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
         };
       };
       /** @description Validation Error */
@@ -18979,6 +20068,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_disposition_policies_v1_memory_disposition_policies_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DispositionPolicyListResponse"];
         };
       };
     };

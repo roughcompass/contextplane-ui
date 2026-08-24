@@ -114,6 +114,7 @@ describe("App", () => {
           "Governed policies",
           "Proposals",
           "Ownership & profiles",
+          "Curation review",
           "Quarantine",
           "Approval verifiers",
           "Exceptions",

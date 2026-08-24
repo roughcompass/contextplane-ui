@@ -1,0 +1,1 @@
+export { CurationCockpitPage } from "./CurationCockpitPage";
