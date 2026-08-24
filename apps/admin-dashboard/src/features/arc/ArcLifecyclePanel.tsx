@@ -519,6 +519,8 @@ export function ArcLifecyclePanel({
             </label>
             <label className={labelClassName} htmlFor="arc-author-subject">
               Authenticated author subject
+              {/* Half of an IdP-issued pair with the issuer beside it.
+                  identifier-exception: external-id */}
               <input
                 className={inputClassName}
                 id="arc-author-subject"
@@ -864,6 +866,8 @@ export function ArcLifecyclePanel({
                   <div className="grid gap-4">
                     <label className={labelClassName} htmlFor="arc-proof-provider">
                       Provider ID
+                      {/* The attestation provider's own id, in its id space rather than this one's.
+                          identifier-exception: external-id */}
                       <input
                         className={inputClassName}
                         id="arc-proof-provider"

@@ -1366,6 +1366,10 @@ function ArcPageContent({ client, identity, requestContext, searchRef }: ArcPage
                       <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                         <label className={labelClassName} htmlFor="arc-detail-context">
                           Context handle
+                          {/* The caller's own name for the working context it is asking about, hashed
+                              into the page binding. This service never assigned it and holds no list
+                              of another agent's contexts.
+                              identifier-exception: external-id */}
                           <input
                             aria-describedby={
                               detailContextError ? "arc-detail-context-error" : undefined

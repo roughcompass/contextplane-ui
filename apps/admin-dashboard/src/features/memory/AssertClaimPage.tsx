@@ -250,6 +250,10 @@ export function AssertClaimPage({ activeTenantName, apiTenantId, client }: Asser
           <div className="grid gap-5 sm:grid-cols-2">
             <label className={`${labelClassName} sm:col-span-2`} htmlFor="claim-subject">
               Subject reference
+              {/* A `system:namespace/name` reference the service resolves, not an id it
+                  assigned. Offering a list would be offering the subjects that already
+                  exist on a form for naming one that may not.
+                  identifier-exception: external-id */}
               <input
                 aria-describedby="claim-subject-help claim-subject-error"
                 aria-invalid={errors.subjectReference ? "true" : undefined}

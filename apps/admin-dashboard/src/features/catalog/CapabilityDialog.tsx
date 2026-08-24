@@ -293,6 +293,9 @@ function CreateEntityForm({
       </label>
       <label className={catalogLabelClassName}>
         External ID
+        {/* The originating system's identifier for this capability. Optional, and in
+            somebody else's id space.
+            identifier-exception: external-id */}
         <input
           className={catalogInputClassName}
           onChange={(event) => setExternalId(event.target.value)}
