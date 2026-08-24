@@ -39,6 +39,40 @@ function testClient() {
     if (path.startsWith("/v1/learning/aggregates")) return { accepted_signals: 12 };
     if (path === "/v1/learning/metrics") return [{ metric: "acceptance", value: 0.8 }];
     if (path === "/v1/signals") return testSignalReceipt;
+    // The two collections the signal form's pickers read. Both existed before
+    // this screen called them.
+    if (path === "/v1/admin/memory-sources") {
+      return [
+        {
+          authority_tier: "declared",
+          breach_count: 0,
+          breaker_open_until: null,
+          ingest_ceiling: 100,
+          may_provision_entities: false,
+          source_id: "source-a",
+          tenant_id: "tenant-a",
+          window_seconds: 60,
+        },
+      ];
+    }
+    if (path.startsWith("/v1/admin/actors")) {
+      return {
+        items: [
+          {
+            actor_id: "actor-a",
+            actor_kind: "human",
+            created_at: "2026-08-01T00:00:00Z",
+            declared_at: "2026-08-01T00:00:00Z",
+            declared_by: "actor-a",
+            display_name: "Ada Okonjo",
+            is_declared: true,
+            oidc_subject: "ada",
+            owner_principal: null,
+          },
+        ],
+        next_cursor: null,
+      };
+    }
     throw new Error(`Unexpected path: ${path}`);
   });
   return clientFromRequest(request);
@@ -92,18 +126,18 @@ describe("ActivityPage", () => {
     fireEvent.submit(signalForm);
     expect(screen.getByText("Enter valid JSON payload data.")).toBeVisible();
 
-    fireEvent.change(within(signalSection).getByLabelText("Registered source UUID"), {
-      target: { value: "source-a" },
-    });
+    // Chosen from the registered sources: a signal attributed to one that does
+    // not exist is refused at ingest.
+    fireEvent.click(within(signalSection).getByRole("button", { name: "Registered source" }));
+    fireEvent.click(await screen.findByRole("option", { name: /source-a/u }));
     fireEvent.change(within(signalSection).getByLabelText("Source system"), {
       target: { value: "deployment-monitor" },
     });
     fireEvent.change(within(signalSection).getByLabelText("Source event ID"), {
       target: { value: "event-a" },
     });
-    fireEvent.change(within(signalSection).getByLabelText("Producer ID"), {
-      target: { value: "actor-a" },
-    });
+    fireEvent.click(within(signalSection).getByRole("button", { name: "Producer" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Ada Okonjo/u }));
     fireEvent.change(within(signalSection).getByLabelText("Producer type"), {
       target: { value: "agent" },
     });

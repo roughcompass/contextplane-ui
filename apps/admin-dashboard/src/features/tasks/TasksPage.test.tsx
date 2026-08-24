@@ -38,6 +38,41 @@ const checkpoint = {
 function testClient() {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
     if (options?.method === "DELETE") return undefined;
+    // The two collections the pickers read. `/v1/intents` is E23-T1's — an
+    // intent is not a row, so the list is the caller's own participation grants.
+    if (path === "/v1/intents" || path.startsWith("/v1/intents?")) {
+      return {
+        items: [
+          {
+            checkpoint_count: 1,
+            expires_at: null,
+            goal: "ship the migration",
+            granted_at: "2026-08-01T00:00:00Z",
+            intent_id: "intent-a",
+            latest_checkpoint_at: "2026-08-02T00:00:00Z",
+            role: "contributor",
+          },
+        ],
+      };
+    }
+    if (path.startsWith("/v1/admin/actors")) {
+      return {
+        items: [
+          {
+            actor_id: "actor-b",
+            actor_kind: "human",
+            created_at: "2026-08-01T00:00:00Z",
+            declared_at: "2026-08-01T00:00:00Z",
+            declared_by: "actor-b",
+            display_name: "Ada Okonjo",
+            is_declared: true,
+            oidc_subject: "ada",
+            owner_principal: null,
+          },
+        ],
+        next_cursor: null,
+      };
+    }
     if (path.endsWith("/participants")) {
       return options?.method === "POST" ? participant : { grants: [participant] };
     }
@@ -73,7 +108,9 @@ describe("TasksPage", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Tasks" })).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText("Intent UUID"), { target: { value: "intent-a" } });
+    // Chosen from the intents this caller participates in, not typed.
+    fireEvent.click(screen.getByRole("button", { name: "Intent" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ship the migration/u }));
     fireEvent.click(screen.getByRole("button", { name: "Load intent" }));
 
     expect(
@@ -86,7 +123,8 @@ describe("TasksPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm remove" }));
     expect(await screen.findByText("Participant removed")).toBeVisible();
 
-    fireEvent.change(screen.getByLabelText("Actor ID"), { target: { value: "actor-b" } });
+    fireEvent.click(screen.getByRole("button", { name: "Actor" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Ada Okonjo/u }));
     fireEvent.click(screen.getByRole("button", { name: "Add participant" }));
     await waitFor(() =>
       expect(client.request).toHaveBeenCalledWith(
@@ -141,13 +179,30 @@ describe("TasksPage", () => {
       open_questions: [],
     };
     const request = vi.fn(async (path: string) => {
+      if (path === "/v1/intents" || path.startsWith("/v1/intents?")) {
+        return {
+          items: [
+            {
+              checkpoint_count: 0,
+              expires_at: null,
+              goal: "ship the migration",
+              granted_at: "2026-08-01T00:00:00Z",
+              intent_id: "intent-a",
+              latest_checkpoint_at: null,
+              role: "contributor",
+            },
+          ],
+        };
+      }
       if (path.endsWith("/participants")) return { grants: [] };
       if (path.includes("/checkpoints/")) return sparseCheckpoint;
       throw new Error(`Unexpected path: ${path}`);
     });
     renderPage(clientFromRequest(request));
 
-    fireEvent.change(screen.getByLabelText("Intent UUID"), { target: { value: "intent-a" } });
+    // Chosen from the intents this caller participates in, not typed.
+    fireEvent.click(screen.getByRole("button", { name: "Intent" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ship the migration/u }));
     fireEvent.click(screen.getByRole("button", { name: "Load intent" }));
     expect(await screen.findByText("No participant grant was reported.")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Checkpoint UUID"), {
@@ -161,13 +216,48 @@ describe("TasksPage", () => {
   });
 
   it("stays recoverable when the task services are unavailable", async () => {
+    /** The intent list answers and the participant read does not, which is the
+     * case this is about. Failing everything would have tested that a picker
+     * with no options cannot be used — true, and a different test. */
+    const request = vi.fn(async (path: string) => {
+      if (path === "/v1/intents" || path.startsWith("/v1/intents?")) {
+        return {
+          items: [
+            {
+              checkpoint_count: 0,
+              expires_at: null,
+              goal: "ship the migration",
+              granted_at: "2026-08-01T00:00:00Z",
+              intent_id: "intent-a",
+              latest_checkpoint_at: null,
+              role: "contributor",
+            },
+          ],
+        };
+      }
+      throw new Error("service unavailable");
+    });
+    renderPage(clientFromRequest(request));
+
+    // Chosen from the intents this caller participates in, not typed.
+    fireEvent.click(screen.getByRole("button", { name: "Intent" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ship the migration/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Load intent" }));
+    expect(await screen.findByText("Participants unavailable")).toBeVisible();
+  });
+
+  it("says the intent list failed rather than reporting that the caller is on none", async () => {
+    /** A reader shown "no match" for a request that never arrived would conclude
+     * they participate in nothing, which is the opposite of what a coordination
+     * screen is for. */
     const request = vi.fn(async () => {
       throw new Error("service unavailable");
     });
     renderPage(clientFromRequest(request));
 
-    fireEvent.change(screen.getByLabelText("Intent UUID"), { target: { value: "intent-a" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load intent" }));
-    expect(await screen.findByText("Participants unavailable")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Intent" }));
+
+    expect(await screen.findByText(/could not be loaded/u)).toBeVisible();
+    expect(screen.queryByText(/No match/u)).toBeNull();
   });
 });

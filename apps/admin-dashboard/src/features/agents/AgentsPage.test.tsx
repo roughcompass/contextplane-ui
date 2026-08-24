@@ -109,6 +109,26 @@ const proposedRow = {
 
 function testClient(instructions: readonly unknown[] = [activeInstructionRow, supersededRow]) {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
+    // The roster the agent picker reads. E22-T7's, and the reason this screen
+    // no longer asks for a zero-UUID.
+    if (path.startsWith("/v1/admin/actors")) {
+      return {
+        items: [
+          {
+            actor_id: ACTOR,
+            actor_kind: "agent",
+            created_at: "2026-08-01T00:00:00Z",
+            declared_at: "2026-08-01T00:00:00Z",
+            declared_by: ACTOR,
+            display_name: "release-bot",
+            is_declared: true,
+            oidc_subject: "release-bot",
+            owner_principal: null,
+          },
+        ],
+        next_cursor: null,
+      };
+    }
     if (path.includes("/accuracy")) return accuracy;
     if (path.includes("/autonomy")) return autonomy;
     if (path.includes("/failure-patterns")) return failures;
@@ -133,8 +153,11 @@ function renderPage(client: ContextplaneClient) {
   );
 }
 
-function loadAgent() {
-  fireEvent.change(screen.getByLabelText("Agent actor UUID"), { target: { value: ACTOR } });
+async function loadAgent() {
+  // Chosen from the roster rather than typed. ADR 0018, on the field the
+  // identifier work was named after.
+  fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+  fireEvent.click(await screen.findByRole("option", { name: /release-bot/u }));
   fireEvent.click(screen.getByRole("button", { name: "Load agent" }));
 }
 
@@ -159,7 +182,7 @@ describe("AgentsPage", () => {
     // fast and wrong, and a screen showing one without the other cannot tell
     // those apart.
     renderPage(testClient());
-    loadAgent();
+    await loadAgent();
 
     // Scoped to the strip: 75.0% is also a failure-group rate further down,
     // and an unscoped query would pass on the wrong element.
@@ -173,7 +196,7 @@ describe("AgentsPage", () => {
 
   it("ranks failure patterns by rate rather than by volume", async () => {
     renderPage(testClient());
-    loadAgent();
+    await loadAgent();
 
     const rows = await screen.findAllByText(/and-mostly-/u);
     expect(rows.map((node) => node.textContent)).toEqual([
@@ -184,7 +207,7 @@ describe("AgentsPage", () => {
 
   it("expands a failure group to the example claims behind it", async () => {
     renderPage(testClient());
-    loadAgent();
+    await loadAgent();
 
     fireEvent.click(await screen.findByRole("button", { name: "Examples (1)" }));
     expect(await screen.findByText("claim-a")).toBeVisible();
@@ -197,7 +220,7 @@ describe("AgentsPage", () => {
     // The proposal is version 3 and the active one is version 2. Reading the
     // highest version would name a proposal as governing live behaviour.
     renderPage(testClient([activeInstructionRow, supersededRow, proposedRow]));
-    loadAgent();
+    await loadAgent();
 
     expect(await screen.findByText("Version 2 is in force")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Awaiting activation" })).toBeVisible();
@@ -208,7 +231,7 @@ describe("AgentsPage", () => {
     // a database refusal into a field the form will not submit without.
     const client = testClient();
     renderPage(client);
-    loadAgent();
+    await loadAgent();
     await screen.findByText("Version 2 is in force");
 
     const form = screen.getByRole("button", { name: /^Propose version/u }).closest("form");
@@ -230,7 +253,7 @@ describe("AgentsPage", () => {
   it("proposes the next version citing a report chosen from this agent's own reports", async () => {
     const client = testClient();
     renderPage(client);
-    loadAgent();
+    await loadAgent();
     await screen.findByText("Version 2 is in force");
 
     const form = screen.getByRole("button", { name: /^Propose version/u }).closest("form");
@@ -260,7 +283,7 @@ describe("AgentsPage", () => {
   it("activates through the item path, not the collection", async () => {
     const client = testClient([activeInstructionRow, supersededRow, proposedRow]);
     renderPage(client);
-    loadAgent();
+    await loadAgent();
 
     fireEvent.click(await screen.findByRole("button", { name: "Activate" }));
     await waitFor(() =>
@@ -274,7 +297,7 @@ describe("AgentsPage", () => {
   it("puts rollback behind a confirmation, because it changes live agent behaviour", async () => {
     const client = testClient();
     renderPage(client);
-    loadAgent();
+    await loadAgent();
 
     fireEvent.click(await screen.findByRole("button", { name: "Roll back…" }));
     expect(client.request).not.toHaveBeenCalledWith(
@@ -296,21 +319,57 @@ describe("AgentsPage", () => {
     // activation ever there is nothing behind it, and offering the action
     // would promise a result the server declines to produce.
     renderPage(testClient([activeInstructionRow, proposedRow]));
-    loadAgent();
+    await loadAgent();
 
     await screen.findByText("Version 2 is in force");
     expect(screen.queryByRole("button", { name: "Roll back…" })).toBeNull();
   });
 
   it("stays recoverable when the agent services are unavailable", async () => {
-    const request = vi.fn(async () => {
+    /** The roster answers and the three reports do not, which is the case this
+     * is about. Failing everything would have tested that a picker with no
+     * options cannot be used, which is true and is a different test. */
+    const request = vi.fn(async (path: string) => {
+      if (path.startsWith("/v1/admin/actors")) {
+        return {
+          items: [
+            {
+              actor_id: ACTOR,
+              actor_kind: "agent",
+              created_at: "2026-08-01T00:00:00Z",
+              declared_at: "2026-08-01T00:00:00Z",
+              declared_by: ACTOR,
+              display_name: "release-bot",
+              is_declared: true,
+              oidc_subject: "release-bot",
+              owner_principal: null,
+            },
+          ],
+          next_cursor: null,
+        };
+      }
       throw new Error("service unavailable");
     });
     renderPage(clientFromRequest(request));
-    loadAgent();
+    await loadAgent();
 
     expect(await screen.findByText("Accuracy unavailable")).toBeVisible();
     expect(await screen.findByText("Autonomy unavailable")).toBeVisible();
     expect(await screen.findByText("Failure patterns unavailable")).toBeVisible();
+  });
+
+  it("says the roster failed rather than reporting that no agent exists", async () => {
+    /** A reader shown "no match" for a request that never arrived would conclude
+     * the deployment has no agents — which is exactly the wrong conclusion on
+     * the screen built to watch them. */
+    const request = vi.fn(async () => {
+      throw new Error("service unavailable");
+    });
+    renderPage(clientFromRequest(request));
+
+    fireEvent.click(screen.getByRole("button", { name: "Agent" }));
+
+    expect(await screen.findByText(/could not be loaded/u)).toBeVisible();
+    expect(screen.queryByText(/No match/u)).toBeNull();
   });
 });

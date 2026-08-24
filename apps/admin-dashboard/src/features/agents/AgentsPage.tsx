@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, RefreshCw } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { EmptyState, PageContainer, SummaryStrip, TableSection } from "@repo/ui/layouts";
@@ -9,6 +9,7 @@ import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   StatusBadge,
   useToast,
@@ -38,6 +39,7 @@ import {
   toWindowInstant,
   windowStartDefault,
 } from "./agentsModel";
+import { principalSource } from "../../shared/pickers/sources";
 
 interface AgentsPageProps {
   activeTenantName: string;
@@ -62,6 +64,15 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
   const tenantKey = apiTenantId ?? "credential-default";
 
   const [actorInput, setActorInput] = useState("");
+
+  // Rebuilt from the tenant rather than closing over `requestContext`, which the
+  // page constructs fresh each render: depending on the object would change the
+  // identity of the `load` the picker's effect watches and re-request per
+  // keystroke.
+  const principals = useMemo(
+    () => principalSource(client, apiTenantId ? { tenantId: apiTenantId } : {}),
+    [apiTenantId, client],
+  );
   const [actorId, setActorId] = useState("");
   const [now] = useState(() => new Date());
   const [windowStart, setWindowStart] = useState(() =>
@@ -224,16 +235,21 @@ export function AgentsPage({ activeTenantName, apiTenantId, client }: AgentsPage
 
       <form className="rounded-lg border border-border bg-surface p-4" onSubmit={loadAgent}>
         <div className="grid gap-3 md:grid-cols-4">
-          <label className="text-xs font-medium text-muted md:col-span-2" htmlFor="agent-actor">
-            Agent actor UUID
-            <input
-              className={inputClassName}
-              id="agent-actor"
-              onChange={(event) => setActorInput(event.target.value)}
-              placeholder="00000000-0000-0000-0000-000000000000"
+          {/* The field the identifier work was named after: a text box whose
+              placeholder was a zero UUID, on the screen for watching agents.
+              E22-T7 shipped the roster; this is it being used. The kind comes
+              with the name, and an undeclared principal says so — "we have no
+              agents" and "nobody has declared any" are different answers, and
+              this is the screen where the difference shows. */}
+          <div className="md:col-span-2">
+            <ResourcePicker
+              label="Agent"
+              load={principals}
+              onValueChange={setActorInput}
+              searchPlaceholder="Search principals by name"
               value={actorInput}
             />
-          </label>
+          </div>
           <label className="text-xs font-medium text-muted" htmlFor="agent-window-start">
             Window start
             <input

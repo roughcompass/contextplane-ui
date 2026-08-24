@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { EmptyState, SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, ResourcePicker, StatusBadge } from "@repo/ui/primitives";
 
 import {
   findReceiptsByReference,
@@ -13,6 +13,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { receiptSource } from "../../shared/pickers/sources";
 import { SERVABILITY_COPY, servabilityFromError } from "./receiptServability";
 
 interface ReceiptExplorerPanelProps {
@@ -41,6 +42,14 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
   const [reference, setReference] = useState<ReferenceForm>(EMPTY_REFERENCE);
   const [lookup, setLookup] = useState<ReferenceForm | null>(null);
   const [receiptId, setReceiptId] = useState("");
+
+  // Built once per tenant, rebuilding the context inside: the page constructs it
+  // fresh each render, so depending on the object would re-request per keystroke.
+  const tenantId = requestContext.tenantId;
+  const receipts = useMemo(
+    () => receiptSource(client, tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
   const [selected, setSelected] = useState("");
 
   const referenceComplete = Object.values(reference).every((value) => value.trim() !== "");
@@ -133,15 +142,22 @@ export function ReceiptExplorerPanel({ client, requestContext }: ReceiptExplorer
         </form>
 
         <div className="border-t border-border-subtle px-6 py-4">
-          <label className="block text-xs font-medium text-muted" htmlFor="receipt-id">
-            Or open a receipt by id
-            <input
-              className={fieldClassName}
-              id="receipt-id"
-              onChange={(event) => setReceiptId(event.target.value)}
-              value={receiptId}
-            />
-          </label>
+          {/* Chosen from recent resolutions, which E23-T1 made listable. A
+              receipt id is minted by a resolution and shown to whoever triggered
+              it, so a reader arriving later to ask what was served had no way to
+              obtain one — the find-by-reference path above is for somebody who
+              holds the work item instead.
+
+              A withheld receipt is absent from the list, not offered and then
+              refused: the service decides that, and offering one would disclose
+              that a resolution exists from the surface allowed to say so. */}
+          <ResourcePicker
+            label="Or open a recent resolution"
+            load={receipts}
+            onValueChange={setReceiptId}
+            searchPlaceholder="Search recent resolutions"
+            value={receiptId}
+          />
           <Button
             className="mt-3"
             disabled={receiptId.trim() === ""}

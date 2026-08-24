@@ -16,7 +16,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useId, useState, type FormEvent, type RefObject } from "react";
+import { useId, useMemo, useState, type FormEvent, type RefObject } from "react";
 
 import { BRAND } from "@repo/ui/brand";
 import {
@@ -32,6 +32,7 @@ import {
   Button,
   Notice,
   RequestFailure,
+  ResourcePicker,
   SearchableSelect,
   Skeleton,
   StatusBadge,
@@ -59,6 +60,7 @@ import {
   type ResolveContextInput,
   type WhoAmI,
 } from "../../shared/api";
+import { capabilitySource, receiptSource, type PickerSource } from "../../shared/pickers/sources";
 import {
   contextBlockDescription,
   contextBlockLabel,
@@ -189,15 +191,23 @@ function ContextLabHeader({ identity }: { identity: WhoAmI }) {
 }
 
 function PromptComposer({
+  capabilities,
   isPending,
   onSubmit,
   prompt,
+  receipts,
   searchRef,
   setPrompt,
 }: {
+  /** The catalog, for the subject field. Threaded rather than built here: the
+   *  page owns the client, and a source rebuilt per render would change the
+   *  identity of the `load` the picker's effect watches. */
+  capabilities: PickerSource;
   isPending: boolean;
   onSubmit: (input: ResolveContextInput) => void;
   prompt: string;
+  /** Recent resolutions, for the ARC receipt field. */
+  receipts: PickerSource;
   searchRef: RefObject<HTMLInputElement | null>;
   setPrompt: (value: string) => void;
 }) {
@@ -314,23 +324,23 @@ function PromptComposer({
             <span className="font-normal text-muted">(optional)</span>
           </summary>
           <div className="grid gap-4 pb-1 pt-4 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor={subjectId}>
-              Subject entity UUID
-              <input
-                aria-describedby={scopeErrors.subjectEntityId ? `${subjectId}-error` : undefined}
-                aria-invalid={scopeErrors.subjectEntityId ? "true" : undefined}
-                className={scopeErrors.subjectEntityId ? invalidInputClassName : inputClassName}
-                id={subjectId}
-                onChange={(event) => setSubjectEntityId(event.currentTarget.value)}
-                placeholder="Center observed claims on one entity"
+            {/* Chosen from the catalog. A reader here is asking what context an
+                agent would get about an entity, which means they are looking the
+                entity up — a text box asked them to already know its UUID. */}
+            <div>
+              <ResourcePicker
+                label="Subject entity"
+                load={capabilities}
+                onValueChange={setSubjectEntityId}
+                searchPlaceholder="Centre observed claims on one entity"
                 value={subjectEntityId}
               />
               {scopeErrors.subjectEntityId ? (
-                <span className="mt-2 block text-danger" id={`${subjectId}-error`} role="alert">
+                <span className="mt-2 block text-xs text-danger" id={`${subjectId}-error`} role="alert">
                   {scopeErrors.subjectEntityId}
                 </span>
               ) : null}
-            </label>
+            </div>
             <label className="text-xs font-medium text-muted" htmlFor={workspaceTermId}>
               Workspace term
               <input
@@ -358,23 +368,23 @@ function PromptComposer({
                 </span>
               ) : null}
             </label>
-            <label className="text-xs font-medium text-muted" htmlFor={arcReceiptId}>
-              ARC receipt UUID
-              <input
-                aria-describedby={scopeErrors.arcReceiptId ? `${arcReceiptId}-error` : undefined}
-                aria-invalid={scopeErrors.arcReceiptId ? "true" : undefined}
-                className={scopeErrors.arcReceiptId ? invalidInputClassName : inputClassName}
-                id={arcReceiptId}
-                onChange={(event) => setArcReceipt(event.currentTarget.value)}
-                placeholder="Include an attested policy resolution"
+            {/* Chosen from recent resolutions. A receipt id is minted by a
+                resolution and shown to whoever triggered it, which is rarely the
+                person later asking what an attested resolution served. */}
+            <div>
+              <ResourcePicker
+                label="ARC receipt"
+                load={receipts}
+                onValueChange={setArcReceipt}
+                searchPlaceholder="Include an attested policy resolution"
                 value={arcReceipt}
               />
               {scopeErrors.arcReceiptId ? (
-                <span className="mt-2 block text-danger" id={`${arcReceiptId}-error`} role="alert">
+                <span className="mt-2 block text-xs text-danger" id={`${arcReceiptId}-error`} role="alert">
                   {scopeErrors.arcReceiptId}
                 </span>
               ) : null}
-            </label>
+            </div>
             <SearchableSelect
               allowEmpty={false}
               label="Maximum items per source"
@@ -1100,6 +1110,19 @@ function ContextLab({
   searchRef: RefObject<HTMLInputElement | null>;
 }) {
   const [prompt, setPrompt] = useState("");
+
+  // Built once per tenant and threaded down. Rebuilding per render would change
+  // the identity of the `load` each picker's effect watches, re-requesting on
+  // every keystroke.
+  const capabilities = useMemo(
+    () => capabilitySource(client, apiTenantId ? { tenantId: apiTenantId } : {}),
+    [apiTenantId, client],
+  );
+  const receipts = useMemo(
+    () => receiptSource(client, apiTenantId ? { tenantId: apiTenantId } : {}),
+    [apiTenantId, client],
+  );
+
   const [successfulPrompt, setSuccessfulPrompt] = useState("");
   const [feedbackByItem, setFeedbackByItem] = useState<Record<string, ContextFeedback>>({});
   const [feedbackError, setFeedbackError] = useState<{ error: unknown; itemId: string } | null>(
@@ -1181,9 +1204,11 @@ function ContextLab({
     <PageContainer className="space-y-8">
       <ContextLabHeader identity={identity} />
       <PromptComposer
+        capabilities={capabilities}
         isPending={resolveMutation.isPending}
         onSubmit={(input) => resolveMutation.mutate(input)}
         prompt={prompt}
+        receipts={receipts}
         searchRef={searchRef}
         setPrompt={setPrompt}
       />

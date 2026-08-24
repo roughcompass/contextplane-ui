@@ -1,9 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import { FileWarning } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, useToast } from "@repo/ui/primitives";
+import { Button, Notice, ResourcePicker, useToast } from "@repo/ui/primitives";
 
 import {
   grantArcException,
@@ -12,6 +12,7 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+import { governanceSource } from "../../shared/pickers/sources";
 
 interface ExceptionGrantPanelProps {
   client: ContextplaneClient;
@@ -79,6 +80,14 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
   const [descriptorError, setDescriptorError] = useState<string | null>(null);
   const [granted, setGranted] = useState<ArcExceptionGrant | null>(null);
   const [revokeId, setRevokeId] = useState("");
+
+  // Built once per tenant, rebuilding the context inside: the page constructs it
+  // fresh each render, so depending on the object would re-request per keystroke.
+  const tenantId = requestContext.tenantId;
+  const exceptions = useMemo(
+    () => governanceSource(client, "exceptions", tenantId ? { tenantId } : {}),
+    [client, tenantId],
+  );
   const [revokeCode, setRevokeCode] = useState("");
 
   const grantMutation = useMutation({
@@ -296,15 +305,17 @@ export function ExceptionGrantPanel({ client, requestContext }: ExceptionGrantPa
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs font-medium text-muted" htmlFor="revoke-exception-id">
-              Exception id
-              <input
-                className={fieldClassName}
-                id="revoke-exception-id"
-                onChange={(event) => setRevokeId(event.target.value)}
-                value={revokeId}
-              />
-            </label>
+            {/* Chosen from the register E22-T16 built. Revoking an exception a
+                reader cannot name is the case this screen used to say was
+                impossible, and only in-force ones are offered — revoking one
+                already revoked is a no-op the service refuses. */}
+            <ResourcePicker
+              label="Exception"
+              load={exceptions}
+              onValueChange={setRevokeId}
+              searchPlaceholder="Search exceptions in force"
+              value={revokeId}
+            />
             <label className="text-xs font-medium text-muted" htmlFor="revoke-exception-reason">
               Reason code
               <input

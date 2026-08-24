@@ -12,9 +12,28 @@ const EXCEPTION_ID = "99999999-9999-9999-9999-999999999999";
 
 function testClient() {
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
-    void options;
     if (path.endsWith("/revoke")) return { exception_id: EXCEPTION_ID, status: "revoked" };
-    if (path === "/v1/arc/admin/exceptions") {
+    // The register and the grant share a path; the method tells them apart. A
+    // fake keying on the path alone would answer the picker's read with a grant
+    // response, which is the divergence between double and service that only
+    // shows up later.
+    if (path === "/v1/arc/admin/exceptions" || path.startsWith("/v1/arc/admin/exceptions?")) {
+      if (options?.method === "GET") {
+        return {
+          items: [
+            {
+              created_at: "2026-08-20T09:00:00Z",
+              detail: {},
+              in_force: true,
+              in_force_until: null,
+              kind: "arc_exception",
+              object_id: EXCEPTION_ID,
+              scope: "tenant",
+              target_tenant_id: null,
+            },
+          ],
+        };
+      }
       return { exception_id: EXCEPTION_ID, status: "granted" };
     }
     throw new Error(`Unexpected path: ${path}`);
@@ -149,7 +168,10 @@ describe("ExceptionGrantPanel", () => {
   it("revokes through the item path, not the collection that grants", async () => {
     const client = testClient();
     renderPanel(client);
-    fireEvent.change(screen.getByLabelText("Exception id"), { target: { value: EXCEPTION_ID } });
+    // Chosen from the register E22-T16 built, on the screen that used to say the
+    // register could not exist.
+    fireEvent.click(screen.getByRole("button", { name: "Exception" }));
+    fireEvent.click(await screen.findByRole("option", { name: new RegExp(EXCEPTION_ID, "u") }));
     fireEvent.change(screen.getByLabelText("Reason code"), { target: { value: "superseded" } });
     fireEvent.click(screen.getByRole("button", { name: "Revoke this exception" }));
 

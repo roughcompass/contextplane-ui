@@ -156,6 +156,26 @@ function testError(code = "network_error", status = 0) {
 
 function defaultHandler(path: string, options?: { body?: unknown }): unknown {
   if (path === "/v1/whoami") return identity;
+  // The two collections the scope pickers read. Both existed before this screen
+  // called them — the catalog since the beginning, the receipt listing since
+  // E23-T1.
+  if (path.startsWith("/v1/capabilities")) {
+    return {
+      items: [
+        {
+          created_at: "2026-08-01T00:00:00Z",
+          entity_id: entityId,
+          entity_type: "capability",
+          external_id: null,
+          name: "identity-resolution",
+        },
+      ],
+      next_cursor: null,
+    };
+  }
+  if (path.startsWith("/v1/receipts?") || path === "/v1/receipts") {
+    return { items: [], next_before: null };
+  }
   if (path === "/v1/context/resolve") return completeEnvelope;
   if (path === `/v1/receipts/${receiptId}`) return receipt;
   if (path === `/v1/receipts/${receiptId}/exclusions`) {
@@ -264,9 +284,10 @@ describe("ContextLabPage", () => {
       target: { value: "Who owns identity resolution?" },
     });
     fireEvent.click(screen.getByText("Refine resolution scope"));
-    fireEvent.change(screen.getByRole("textbox", { name: "Subject entity UUID" }), {
-      target: { value: entityId },
-    });
+    // Chosen from the catalog rather than typed: a reader asking what context an
+    // agent would get about an entity is looking the entity up.
+    fireEvent.click(screen.getByRole("button", { name: "Subject entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /identity-resolution/u }));
     fireEvent.change(screen.getByRole("textbox", { name: "Workspace term" }), {
       target: { value: "identity migration" },
     });

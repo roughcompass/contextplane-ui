@@ -80,6 +80,29 @@ function renderDialog(target: RelationshipAuthoringTarget, harness: Harness) {
   const calls: { body: unknown; headers?: Record<string, string>; path: string }[] = [];
   const request = vi.fn(async (path: string, options?: ContextplaneRequestOptions) => {
     if (path === "/v1/profiles/conformance") return binding;
+    // The catalog both endpoint pickers read. Authoring a relationship is a
+    // statement about two named things, so both ends are chosen.
+    if (path.startsWith("/v1/capabilities")) {
+      return {
+        items: [
+          {
+            created_at: "2026-08-01T00:00:00Z",
+            entity_id: "src-1",
+            entity_type: "capability",
+            external_id: null,
+            name: "checkout-service",
+          },
+          {
+            created_at: "2026-08-01T00:00:00Z",
+            entity_id: "dst-1",
+            entity_type: "capability",
+            external_id: null,
+            name: "ledger-service",
+          },
+        ],
+        next_cursor: null,
+      };
+    }
     if (options?.method === "PATCH" || options?.method === "POST") {
       calls.push({
         body: options.body,
@@ -142,12 +165,10 @@ describe("RelationshipAuthoringDialog — creating", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Relationship type/ }), {
       target: { value: "core:depends_on" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Source entity ID/ }), {
-      target: { value: "src-1" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Destination entity ID/ }), {
-      target: { value: "dst-1" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Source entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /checkout-service/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Destination entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ledger-service/u }));
     fireEvent.click(screen.getByRole("button", { name: /^Create relationship$/ }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
@@ -170,12 +191,10 @@ describe("RelationshipAuthoringDialog — creating", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Relationship type/ }), {
       target: { value: "core:depends_on" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Source entity ID/ }), {
-      target: { value: "src-1" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Destination entity ID/ }), {
-      target: { value: "dst-1" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Source entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /checkout-service/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Destination entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ledger-service/u }));
     fireEvent.click(screen.getByRole("button", { name: /^Create relationship$/ }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
@@ -191,12 +210,10 @@ describe("RelationshipAuthoringDialog — creating", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Relationship type/ }), {
       target: { value: "core:depends_on" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Source entity ID/ }), {
-      target: { value: "src-1" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Destination entity ID/ }), {
-      target: { value: "dst-1" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Source entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /checkout-service/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Destination entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /ledger-service/u }));
     fireEvent.click(screen.getByRole("button", { name: /^Create relationship$/ }));
 
     expect(
@@ -241,7 +258,10 @@ describe("RelationshipAuthoringDialog — superseding", () => {
       "core:depends_on",
     );
     expect(screen.getByRole("textbox", { name: /Relationship type/ })).toHaveAttribute("readonly");
-    expect(screen.getByRole("textbox", { name: /Source entity ID/ })).toHaveAttribute("readonly");
+    // Disabled rather than read-only now the endpoints are pickers, and shown
+    // rather than hidden: the endpoints are what a relationship *is*, so
+    // displaying them and refusing the edit says more than removing them.
+    expect(screen.getByRole("button", { name: "Source entity" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: /Intent/ })).toBeDisabled();
   });
 

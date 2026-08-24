@@ -96,6 +96,16 @@ export {
   type ArcRevisionAction,
 } from "./arcRevisionLifecycle";
 export {
+  listIntents,
+  listReceipts,
+  listTenants,
+  type Intent,
+  type ReachableTenant,
+  type ReceiptPage,
+  type ReceiptQuery,
+  type ReceiptSummary,
+} from "./directory";
+export {
   listPrincipals,
   type Principal,
   type PrincipalPage,
