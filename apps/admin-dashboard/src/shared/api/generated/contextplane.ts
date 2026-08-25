@@ -58,6 +58,59 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/actors": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Principals
+     * @description Every principal in this tenant, newest first.
+     *
+     *     **Undeclared principals are returned, not filtered.** An agent nobody has
+     *     declared is the state most deployments start in, and a roster that hid it
+     *     would answer "we have no agents" to a deployment that has eleven. The row
+     *     says what is not known and the caller can act on it.
+     */
+    get: operations["list_principals_v1_admin_actors_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/actors/{actor_id}/declare": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Declare Principal
+     * @description Say what a principal is, and who is accountable for it.
+     *
+     *     A declaration, never a classification. A human in an IDE and an unattended
+     *     agent arrive over the identical transport, so nothing here reads behaviour
+     *     to guess — somebody says, and the row records that they said so and when.
+     *
+     *     Re-declaring overwrites: a principal that was a person's session and is now
+     *     an unattended agent is a real change, and refusing it would leave the roster
+     *     wrong in the direction that matters.
+     */
+    post: operations["declare_principal_v1_admin_actors__actor_id__declare_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/actors/{actor_id}/personal-data": {
     parameters: {
       query?: never;
@@ -915,6 +968,34 @@ export interface paths {
     patch: operations["_patch_pii_pattern_v1_admin_pii_patterns__pattern_id__patch"];
     trace?: never;
   };
+  "/v1/admin/reporting-deadline-policy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Deadline Policy
+     * @description The durations in force for this tenant, and whether anybody chose them.
+     */
+    get: operations["get_deadline_policy_v1_admin_reporting_deadline_policy_get"];
+    /**
+     * Set Deadline Policy
+     * @description Record what this tenant's regime requires, overriding the default.
+     *
+     *     Already-stamped deadlines do not move. They are what somebody was working
+     *     to, and rewriting them would rewrite the audit's answer to "when was this
+     *     due".
+     */
+    put: operations["set_deadline_policy_v1_admin_reporting_deadline_policy_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/reporting-obligations": {
     parameters: {
       query?: never;
@@ -973,6 +1054,40 @@ export interface paths {
      *     only the most recent opinion.
      */
     post: operations["classify_obligation_v1_admin_reporting_obligations__obligation_id__classify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/reporting-obligations/{obligation_id}:evidence": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Obligation Evidence
+     * @description Everything recorded about one obligation, in one read.
+     *
+     *     **This route is why the service exists, and it was missing.**
+     *     `ObligationEvidenceService` shipped as E4-T7's deliverable, wired into the
+     *     container and reached by no transport -- so the export nobody could call was
+     *     recorded as delivered. An export surface with no caller is not an export,
+     *     and this is the seventh instance of that defect the plan has caught.
+     *
+     *     The scope is a join and nothing is inferred: an obligation, the incidents it
+     *     cites, and the claims whose provenance names those incidents. A claim reaches
+     *     this bundle only by citing an incident this obligation cites.
+     *
+     *     Ids, never claim content. Somebody assembling a regulatory submission needs
+     *     to know *which* records bear on it; serving the values here would be a second
+     *     serving path with none of the servability rules the real one applies.
+     */
+    get: operations["obligation_evidence_v1_admin_reporting_obligations__obligation_id__evidence_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1728,6 +1843,141 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/arc/admin/envelopes/bindings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Resolve Envelope
+     * @description The envelope covering one principal, suspended or not.
+     *
+     *     `null` when no binding covers the instant, which a caller must not read as
+     *     "suspended": one is a principal nobody has governed, the other is a posture
+     *     somebody chose, and collapsing them is what would let an ungoverned agent
+     *     look controlled.
+     */
+    get: operations["resolve_envelope_v1_arc_admin_envelopes_bindings_get"];
+    put?: never;
+    /**
+     * Grant Envelope
+     * @description Bind a principal to an envelope revision.
+     */
+    post: operations["grant_envelope_v1_arc_admin_envelopes_bindings_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/envelopes/bindings/directory": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Envelope Bindings
+     * @description Who is governed in this tenant, and how.
+     *
+     *     **The read the operating surface was missing.** `resolve` answers about a
+     *     principal the caller can already name; until this, nothing told them the
+     *     names. An operator during an incident had to already know the exact
+     *     `(issuer, subject)` pair of the agent they were trying to stop, which is the
+     *     same as not having the control.
+     *
+     *     A separate path from the single-principal resolve rather than that route
+     *     with its parameters made optional: one answers "is this agent governed" and
+     *     the other "who is", and a route that returned an object or a page depending
+     *     on which query parameters arrived would be two contracts wearing one URL.
+     *
+     *     Suspended and revoked bindings are included. A closed interval is exactly
+     *     what an operator asking "was this agent ever governed" is looking for.
+     */
+    get: operations["list_envelope_bindings_v1_arc_admin_envelopes_bindings_directory_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/envelopes/bindings/{binding_id}/reinstate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reinstate Envelope
+     * @description Turn a suspended envelope back on.
+     *
+     *     Authorised like a grant rather than like a suspension, which the service
+     *     decides: putting authority back in force at tenant scope would let a tenant
+     *     admin undo a deployment operator's suspension of a global envelope.
+     */
+    post: operations["reinstate_envelope_v1_arc_admin_envelopes_bindings__binding_id__reinstate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/envelopes/bindings/{binding_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke Envelope
+     * @description End the binding, closing its interval.
+     *
+     *     Not the same act as suspending. A suspension is a posture somebody can
+     *     reverse; this closes the interval, and the difference is what an auditor
+     *     reading the record afterwards is trying to tell apart.
+     */
+    post: operations["revoke_envelope_v1_arc_admin_envelopes_bindings__binding_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/envelopes/bindings/{binding_id}/suspend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Suspend Envelope
+     * @description Turn an envelope off without ending it.
+     *
+     *     The instant-suspend path. Nothing the principal begins after this commits is
+     *     authorised by the envelope, on any replica, because no replica holds a copy —
+     *     which is what replaced the wall-clock SLO the plan originally carried.
+     */
+    post: operations["suspend_envelope_v1_arc_admin_envelopes_bindings__binding_id__suspend_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/arc/admin/exceptions": {
     parameters: {
       query?: never;
@@ -1850,6 +2100,36 @@ export interface paths {
      *     checks before use.
      */
     get: operations["describe_operator_identity_v1_arc_admin_operator_identity_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/arc/admin/revisions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Arc Revisions
+     * @description Which revisions exist — the read the lifecycle screen never had.
+     *
+     *     Seven paths already act on a revision and every one is keyed by an id the
+     *     caller must already hold. That is why the lifecycle screen is four text
+     *     boxes: nothing could have been designed well against a surface with no way
+     *     to ask what exists.
+     *
+     *     Each row carries `resolutions_under_revision`, which is the field the choice
+     *     between the two terminal acts turns on — invalidate puts what was decided
+     *     under a revision in question, revoke leaves it standing — so a reader is not
+     *     choosing between them on the strength of a paragraph.
+     */
+    get: operations["list_arc_revisions_v1_arc_admin_revisions_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3376,7 +3656,20 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List My Context Feedback
+     * @description The caller's own recorded judgements, newest first.
+     *
+     *     **The one loop the product has for "how might this be improved" was open at
+     *     the far end**: a reader could record that a served item was irrelevant and
+     *     never see what their assessment did. This closes it, and closes it narrowly.
+     *
+     *     Scoped to the caller by their own identity rather than by an argument. The
+     *     write path already refuses a caller reporting as somebody else; accepting a
+     *     reporter id here would reopen on the read side exactly what that closes on
+     *     the write side.
+     */
+    get: operations["list_my_context_feedback_v1_context_feedback_get"];
     put?: never;
     /**
      * Record Context Feedback
@@ -3398,6 +3691,63 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/context/instruction-sets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Declare Instruction Set
+     * @description Submit the content of one instruction set, once, and get back its digest.
+     *
+     *     Idempotent, and idempotent without an `Idempotency-Key`: the digest *is* the
+     *     content, so a repeat submission of the same set is the same row and there is
+     *     no key a caller could get wrong. That is why this is not a create in the
+     *     sense the rest of the surface means -- it registers content under a name
+     *     derived from the content.
+     *
+     *     Returns the digest rather than taking one. A caller that sent both would be
+     *     asserting a hash of its own bytes, and the service would have to either trust
+     *     it or recompute it; recomputing makes the sent value decorative, and trusting
+     *     it lets a caller file one instruction set under another's name.
+     */
+    post: operations["declare_instruction_set_v1_context_instruction_sets_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/context/receipts/{receipt_id}/feedback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Feedback For Receipt
+     * @description What was judged about one resolution, without saying by whom.
+     *
+     *     The receipt is something the caller can already read in full, so the ratings
+     *     attached to it disclose nothing further about the resolution. The reporter
+     *     and the note are withheld: those are facts about a person, and a surface
+     *     returning them across reporters would be the per-actor view the aggregates
+     *     surface refuses, arriving through a door marked evaluation.
+     */
+    get: operations["list_feedback_for_receipt_v1_context_receipts__receipt_id__feedback_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/context/resolve": {
     parameters: {
       query?: never;
@@ -3409,7 +3759,7 @@ export interface paths {
     put?: never;
     /**
      * Resolve Context
-     * @description Resolve one context request into the four-block envelope.
+     * @description Resolve one context request into the block envelope.
      *
      *     The clock is read once, here, and passed down. Every arm evaluates "active
      *     now" against that one moment, so a request cannot authorize on one side of a
@@ -3673,6 +4023,372 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/evaluation/expectation-presets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Expectation Presets
+     * @description The seeded personas a prompt's expectations can be started from.
+     *
+     *     *"Here is a best practice, but you may amend for a given persona."* Each is a
+     *     parameterization of the same five criteria, never an extension: a persona
+     *     that could add a criterion would be a rubric, and two rubrics produce two
+     *     numbers nobody can put side by side.
+     *
+     *     Each carries the rubric versions its thresholds were written against, because
+     *     a threshold on a criterion that has since been redefined is a number
+     *     describing something else.
+     *
+     *     No tenant scoping: these are the shapes this deployment ships, not this
+     *     tenant's data. The read gate is still applied, because a caller with no role
+     *     on this deployment has no business enumerating its evaluation vocabulary.
+     */
+    get: operations["list_expectation_presets_v1_evaluation_expectation_presets_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/judge-calibration": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Judge Calibration
+     * @description Every judge tuple that has ever been fitted, at its most recent attempt.
+     *
+     *     A tuple that has been tried and always missed its bound stays visible rather
+     *     than disappearing the moment nothing about it is active. That row is the
+     *     answer to *"why is this judge still unproven"*, and its absence would send an
+     *     evaluator looking in the wrong place.
+     *
+     *     Deployment-wide, matching how the fit is computed: what is being calibrated
+     *     is a model's self-report, which is a property of the model rather than of a
+     *     tenant.
+     */
+    get: operations["list_judge_calibration_v1_evaluation_judge_calibration_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/judgements/{judgement_id}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record Judgement Review
+     * @description Confirm or overrule one judged criterion.
+     *
+     *     A second fact beside the judge's, never a correction to it: the pair (what
+     *     the judge said, what the person said) is the only thing calibration can be
+     *     fitted from, and overwriting would destroy it.
+     *
+     *     Attributed to the caller and not to an actor the caller names. A second
+     *     review from the same reviewer replaces the first, because somebody who
+     *     changed their mind has one opinion; two reviewers disagreeing stays two rows.
+     */
+    post: operations["record_judgement_review_v1_evaluation_judgements__judgement_id__review_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/prompt-sets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Prompt Sets
+     * @description This tenant's sets, newest first.
+     */
+    get: operations["list_prompt_sets_v1_evaluation_prompt_sets_get"];
+    put?: never;
+    /**
+     * Create Prompt Set
+     * @description Create an empty named set. Prompts are added one at a time.
+     */
+    post: operations["create_prompt_set_v1_evaluation_prompt_sets_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/prompt-sets/{set_id}/prompts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add Prompt
+     * @description Append one context request to a set.
+     *
+     *     The request is validated against the same shape the resolver takes, so a
+     *     prompt that could never resolve is refused here rather than failing on every
+     *     run afterwards.
+     */
+    post: operations["add_prompt_v1_evaluation_prompt_sets__set_id__prompts_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/prompt-sets/{set_id}/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Runs
+     * @description This set's runs, newest first, without their items.
+     *
+     *     Headers only, because a comparison starts by choosing two runs and loading
+     *     every item of every run to render that choice would read the whole history
+     *     to answer a question about two rows of it.
+     */
+    get: operations["list_runs_v1_evaluation_prompt_sets__set_id__runs_get"];
+    put?: never;
+    /**
+     * Start Run
+     * @description Resolve every prompt in the set, once, and keep what came back.
+     *
+     *     Every prompt is attempted. One that raises produces an item saying so and the
+     *     run continues — stopping would leave the rest unmeasured and report on a
+     *     subset chosen by whichever prompt happened to fail first.
+     */
+    post: operations["start_run_v1_evaluation_prompt_sets__set_id__runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/runs/items/{item_id}/verdict": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record Verdict
+     * @description Record what this reviewer thought of one prompt's resolution.
+     *
+     *     Attributed to the caller and not to an actor the caller names: a verdict
+     *     somebody could file under another person's name is not evidence about
+     *     anything. A second verdict from the same reviewer replaces the first, because
+     *     somebody who changed their mind has one opinion.
+     */
+    post: operations["record_verdict_v1_evaluation_runs_items__item_id__verdict_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/runs/{run_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run
+     * @description One run, its items in the set's order, and every verdict on them.
+     */
+    get: operations["get_run_v1_evaluation_runs__run_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/simulations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run Simulation
+     * @description Resolve as a declared agent, then answer from what came back.
+     *
+     *     Two records: the resolver writes its receipt and this writes the generation
+     *     beside it, referencing rather than copying. Both remain separately
+     *     addressable, so "the retrieval was fine and the agent fumbled it" stays a
+     *     question somebody can answer.
+     *
+     *     The resolution runs on the *caller's* identity. `simulated_actor_id` names
+     *     whose behaviour is being modelled and grants nothing — resolving under the
+     *     simulated principal's entitlements would be a privilege escalation wearing an
+     *     evaluation feature.
+     */
+    post: operations["run_simulation_v1_evaluation_simulations_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/simulations/availability": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Simulation Availability
+     * @description Whether this deployment can simulate, and under which selectors.
+     *
+     *     Declared before the route above it in path order deliberately: FastAPI
+     *     matches in declaration order, and `/simulations/{simulation_id}` would
+     *     otherwise swallow `availability` and fail on a UUID parse.
+     *
+     *     Carries no credential and no endpoint — only which selectors are in force,
+     *     which is what somebody needs to fix a refusal. A deployment with no provider
+     *     is complete rather than broken: prompt sets, runs, verdicts and the
+     *     deterministic criteria all work, and this says which half is switched off.
+     */
+    get: operations["simulation_availability_v1_evaluation_simulations_availability_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/simulations/{simulation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Simulation
+     * @description One simulation, its assertions in order, and every citation on them.
+     *
+     *     `envelope_state` is empty on this read and that is deliberate: the state
+     *     belongs to the resolution, which owns it on the receipt. A copy stored here
+     *     could not be corrected when the receipt was, so the reader joins instead.
+     */
+    get: operations["get_simulation_v1_evaluation_simulations__simulation_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/simulations/{simulation_id}/judgements": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Judgements
+     * @description Every judged criterion of one simulation, with every review on each.
+     *
+     *     `confidence_is_calibrated` is false on every row until E24-T6 fits bins for
+     *     the pinned tuple. It is sent rather than left for each client to work out,
+     *     because a client that got it wrong would render an unexamined number with an
+     *     authoritative look — on the screen whose job is calibrating trust.
+     */
+    get: operations["list_judgements_v1_evaluation_simulations__simulation_id__judgements_get"];
+    put?: never;
+    /**
+     * Judge Simulation
+     * @description Grade one simulated answer on groundedness and answer relevance.
+     *
+     *     Both criteria in one call, because they are read from the same material and
+     *     two calls would double the cost to produce two verdicts that could disagree
+     *     about what the answer said.
+     *
+     *     Refused with `409` when the judge shares a provider family with the candidate
+     *     — a judge from the candidate's own family scores it 10–25 % higher than a
+     *     third party does, and that is a constraint rather than advice.
+     */
+    post: operations["judge_simulation_v1_evaluation_simulations__simulation_id__judgements_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/evaluation/simulations/{simulation_id}/judgements/panel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Judge With Panel
+     * @description Run every configured judge over one answer, and leave the split visible.
+     *
+     *     Opt-in, and 3× the cost of a single judge — right for a run that is gating a
+     *     launch decision, wrong for the interactive loop where nobody is making one.
+     *     A separate operation rather than a default, for exactly that reason.
+     *
+     *     A 2–1 panel is reported as 2–1. Nothing is averaged: a criterion three judges
+     *     disagree about is the one most worth a human's time, and a blended figure
+     *     would destroy the signal the panel costs 3× to produce.
+     *
+     *     Refused with `409` when two members share a provider family — three judges
+     *     from one family cancel nothing.
+     */
+    post: operations["judge_with_panel_v1_evaluation_simulations__simulation_id__judgements_panel_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/graph/consumer": {
     parameters: {
       query?: never;
@@ -3746,6 +4462,32 @@ export interface paths {
      *     pagination is not wired. The envelope exists for client shape consistency.
      */
     get: operations["find_integrations_v1_integrations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Intents
+     * @description Tasks this caller participates in, most recently touched first.
+     *
+     *     Not "every task in this tenant", because there is no such list to return: a
+     *     task exists as an id referenced from grants and checkpoints and nowhere else.
+     *     Participation is already the rule for reading a task's material, so a
+     *     directory scoped to it cannot offer a task whose checkpoints the caller could
+     *     not then open.
+     */
+    get: operations["list_intents_v1_intents_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -5161,6 +5903,36 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/receipts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Receipts
+     * @description Recent resolutions this caller may open, newest first.
+     *
+     *     **A withheld or unhydrated receipt is absent, not empty.** The detail reads
+     *     refuse both, and a list that showed them as rows would disclose that a
+     *     resolution happened, when, and against what query — from a surface built
+     *     because another surface refuses to say. Rendering them as empty rows would
+     *     disclose the same thing more quietly.
+     *
+     *     `before` is a `resolved_at` the caller took from its last row. Keyset rather
+     *     than offset, so a receipt written between two pages cannot shift the window
+     *     and hide one.
+     */
+    get: operations["list_receipts_v1_receipts_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/receipts/by-reference": {
     parameters: {
       query?: never;
@@ -5420,6 +6192,31 @@ export interface paths {
      *     Pass ``?view=audit`` to include bitemporal columns in the response.
      */
     patch: operations["_update_subscription_handler_v1_subscriptions__subscription_id__patch"];
+    trace?: never;
+  };
+  "/v1/tenants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Tenants
+     * @description The tenants this credential reaches, the current one first.
+     *
+     *     The only cross-tenant read in the product, and it does not query for the
+     *     answer: the set comes from the caller's own resolved entitlements, and the
+     *     table is consulted only to attach display names to tenants the credential had
+     *     already named.
+     */
+    get: operations["list_tenants_v1_tenants_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/v1/usage/owned-capabilities": {
@@ -5894,6 +6691,31 @@ export interface components {
       issuer: string;
       /** Subject */
       subject: string;
+    };
+    /**
+     * AddPromptRequest
+     * @description One context request appended to a set.
+     */
+    AddPromptRequest: {
+      /**
+       * Expectations
+       * @description What this prompt asserts about a run, in a form a program can check. Declared here and not after a run: a scenario whose required facts were written after seeing what the system returned would be satisfied by whatever the system returned. Omit it entirely to assert nothing, which is a real state and is rendered as one — an object of permissive thresholds would be checks that always pass. Seed it from a persona preset (['balanced', 'compliance', 'research']) and amend from there.
+       */
+      expectations?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Intent Note
+       * @description What this prompt is checking. The question a later reader arrives with.
+       */
+      intent_note?: string | null;
+      /**
+       * Request
+       * @description A context-resolve request: the same fields `POST /v1/context/resolve` takes. Validated on write, so a prompt that could never resolve is refused here rather than failing on every run afterwards.
+       */
+      request: {
+        [key: string]: unknown;
+      };
     };
     /** AdjudicateClaimRequest */
     AdjudicateClaimRequest: {
@@ -6555,6 +7377,27 @@ export interface components {
       visibility: string;
     };
     /**
+     * AssertionCitationResponse
+     * @description One receipt item id an assertion rested on.
+     *
+     *     **Named for what it cites, not just `CitationResponse`, and the reason is a
+     *     collision that renamed somebody else's schema.** `api/routers/memory.py`
+     *     already publishes a `CitationResponse`; a second class under that name makes
+     *     FastAPI qualify *both* by module path, so the pre-existing schema silently
+     *     became `contextplane__api__routers__memory__CitationResponse` in the
+     *     contract — a breaking rename of a published name, caused by an unrelated
+     *     addition. The generated-client build in `contextplane-ui` is what caught it.
+     */
+    AssertionCitationResponse: {
+      /** Receipt Item Id */
+      receipt_item_id: string;
+      /**
+       * Was Served
+       * @description Whether the cited id was actually in the envelope. False is a finding rather than a bug: a model citing something that was not served is exactly what a groundedness check is for, so the citation is stored as declared.
+       */
+      was_served: boolean;
+    };
+    /**
      * AssertionProvenanceInputV1
      * @description Where the assertion came from, as the caller can attest it.
      *
@@ -6594,6 +7437,21 @@ export interface components {
       source_namespace: string;
       /** Source System */
       source_system: string;
+    };
+    /**
+     * AssertionResponse
+     * @description One claim the answer made, and what it rested on.
+     */
+    AssertionResponse: {
+      /**
+       * Citations
+       * @description Empty when the assertion rested on nothing served. That is a real state, not a missing one: it is either a fact the graph does not hold or a groundedness failure, and the improvement surface offers both readings rather than choosing.
+       */
+      citations: components["schemas"]["AssertionCitationResponse"][];
+      /** Position */
+      position: number;
+      /** Text */
+      text: string;
     };
     /**
      * AssignOwnershipRequestV1
@@ -7024,6 +7882,42 @@ export interface components {
       version: string;
     };
     /**
+     * CalibrationStateListResponse
+     * @description Every judge tuple that has ever been fitted, at its most recent attempt.
+     */
+    CalibrationStateListResponse: {
+      /** Items */
+      items: components["schemas"]["CalibrationStateResponse"][];
+    };
+    /**
+     * CalibrationStateResponse
+     * @description One judge tuple's calibration state, with the numbers behind it.
+     *
+     *     The counts travel beside `is_calibrated` because *"why are we still
+     *     unproven"* is the question an evaluator asks next, and an answer of silence
+     *     sends them looking in the wrong place.
+     */
+    CalibrationStateResponse: {
+      /** Fitted At */
+      fitted_at?: string | null;
+      /** Is Calibrated */
+      is_calibrated: boolean;
+      /** Judge Model Id */
+      judge_model_id: string;
+      /** Measured Error */
+      measured_error: number;
+      /** N Adjudicated */
+      n_adjudicated: number;
+      /** Prompt Template Hash */
+      prompt_template_hash: string;
+      /** Rubric Version */
+      rubric_version: string;
+      /** Status */
+      status: string;
+      /** Version */
+      version: string;
+    };
+    /**
      * CapabilityDetailResponse
      * @description Capability record serialised for the consumer GET endpoint.
      *
@@ -7369,6 +8263,32 @@ export interface components {
       /** Ref */
       ref: string;
     };
+    /**
+     * CitedIncidentResponse
+     * @description One external incident record this obligation is about.
+     */
+    CitedIncidentResponse: {
+      /** Authorized Uri */
+      authorized_uri: string | null;
+      /**
+       * Bound At
+       * Format: date-time
+       */
+      bound_at: string;
+      /** External Id */
+      external_id: string;
+      /** Observed At */
+      observed_at: string | null;
+      /**
+       * Reference Id
+       * Format: uuid
+       */
+      reference_id: string;
+      /** Source Namespace */
+      source_namespace: string;
+      /** Source System */
+      source_system: string;
+    };
     /** ClaimHistoryResponse */
     ClaimHistoryResponse: {
       /** Items */
@@ -7536,7 +8456,7 @@ export interface components {
     };
     /**
      * ContextEnvelopeResponse
-     * @description Exactly four blocks, quality, state, and the receipt that records them.
+     * @description Exactly five blocks, quality, state, and the receipt that records them.
      *
      *     `receipt_id` is not decorative and is not optional. It names the stored
      *     record of this resolution, which is what makes the answer auditable later --
@@ -7550,9 +8470,19 @@ export interface components {
       arc_block_note?: string | null;
       /**
        * Blocks
-       * @description Exactly ['canonical', 'arc', 'observed_claims', 'workspace'], in that order.
+       * @description Exactly ['canonical', 'arc', 'observed_claims', 'workspace', 'instructions'], in that order.
        */
       blocks: components["schemas"]["ContextBlockResponse"][];
+      /**
+       * Instruction Block Note
+       * @description Why the instructions block is empty, when it is. Distinguishes the three empties from each other in words, since only one of them is a state the caller can leave.
+       */
+      instruction_block_note?: string | null;
+      /**
+       * Instruction Disposition
+       * @description What was known about the caller's instruction set at resolve time: `not_declared` (no digest was sent), `declared_unknown` (a digest arrived whose content was never submitted, so no delta is computable against it), or `declared_known`. Always present, including for callers that declare nothing -- a client that has to infer `not_declared` from a missing field will infer it for `declared_unknown` too, and those two are exactly the pair whose conflation hides partial adoption of the channel.
+       */
+      instruction_disposition: string;
       quality: components["schemas"]["QualityResponse"];
       /**
        * Receipt Id
@@ -7681,6 +8611,11 @@ export interface components {
        * @description An attested ARC resolution to serve. Omit it and the ARC block comes back empty, not failed.
        */
       arc_receipt_id?: string | null;
+      /**
+       * Instruction Digest
+       * @description A digest of the instruction set in force for this caller, as `sha256:` and 64 lowercase hex characters. Optional: omit it and the `instructions` block comes back empty, and the resolution records that no instruction set was declared. Submit the content once per distinct digest through `POST /v1/context/instruction-sets`; a digest whose content was never submitted resolves normally and is recorded as declared-but-unknown, which is a different state from having declared nothing.
+       */
+      instruction_digest?: string | null;
       /**
        * Intent Ids
        * @description Tasks whose workspace material may be recalled, subject to the caller's participation.
@@ -7859,6 +8794,19 @@ export interface components {
       value_type: string;
     };
     /**
+     * CreatePromptSetRequest
+     * @description A named set, created empty.
+     */
+    CreatePromptSetRequest: {
+      /**
+       * Description
+       * @description What this set is for. Read by somebody who did not write it.
+       */
+      description?: string | null;
+      /** Name */
+      name: string;
+    };
+    /**
      * CurationCaseListResponse
      * @description A page of contradiction cases, oldest first.
      */
@@ -7970,6 +8918,55 @@ export interface components {
        * Format: date
        */
       start: string;
+    };
+    /**
+     * DeadlinePolicyRequest
+     * @description The durations this tenant's regulator requires, overriding the default.
+     */
+    DeadlinePolicyRequest: {
+      /** Final Seconds */
+      final_seconds: number;
+      /** Initial Seconds */
+      initial_seconds: number;
+      /** Intermediate Seconds */
+      intermediate_seconds: number;
+      /**
+       * Source Note
+       * @description Which regulation, article and RTS version these come from. Three durations with no stated source are three numbers nobody can audit.
+       */
+      source_note: string;
+    };
+    /** DeadlinePolicyResponse */
+    DeadlinePolicyResponse: {
+      /** Final Seconds */
+      final_seconds: number;
+      /** Initial Seconds */
+      initial_seconds: number;
+      /** Intermediate Seconds */
+      intermediate_seconds: number;
+      /**
+       * Is Default
+       * @description Whether these are the built-in default rather than a policy this tenant recorded. The default follows the regulation; confirming it against this deployment's own regulator is the deployment's job, and this says whether anybody has.
+       */
+      is_default: boolean;
+      /** Source Note */
+      source_note: string;
+    };
+    /**
+     * DeclarePrincipalRequest
+     * @description What a principal is, and who is accountable for it.
+     */
+    DeclarePrincipalRequest: {
+      /**
+       * Actor Kind
+       * @description One of ['human', 'agent'].
+       */
+      actor_kind: string;
+      /**
+       * Owner Principal
+       * @description Who to talk to about this principal. A principal whose owner is unrecorded is one nobody is accountable for.
+       */
+      owner_principal: string;
     };
     /**
      * DeltaCode
@@ -8568,6 +9565,107 @@ export interface components {
       references_jsonb?: {
         [key: string]: unknown;
       } | null;
+    };
+    /**
+     * EnvelopeBindingPage
+     * @description One page of the directory, with the bookmark for the next.
+     */
+    EnvelopeBindingPage: {
+      /** Items */
+      items: components["schemas"]["EnvelopeBindingResponse"][];
+      /**
+       * Next Cursor
+       * @description Send back as `cursor` for the next page. Opaque -- it is not a timestamp to compare, decode or store, and treating it as one is how a client starts depending on an ordering nobody promised it.
+       */
+      next_cursor?: string | null;
+    };
+    /**
+     * EnvelopeBindingResponse
+     * @description One binding, as the operating surface reports it.
+     */
+    EnvelopeBindingResponse: {
+      /**
+       * Artifact Id
+       * Format: uuid
+       */
+      artifact_id: string;
+      /**
+       * Binding Id
+       * Format: uuid
+       */
+      binding_id: string;
+      /**
+       * Effective From
+       * Format: date-time
+       */
+      effective_from: string;
+      /** Effective To */
+      effective_to?: string | null;
+      /**
+       * Is In Force
+       * @description Whether the binding itself is switched on. Says nothing about the revision's lifecycle.
+       */
+      is_in_force: boolean;
+      /** Principal Issuer */
+      principal_issuer: string;
+      /** Principal Subject */
+      principal_subject: string;
+      /**
+       * Revision Id
+       * Format: uuid
+       */
+      revision_id: string;
+      /**
+       * Revision Lifecycle State
+       * @description The bound revision's own state. A binding is only checked for `active` at grant time, so a live binding to a superseded or revoked governance document is a state this reports rather than hides.
+       */
+      revision_lifecycle_state: string;
+      /** State */
+      state: string;
+      /** Suspended At */
+      suspended_at?: string | null;
+      /** Suspension Reason */
+      suspension_reason?: string | null;
+    };
+    /**
+     * EnvelopeFlipRequest
+     * @description Suspend, reinstate or revoke one binding.
+     */
+    EnvelopeFlipRequest: {
+      /**
+       * Reason
+       * @description Required. A binding switched off with no reason leaves the next reader to work out why an agent stopped being able to act, during the incident where that matters most.
+       */
+      reason: string;
+    };
+    /**
+     * EnvelopeGrantRequest
+     * @description Bind one principal to one envelope revision.
+     */
+    EnvelopeGrantRequest: {
+      /** Audit Reference */
+      audit_reference?: string | null;
+      /**
+       * Effective From
+       * @description Defaults to now. Backdating is refused by the service: an envelope cannot be made to have governed a decision it did not.
+       */
+      effective_from?: string | null;
+      /** Effective To */
+      effective_to?: string | null;
+      /** Principal Issuer */
+      principal_issuer: string;
+      /** Principal Subject */
+      principal_subject: string;
+      /**
+       * Reason
+       * @description Why this principal is being governed by this envelope.
+       */
+      reason: string;
+      /**
+       * Revision Id
+       * Format: uuid
+       */
+      revision_id: string;
     };
     /** EventResponse */
     EventResponse: {
@@ -9280,6 +10378,33 @@ export interface components {
       version: number;
     };
     /**
+     * InstructionSetRequest
+     * @description The content of one instruction set, submitted once.
+     *
+     *     No digest field. A caller that sent one would be asserting a hash of its own
+     *     bytes, and the service would have to either trust it -- letting a caller file
+     *     one instruction set under another's name -- or recompute it, which makes the
+     *     sent value decorative. The digest comes back in the response.
+     */
+    InstructionSetRequest: {
+      /**
+       * Content
+       * @description The instruction set in force for this caller, verbatim. Stored as the set that was in force at the resolutions that declare it -- a historical fact about those resolutions, not a copy of your instructions that anything here reads back to you as current.
+       */
+      content: string;
+    };
+    /**
+     * InstructionSetResponse
+     * @description The digest to send on every later resolve.
+     */
+    InstructionSetResponse: {
+      /**
+       * Digest
+       * @description Send this as `instruction_digest` on resolve. Resubmitting the same content returns it again.
+       */
+      digest: string;
+    };
+    /**
      * IntegrationListResponse
      * @description Paginated list envelope for GET /v1/integrations.
      *
@@ -9292,6 +10417,46 @@ export interface components {
       items: components["schemas"]["EntityRefItem"][];
       /** Next Cursor */
       next_cursor: string | null;
+    };
+    /**
+     * IntentListResponse
+     * @description Tasks this caller participates in.
+     */
+    IntentListResponse: {
+      /** Items */
+      items: components["schemas"]["IntentSummaryResponse"][];
+    };
+    /**
+     * IntentSummaryResponse
+     * @description One task this caller participates in.
+     */
+    IntentSummaryResponse: {
+      /** Checkpoint Count */
+      checkpoint_count: number;
+      /** Expires At */
+      expires_at?: string | null;
+      /**
+       * Goal
+       * @description The latest checkpoint's goal, or absent when the task has none yet — a grant is written before the first checkpoint, so that is a real state rather than a gap.
+       */
+      goal?: string | null;
+      /**
+       * Granted At
+       * Format: date-time
+       */
+      granted_at: string;
+      /**
+       * Intent Id
+       * Format: uuid
+       */
+      intent_id: string;
+      /** Latest Checkpoint At */
+      latest_checkpoint_at?: string | null;
+      /**
+       * Role
+       * @description This caller's role on the task. What they may do, not what exists.
+       */
+      role: string;
     };
     /**
      * InterfaceExpansion
@@ -9369,6 +10534,95 @@ export interface components {
       operations: {
         [key: string]: unknown;
       }[];
+    };
+    /**
+     * JudgementListResponse
+     * @description Every judged criterion of one simulation.
+     */
+    JudgementListResponse: {
+      /** Items */
+      items: components["schemas"]["JudgementResponse"][];
+    };
+    /**
+     * JudgementPageResponse
+     * @description One page, and where the next one starts. The cursor is opaque.
+     */
+    JudgementPageResponse: {
+      /** Items */
+      items: components["schemas"]["RecordedJudgementResponse"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /**
+     * JudgementResponse
+     * @description One criterion, judged, with the trace that makes the verdict arguable.
+     */
+    JudgementResponse: {
+      /**
+       * Confidence
+       * @description The judge's own number, on its own scale. Read `confidence_is_calibrated` before showing it as anything: until a fit exists for this judge's pinned tuple, it predicts nothing.
+       */
+      confidence: number;
+      /**
+       * Confidence Is Calibrated
+       * @description Whether a bin fit exists for this result's pinned tuple. False means the verdict is unproven and must be rendered as such — a confident-looking score on the screen whose job is calibrating trust is a confident label on a guess.
+       */
+      confidence_is_calibrated: boolean;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Criterion
+       * @description One of ['groundedness', 'answer_relevance'].
+       */
+      criterion: string;
+      /**
+       * Evidence
+       * @description The spans the judge relied on, quoted. Present on a pass as well as a fail.
+       */
+      evidence: string[];
+      /**
+       * Is Disputed
+       * @description Whether any reviewer overruled the judge. A visible state, never a silent overwrite.
+       */
+      is_disputed: boolean;
+      /** Judge Model Id */
+      judge_model_id: string;
+      /** Judge Provider Id */
+      judge_provider_id: string;
+      /**
+       * Judgement Id
+       * Format: uuid
+       */
+      judgement_id: string;
+      /** Panel Position */
+      panel_position: number;
+      /**
+       * Prompt Template Hash
+       * @description A digest over what the judge was asked — template, rubric, tool name and output schema. Pinned separately from the model id because position, verbosity and format bias are properties of the template rather than of the model.
+       */
+      prompt_template_hash: string;
+      /**
+       * Reasoning
+       * @description The judge's step-by-step reasoning, produced before its verdict. Required: a score with no trace is one a reviewer can only accept or reject.
+       */
+      reasoning: string;
+      /** Reviews */
+      reviews: components["schemas"]["ReviewResponse"][];
+      /** Rubric Version */
+      rubric_version: string;
+      /**
+       * Simulation Id
+       * Format: uuid
+       */
+      simulation_id: string;
+      /**
+       * Verdict
+       * @description One of ['pass', 'fail']. No partial credit.
+       */
+      verdict: string;
     };
     /**
      * JudgmentAuthor
@@ -9635,6 +10889,26 @@ export interface components {
       next_cursor: string | null;
     };
     /**
+     * ObligationEvidenceResponse
+     * @description One obligation, the incidents it cites, and the claims citing those.
+     */
+    ObligationEvidenceResponse: {
+      /** Citing Claims */
+      citing_claims: {
+        [key: string]: unknown;
+      }[];
+      /** Incidents */
+      incidents: components["schemas"]["CitedIncidentResponse"][];
+      /**
+       * Is Matched
+       * @description Whether anybody has yet said which record this obligation concerns. False is a nomination in progress rather than a defect, and a reader of an empty bundle needs to be able to tell those apart.
+       */
+      is_matched: boolean;
+      obligation: components["schemas"]["ObligationResponse"];
+      /** Provenance */
+      provenance: string;
+    };
+    /**
      * ObligationResponse
      * @description One obligation. The classification fields are all set or all null.
      */
@@ -9645,6 +10919,17 @@ export interface components {
       classified_at: string | null;
       /** Classified By */
       classified_by: string | null;
+      /**
+       * Deadline Basis
+       * @description `default` or `tenant_policy` — which durations produced the three instants. Recorded because a default that changes in a later release must not leave an auditor unable to say where a given deadline came from.
+       */
+      deadline_basis?: string | null;
+      /** Final Report Due At */
+      final_report_due_at?: string | null;
+      /** Initial Report Due At */
+      initial_report_due_at?: string | null;
+      /** Intermediate Report Due At */
+      intermediate_report_due_at?: string | null;
       /** Materiality */
       materiality: string;
       /**
@@ -9897,6 +11182,41 @@ export interface components {
      */
     OwningScope: "global" | "tenant";
     /**
+     * PanelOutcomeResponse
+     * @description One criterion as a panel decided it, with the split left visible.
+     */
+    PanelOutcomeResponse: {
+      /** Criterion */
+      criterion: string;
+      /**
+       * Is Split
+       * @description Whether the panel disagreed at all. The interesting output — a criterion three judges disagree about is the one most worth a human's time.
+       */
+      is_split: boolean;
+      /** Judgements */
+      judgements: components["schemas"]["JudgementResponse"][];
+      /**
+       * Majority
+       * @description The verdict more than half the panel reached, or absent on a tie. Absent rather than tie-broken: a panel that split evenly has not decided, and inventing a winner would report agreement nobody reached.
+       */
+      majority?: string | null;
+      /**
+       * Votes
+       * @description How the panel split, by verdict. A 2-1 is reported as 2-1, never averaged away.
+       */
+      votes: {
+        [key: string]: number;
+      };
+    };
+    /**
+     * PanelResponse
+     * @description A panel run, one entry per criterion.
+     */
+    PanelResponse: {
+      /** Items */
+      items: components["schemas"]["PanelOutcomeResponse"][];
+    };
+    /**
      * PiiFieldPolicyCreate
      * @description Body for POST /pii-field-policies.
      *
@@ -10062,6 +11382,39 @@ export interface components {
       /** Value Type */
       value_type: string;
     };
+    /**
+     * PresetListResponse
+     * @description The seeded personas, over the same five criteria.
+     *
+     *     Each is a parameterization and never an extension: a persona that could add a
+     *     criterion would be a rubric, and two rubrics produce two numbers nobody can
+     *     put side by side.
+     */
+    PresetListResponse: {
+      /** Items */
+      items: components["schemas"]["PresetResponse"][];
+    };
+    /**
+     * PresetResponse
+     * @description One seeded persona, and the rubric versions it parameterizes.
+     */
+    PresetResponse: {
+      /** Description */
+      description: string;
+      /**
+       * Envelope Rubric Version
+       * @description The deterministic scorer this preset's thresholds are written against. Carried because a threshold on a criterion that has been redefined is a number describing something else.
+       */
+      envelope_rubric_version: string;
+      /** Expectations */
+      expectations: {
+        [key: string]: unknown;
+      };
+      /** Judge Rubric Version */
+      judge_rubric_version: string;
+      /** Name */
+      name: string;
+    };
     /** PreviewVersionRequest */
     PreviewVersionRequest: {
       /** Interface Format */
@@ -10078,6 +11431,47 @@ export interface components {
      * @enum {string}
      */
     PrincipalBindingKind: "exact_principal" | "provider_delegated";
+    /** PrincipalPageResponse */
+    PrincipalPageResponse: {
+      /** Items */
+      items: components["schemas"]["PrincipalResponse"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /**
+     * PrincipalResponse
+     * @description One principal, and what is known about it.
+     *
+     *     `is_declared` is the field a roster reader needs: `actor_kind` alone cannot
+     *     tell a declared human from a principal nobody has spoken about, and both
+     *     read as `human` under the old default.
+     */
+    PrincipalResponse: {
+      /**
+       * Actor Id
+       * Format: uuid
+       */
+      actor_id: string;
+      /** Actor Kind */
+      actor_kind: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Declared At */
+      declared_at: string | null;
+      /** Declared By */
+      declared_by: string | null;
+      /** Display Name */
+      display_name: string | null;
+      /** Is Declared */
+      is_declared: boolean;
+      /** Oidc Subject */
+      oidc_subject: string;
+      /** Owner Principal */
+      owner_principal: string | null;
+    };
     /**
      * ProfileAttributionV1
      * @description Which governance accepted this row.
@@ -10389,6 +11783,64 @@ export interface components {
       blast_radius_threshold: number;
       /** Confidence Floor */
       confidence_floor: number;
+    };
+    /**
+     * PromptResponse
+     * @description One prompt, as stored.
+     */
+    PromptResponse: {
+      /**
+       * Expectations
+       * @description What this prompt asserts, as validated and stored. Absent when it asserts nothing. The `preset` field inside it, when present, records the persona somebody started from and is never the source of truth — a preset edited afterwards must not change what a past prompt asserted.
+       */
+      expectations?: {
+        [key: string]: unknown;
+      } | null;
+      /** Intent Note */
+      intent_note: string | null;
+      /** Position */
+      position: number;
+      /**
+       * Prompt Id
+       * Format: uuid
+       */
+      prompt_id: string;
+      /** Request */
+      request: {
+        [key: string]: unknown;
+      };
+    };
+    /**
+     * PromptSetListResponse
+     * @description A page of sets.
+     */
+    PromptSetListResponse: {
+      /** Items */
+      items: components["schemas"]["PromptSetResponse"][];
+    };
+    /**
+     * PromptSetResponse
+     * @description A set, and how many prompts it holds.
+     */
+    PromptSetResponse: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description: string | null;
+      /** Name */
+      name: string;
+      /** Prompt Count */
+      prompt_count: number;
+      /** Retired At */
+      retired_at: string | null;
+      /**
+       * Set Id
+       * Format: uuid
+       */
+      set_id: string;
     };
     /** ProposalDecisionResponse */
     ProposalDecisionResponse: {
@@ -11077,6 +12529,31 @@ export interface components {
       reason_code: components["schemas"]["ReasonCode"];
     };
     /**
+     * ReceiptDirectoryResponse
+     * @description Recent resolutions this caller may open.
+     *
+     *     **Not `ReceiptListResponse`, and the rename is a correction rather than a
+     *     preference.** `api/schemas/receipts.py` already publishes that name for a
+     *     different shape — `{receipts: [...]}` from `GET /v1/receipts/by-reference`,
+     *     against this one's `{items, next_before}`. Two classes under one name make
+     *     FastAPI qualify *both* by module path, so both appeared in the contract as
+     *     `contextplane__api__schemas__…__ReceiptListResponse` and neither had the
+     *     plain name a client would reference. The newer of the two takes the longer
+     *     name, because a collision renames whichever was published first.
+     *
+     *     `scripts/check_contract_schema_names.py` is the gate that found this; it was
+     *     written for a collision E24 introduced and caught this one on its first run.
+     */
+    ReceiptDirectoryResponse: {
+      /** Items */
+      items: components["schemas"]["ReceiptSummaryResponse"][];
+      /**
+       * Next Before
+       * @description Send as `before` for the next page. Keyset rather than an offset, so a receipt written between two pages cannot shift the window and hide one. Absent when the page was short, which is how a caller knows it reached the end.
+       */
+      next_before?: string | null;
+    };
+    /**
      * ReceiptItemIdResponse
      * @description A receipt line's stable name, with the parts it was derived from.
      *
@@ -11138,6 +12615,38 @@ export interface components {
       state: string;
     };
     /**
+     * ReceiptSummaryResponse
+     * @description One resolution, enough to choose it by and no more.
+     */
+    ReceiptSummaryResponse: {
+      /**
+       * Exclusion Count
+       * @description How much this resolution withheld. Zero means nothing was withheld, which is a claim this listing may make because a receipt whose exclusions are not yet recorded is not in it at all.
+       */
+      exclusion_count: number;
+      /** Intent Id */
+      intent_id?: string | null;
+      /** Item Count */
+      item_count: number;
+      /**
+       * Receipt Id
+       * Format: uuid
+       */
+      receipt_id: string;
+      /** Requested By */
+      requested_by: string;
+      /**
+       * Resolved At
+       * Format: date-time
+       */
+      resolved_at: string;
+      /**
+       * State
+       * @description One of complete, degraded, blocked.
+       */
+      state: string;
+    };
+    /**
      * RecordDispositionRequest
      * @description What the accountable owner decided.
      *
@@ -11170,6 +12679,75 @@ export interface components {
       };
       /** Tool Name */
       tool_name?: string | null;
+    };
+    /**
+     * RecordJudgementReviewRequest
+     * @description One reviewer's word on one judged criterion.
+     */
+    RecordJudgementReviewRequest: {
+      /**
+       * Note
+       * @description Why. Required for anything other than `confirmed`: a disagreement with no reason is one the next reader has to reach again from scratch.
+       */
+      note?: string | null;
+      /**
+       * Observed Confidence
+       * @description The reviewer's own confidence. Follows the claim-adjudication contract.
+       */
+      observed_confidence?: number | null;
+      /**
+       * Verdict
+       * @description One of ['confirmed', 'overruled', 'unsure']. `unsure` is information about the reviewer rather than a third verdict on the answer, and calibration excludes it — counting it either way would bias the fit.
+       */
+      verdict: string;
+    };
+    /**
+     * RecordVerdictRequest
+     * @description One reviewer's judgement of one prompt's resolution.
+     */
+    RecordVerdictRequest: {
+      /**
+       * Note
+       * @description Why. Required for anything other than `right`: a judgement with no reason is one the next reader has to reach again from scratch.
+       */
+      note?: string | null;
+      /**
+       * Verdict
+       * @description One of ['right', 'wrong', 'unusable'].
+       */
+      verdict: string;
+    };
+    /**
+     * RecordedJudgementResponse
+     * @description One judgement as it was recorded.
+     *
+     *     `note` is present on the caller's own judgements and absent on a receipt's,
+     *     which is the whole of this surface's disclosure rule expressed as a nullable
+     *     field — see `feedback_reads`'s module docstring.
+     */
+    RecordedJudgementResponse: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Feedback Id
+       * Format: uuid
+       */
+      feedback_id: string;
+      /** Kind */
+      kind: string;
+      /** Learning Eligible */
+      learning_eligible: boolean;
+      /** Note */
+      note: string | null;
+      /** Rating */
+      rating: string;
+      /** Receipt Id */
+      receipt_id: string | null;
+      /** Receipt Item Id */
+      receipt_item_id: string | null;
     };
     /**
      * ReferenceListResponse
@@ -11713,6 +13291,103 @@ export interface components {
       state: "accepted" | "rejected";
     };
     /**
+     * ReviewResponse
+     * @description One recorded review of one judged criterion.
+     */
+    ReviewResponse: {
+      /** Note */
+      note: string | null;
+      /** Observed Confidence */
+      observed_confidence: number | null;
+      /**
+       * Reviewed At
+       * Format: date-time
+       */
+      reviewed_at: string;
+      /**
+       * Reviewed By
+       * Format: uuid
+       */
+      reviewed_by: string;
+      /** Verdict */
+      verdict: string;
+    };
+    /** RevisionIndexResponse */
+    RevisionIndexResponse: {
+      /** Items */
+      items: components["schemas"]["RevisionIndexRow"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
+    /**
+     * RevisionIndexRow
+     * @description One revision, and what a reader needs before opening it.
+     *
+     *     The three activation fields are columns, not a verdict. Whether a revision
+     *     can activate is ten predicates computed as if the caller were the one
+     *     activating, and that stays at
+     *     `GET /v1/arc/revisions/{revision_id}/activation-eligibility` — a list that
+     *     answered it would be a second, weaker computation two surfaces could
+     *     disagree over.
+     */
+    RevisionIndexRow: {
+      /** Activated At */
+      activated_at: string | null;
+      /** Approval Evidence Id */
+      approval_evidence_id: string | null;
+      /**
+       * Artifact Id
+       * Format: uuid
+       */
+      artifact_id: string;
+      /** Artifact Kind */
+      artifact_kind: string;
+      /** Artifact Slug */
+      artifact_slug: string;
+      /** Content Digest */
+      content_digest: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Effective From
+       * Format: date-time
+       */
+      effective_from: string;
+      /** Effective Until */
+      effective_until: string | null;
+      /** Has Approval Evidence */
+      has_approval_evidence: boolean;
+      /** Is Draft */
+      is_draft: boolean;
+      /** Is Terminal */
+      is_terminal: boolean;
+      /** Lifecycle State */
+      lifecycle_state: string;
+      /** Resolutions Under Revision */
+      resolutions_under_revision: number;
+      /** Review Expired */
+      review_expired: boolean;
+      /**
+       * Review Expires At
+       * Format: date-time
+       */
+      review_expires_at: string;
+      /**
+       * Revision Id
+       * Format: uuid
+       */
+      revision_id: string;
+      /** Revoked At */
+      revoked_at: string | null;
+      /** Source Revision Locator */
+      source_revision_locator: string;
+      /** Source System */
+      source_system: string;
+    };
+    /**
      * RevisionLifecycleState
      * @description Mirrors the `LIFECYCLE_*` constants in
      *     `contextplane.arc.service.artifact_integrity` (`draft`, `active`,
@@ -11808,6 +13483,124 @@ export interface components {
     RouteCurationCaseRequest: {
       /** Owner Id */
       owner_id: string;
+    };
+    /**
+     * RunItemResponse
+     * @description One prompt's resolution within a run.
+     */
+    RunItemResponse: {
+      /** Duration Ms */
+      duration_ms: number;
+      /**
+       * Envelope State
+       * @description `complete`, `degraded` or `blocked`, or absent alongside `failure`.
+       */
+      envelope_state?: string | null;
+      /** Failure */
+      failure?: string | null;
+      /**
+       * Item Id
+       * Format: uuid
+       */
+      item_id: string;
+      /** Position */
+      position: number;
+      /**
+       * Prompt Id
+       * Format: uuid
+       */
+      prompt_id: string;
+      /**
+       * Receipt Id
+       * @description The resolution's receipt, or absent alongside `failure`. An errored prompt stays in the run: dropping it is how a number improves without anything improving.
+       */
+      receipt_id?: string | null;
+      /** Verdicts */
+      verdicts: components["schemas"]["VerdictResponse"][];
+    };
+    /**
+     * RunJudgementRequest
+     * @description Grade one simulated answer on both model-judged criteria.
+     */
+    RunJudgementRequest: {
+      /**
+       * Panel Position
+       * @description Which judge this is. Zero is the single judge an interactive simulation gets; a panel of three occupies 0, 1 and 2. Re-judging at the same position replaces that verdict, because a re-run is not a second opinion.
+       * @default 0
+       */
+      panel_position: number;
+    };
+    /**
+     * RunListResponse
+     * @description A page of run headers.
+     */
+    RunListResponse: {
+      /** Items */
+      items: components["schemas"]["RunResponse"][];
+    };
+    /**
+     * RunResponse
+     * @description One run, with its items when they were asked for.
+     */
+    RunResponse: {
+      /**
+       * Finished At
+       * @description Absent while the run is in flight.
+       */
+      finished_at?: string | null;
+      /** Items */
+      items: components["schemas"]["RunItemResponse"][];
+      /** Prompt Count */
+      prompt_count: number;
+      /**
+       * Resolver Fingerprint
+       * @description The deployment that produced this run, as a digest of the facts a resolution depends on that no request can express. Two runs with different fingerprints are not comparable — a difference between them is evidence the configuration changed, not evidence about retrieval.
+       */
+      resolver_fingerprint: string;
+      /**
+       * Run Id
+       * Format: uuid
+       */
+      run_id: string;
+      /**
+       * Set Id
+       * Format: uuid
+       */
+      set_id: string;
+      /**
+       * Started At
+       * Format: date-time
+       */
+      started_at: string;
+    };
+    /**
+     * RunSimulationRequest
+     * @description Resolve as a declared agent, then answer.
+     */
+    RunSimulationRequest: {
+      /**
+       * Prompt
+       * @description What to ask. Answered from the resolved envelope and nothing else.
+       */
+      prompt: string;
+      /**
+       * Request
+       * @description The context-resolve request this simulation resolves under: the same fields `POST /v1/context/resolve` takes, minus `query`, which the prompt supplies. Omit it entirely for a bare resolution.
+       */
+      request?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Run Item Id
+       * @description The evaluation run item this simulation answers, when it is part of a run. Absent for an interactive one.
+       */
+      run_item_id?: string | null;
+      /**
+       * Simulated Actor Id
+       * Format: uuid
+       * @description The principal whose behaviour is being modelled. Must be declared `agent` per ADR 0019 — an agent is declared, never inferred, so an undeclared principal is refused rather than defaulted. This names whose behaviour is simulated; it does not grant that principal's authority, and the resolution still runs on the caller's own.
+       */
+      simulated_actor_id: string;
     };
     /**
      * SearchResponse
@@ -12135,6 +13928,90 @@ export interface components {
      * @enum {string}
      */
     SignatureAlgorithm: "Ed25519";
+    /**
+     * SimulationAvailabilityResponse
+     * @description Whether this deployment can simulate, and under what.
+     *
+     *     A read a surface calls before offering the action, so an operator sees a
+     *     switched-off feature rather than a button that always fails. It carries no
+     *     credential and no endpoint — only which selectors are in force, which is what
+     *     somebody needs to know to fix a refusal.
+     */
+    SimulationAvailabilityResponse: {
+      /** Available */
+      available: boolean;
+      /** Judge Model */
+      judge_model: string;
+      /**
+       * Judge Provider
+       * @description `noop` when no judge is configured. Never the same family as `simulation_provider` — the service refuses that pair rather than warning about it.
+       */
+      judge_provider: string;
+      /**
+       * Simulation Model
+       * @description Empty when the selected adapter's own default is in force.
+       */
+      simulation_model: string;
+      /** Simulation Provider */
+      simulation_provider: string;
+    };
+    /**
+     * SimulationResponse
+     * @description One resolution and the answer generated from it, kept apart.
+     */
+    SimulationResponse: {
+      /** Answer */
+      answer: string;
+      /** Assertions */
+      assertions: components["schemas"]["AssertionResponse"][];
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /**
+       * Envelope State
+       * @description `complete`, `degraded` or `blocked`, as the resolution reported it.
+       */
+      envelope_state: string;
+      /**
+       * Instruction Disposition
+       * @description `not_declared`, `declared_unknown` or `declared_known`. Three states, never two: an agent that declared no instructions and one that declared an empty set are different experiments, and a score conflating them would be scoring both under one number.
+       */
+      instruction_disposition: string;
+      /** Model Id */
+      model_id: string;
+      /** Prompt */
+      prompt: string;
+      /** Provider Id */
+      provider_id: string;
+      /**
+       * Receipt Id
+       * Format: uuid
+       * @description The resolution's own receipt, referenced rather than embedded. Read it to see what was served; this body says what was made of it.
+       */
+      receipt_id: string;
+      /** Run Item Id */
+      run_item_id?: string | null;
+      /**
+       * Simulated Actor Id
+       * Format: uuid
+       */
+      simulated_actor_id: string;
+      /**
+       * Simulation Id
+       * Format: uuid
+       */
+      simulation_id: string;
+      /**
+       * Uncited Served Ids
+       * @description Served items no assertion cited. An observation, not a diagnosis: it means the scope was too wide, or the agent ignored them, and the improvement surface names both.
+       */
+      uncited_served_ids: string[];
+      usage: components["schemas"]["UsageResponse"];
+    };
     /**
      * SourceApprovalClaim
      * @description Exactly the closed `arc_source_approval_claim_v1` profile object.
@@ -12779,6 +14656,38 @@ export interface components {
       recorded_at?: string | null;
     };
     /**
+     * TenantListResponse
+     * @description The tenants this credential reaches, the current one first.
+     */
+    TenantListResponse: {
+      /** Items */
+      items: components["schemas"]["TenantSummaryResponse"][];
+    };
+    /**
+     * TenantSummaryResponse
+     * @description One tenant this credential reaches.
+     */
+    TenantSummaryResponse: {
+      /**
+       * Display Name
+       * @description Absent when this deployment has not materialised the tenant row yet. A credential may name a tenant that has never been seen here, and dropping it would report no access to a tenant the caller does have.
+       */
+      display_name?: string | null;
+      /** Is Current */
+      is_current: boolean;
+      /** Is Provisioned */
+      is_provisioned: boolean;
+      /** Roles */
+      roles: string[];
+      /**
+       * Tenant Id
+       * Format: uuid
+       */
+      tenant_id: string;
+      /** Tenant Slug */
+      tenant_slug: string;
+    };
+    /**
      * ToolRankingOut
      * @description Response body for GET /v1/admin/usage/tools: which MCP tools this tenant's agents actually call.
      */
@@ -12929,6 +14838,28 @@ export interface components {
       valid_from?: string | null;
     };
     /**
+     * UsageResponse
+     * @description What the call cost, as reported or as explicitly unknown.
+     */
+    UsageResponse: {
+      /** Cached Prompt Tokens */
+      cached_prompt_tokens?: number | null;
+      /** Completion Tokens */
+      completion_tokens?: number | null;
+      /** Prompt Tokens */
+      prompt_tokens?: number | null;
+      /**
+       * Served Item Count
+       * @description How many items the envelope carried. Paired with the token figure because `limit` is the only lever the product offers when a run comes back too large.
+       */
+      served_item_count: number;
+      /**
+       * Source
+       * @description `provider_reported`, `estimated` or `unknown`. Absent counts mean nobody could report — never that the call was free, which is the reading that makes a spend figure lie.
+       */
+      source: string;
+    };
+    /**
      * UsageSummaryOut
      * @description Response body for GET /v1/admin/usage/summary: one row per surface for the resolved window.
      */
@@ -12999,6 +14930,26 @@ export interface components {
       errors: components["schemas"]["ValidationErrorItem"][];
       /** Valid */
       valid: boolean;
+    };
+    /**
+     * VerdictResponse
+     * @description One recorded judgement.
+     */
+    VerdictResponse: {
+      /** Note */
+      note: string | null;
+      /**
+       * Recorded At
+       * Format: date-time
+       */
+      recorded_at: string;
+      /**
+       * Recorded By
+       * Format: uuid
+       */
+      recorded_by: string;
+      /** Verdict */
+      verdict: string;
     };
     /**
      * VerificationMethod
@@ -13177,6 +15128,8 @@ export interface components {
     };
     /** _Accepted */
     _Accepted: {
+      /** Binding Id */
+      binding_id?: string | null;
       /** Evidence Id */
       evidence_id?: string | null;
       /** Exception Id */
@@ -13253,6 +15206,75 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  list_principals_v1_admin_actors_get: {
+    parameters: {
+      query?: {
+        /** @description One of ['unknown', 'human', 'agent', 'sync_worker', 'system_curator']. */
+        actor_kind?: string | null;
+        cursor?: string | null;
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PrincipalPageResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  declare_principal_v1_admin_actors__actor_id__declare_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        actor_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeclarePrincipalRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PrincipalResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
@@ -14415,6 +16437,59 @@ export interface operations {
       };
     };
   };
+  get_deadline_policy_v1_admin_reporting_deadline_policy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeadlinePolicyResponse"];
+        };
+      };
+    };
+  };
+  set_deadline_policy_v1_admin_reporting_deadline_policy_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeadlinePolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeadlinePolicyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   nominate_obligation_v1_admin_reporting_obligations_post: {
     parameters: {
       query?: never;
@@ -14501,6 +16576,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ObligationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  obligation_evidence_v1_admin_reporting_obligations__obligation_id__evidence_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        obligation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ObligationEvidenceResponse"];
         };
       };
       /** @description Validation Error */
@@ -15769,6 +17875,209 @@ export interface operations {
       };
     };
   };
+  resolve_envelope_v1_arc_admin_envelopes_bindings_get: {
+    parameters: {
+      query: {
+        principal_issuer: string;
+        principal_subject: string;
+        at?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EnvelopeBindingResponse"] | null;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  grant_envelope_v1_arc_admin_envelopes_bindings_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvelopeGrantRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_envelope_bindings_v1_arc_admin_envelopes_bindings_directory_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EnvelopeBindingPage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reinstate_envelope_v1_arc_admin_envelopes_bindings__binding_id__reinstate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        binding_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvelopeFlipRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revoke_envelope_v1_arc_admin_envelopes_bindings__binding_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        binding_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvelopeFlipRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  suspend_envelope_v1_arc_admin_envelopes_bindings__binding_id__suspend_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        binding_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvelopeFlipRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["_Accepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_approved_exceptions_v1_arc_admin_exceptions_get: {
     parameters: {
       query?: {
@@ -15950,6 +18259,41 @@ export interface operations {
           "application/json": {
             [key: string]: unknown;
           };
+        };
+      };
+    };
+  };
+  list_arc_revisions_v1_arc_admin_revisions_get: {
+    parameters: {
+      query?: {
+        /** @description One of ['draft', 'active', 'superseded', 'revoked', 'expired']. */
+        lifecycle_state?: string | null;
+        artifact_id?: string | null;
+        cursor?: string | null;
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RevisionIndexResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
@@ -18500,6 +20844,38 @@ export interface operations {
       };
     };
   };
+  list_my_context_feedback_v1_context_feedback_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JudgementPageResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   record_context_feedback_v1_context_feedback_post: {
     parameters: {
       query?: never;
@@ -18520,6 +20896,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ContextFeedbackResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  declare_instruction_set_v1_context_instruction_sets_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InstructionSetRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstructionSetResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_feedback_for_receipt_v1_context_receipts__receipt_id__feedback_get: {
+    parameters: {
+      query?: {
+        page_size?: number;
+      };
+      header?: never;
+      path: {
+        receipt_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JudgementPageResponse"];
         };
       };
       /** @description Validation Error */
@@ -18968,6 +21410,491 @@ export interface operations {
       };
     };
   };
+  list_expectation_presets_v1_evaluation_expectation_presets_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PresetListResponse"];
+        };
+      };
+    };
+  };
+  list_judge_calibration_v1_evaluation_judge_calibration_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CalibrationStateListResponse"];
+        };
+      };
+    };
+  };
+  record_judgement_review_v1_evaluation_judgements__judgement_id__review_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        judgement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordJudgementReviewRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReviewResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_prompt_sets_v1_evaluation_prompt_sets_get: {
+    parameters: {
+      query?: {
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptSetListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_prompt_set_v1_evaluation_prompt_sets_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePromptSetRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptSetResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  add_prompt_v1_evaluation_prompt_sets__set_id__prompts_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        set_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddPromptRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_runs_v1_evaluation_prompt_sets__set_id__runs_get: {
+    parameters: {
+      query?: {
+        page_size?: number;
+      };
+      header?: never;
+      path: {
+        set_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_run_v1_evaluation_prompt_sets__set_id__runs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        set_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  record_verdict_v1_evaluation_runs_items__item_id__verdict_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        item_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordVerdictRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VerdictResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_v1_evaluation_runs__run_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_simulation_v1_evaluation_simulations_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunSimulationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SimulationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  simulation_availability_v1_evaluation_simulations_availability_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SimulationAvailabilityResponse"];
+        };
+      };
+    };
+  };
+  get_simulation_v1_evaluation_simulations__simulation_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        simulation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SimulationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_judgements_v1_evaluation_simulations__simulation_id__judgements_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        simulation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JudgementListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  judge_simulation_v1_evaluation_simulations__simulation_id__judgements_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        simulation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunJudgementRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JudgementListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  judge_with_panel_v1_evaluation_simulations__simulation_id__judgements_panel_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        simulation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanelResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   get_consumer_projection_v1_graph_consumer_get: {
     parameters: {
       query?: {
@@ -19067,6 +21994,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["IntegrationListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_intents_v1_intents_get: {
+    parameters: {
+      query?: {
+        page_size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntentListResponse"];
         };
       };
       /** @description Validation Error */
@@ -21121,6 +24079,38 @@ export interface operations {
       };
     };
   };
+  list_receipts_v1_receipts_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        before?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReceiptDirectoryResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   receipts_by_reference_v1_receipts_by_reference_get: {
     parameters: {
       query: {
@@ -21523,6 +24513,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_tenants_v1_tenants_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TenantListResponse"];
         };
       };
     };

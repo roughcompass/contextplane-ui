@@ -313,7 +313,11 @@ const contextEnvelope = {
       state: "success",
     },
     { items: [], name: "workspace", reason: null, state: "empty" },
+    { items: [], name: "instructions", reason: null, state: "empty" },
   ],
+  instruction_block_note:
+    "the instructions block is empty because the request declared no instruction set",
+  instruction_disposition: "not_declared",
   quality: { cacheable: true, degraded_blocks: [], reasons: [] },
   receipt_id: "r0000000-0000-4000-8000-000000000001",
   state: "complete",
@@ -376,7 +380,7 @@ describe("Contextplane endpoint adapters", () => {
     );
   });
 
-  it("resolves a scoped prompt into the fixed four-block context envelope", async () => {
+  it("resolves a scoped prompt into the fixed five-block context envelope", async () => {
     const client = stubClient(contextEnvelope);
 
     await expect(

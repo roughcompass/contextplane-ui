@@ -5,6 +5,7 @@ import {
   Boxes,
   Braces,
   ChartColumn,
+  ClipboardCheck,
   Download,
   FileClock,
   FileWarning,
@@ -104,6 +105,11 @@ const GettingStartedDialog = lazy(async () => {
 const ContextLabPage = lazy(async () => {
   const feature = await import("../features/context-lab");
   return { default: feature.ContextLabPage };
+});
+
+const EvaluationPage = lazy(async () => {
+  const feature = await import("../features/evaluation");
+  return { default: feature.EvaluationPage };
 });
 
 const SessionsPage = lazy(async () => {
@@ -258,6 +264,7 @@ const navigation: readonly NavigationSection[] = [
     items: [
       { href: "/receipts", icon: <Receipt className="size-4" />, label: "Receipts" },
       { href: "/context-lab", icon: <FlaskConical className="size-4" />, label: "Context Lab" },
+      { href: "/evaluation", icon: <ClipboardCheck className="size-4" />, label: "Evaluation" },
       { href: "/sessions", icon: <MessageSquareText className="size-4" />, label: "Sessions" },
     ],
   },
@@ -318,6 +325,7 @@ type AppRoute =
   | "autonomy"
   | "catalog"
   | "context-lab"
+  | "evaluation"
   | "exceptions"
   | "memory"
   | "memory-review"
@@ -431,6 +439,16 @@ const routeDefinitions: Readonly<Record<AppRoute, RouteDefinition>> = {
     load: () => import("../features/context-lab"),
     surface: "Served",
     usesIdentity: true,
+  },
+  evaluation: {
+    href: "/evaluation",
+    load: () => import("../features/evaluation"),
+    surface: "Served",
+    // No identity read: the page shows this tenant's sets, runs and verdicts,
+    // and who the reader is changes what the *service* returns rather than what
+    // the screen asks for. A page that took an identity it did not consult would
+    // be a dependency nobody could remove later.
+    usesIdentity: false,
   },
   exceptions: {
     href: "/exceptions",
@@ -621,6 +639,7 @@ function routeForPathname(pathname: string): AppRoute {
   if (pathname === "/audit") return "audit";
   if (pathname === "/catalog") return "catalog";
   if (pathname === "/context-lab") return "context-lab";
+  if (pathname === "/evaluation") return "evaluation";
   if (pathname === "/memory/claims/new") return "assert-claim";
   if (pathname === "/curation") return "curation";
   // Before `/memory/`'s prefix, which would otherwise claim it. Two addresses
@@ -1234,6 +1253,12 @@ function AppShellRoot() {
               activeTenantName={activeTenantName}
               client={apiClient}
               searchRef={searchRef}
+            />
+          ) : route === "evaluation" ? (
+            <EvaluationPage
+              {...(activeApiTenantId ? { apiTenantId: activeApiTenantId } : {})}
+              activeTenantName={activeTenantName}
+              client={apiClient}
             />
           ) : route === "sessions" ? (
             <SessionsPage

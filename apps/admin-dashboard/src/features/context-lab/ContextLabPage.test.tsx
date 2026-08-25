@@ -127,7 +127,11 @@ const completeEnvelope = {
       reason: null,
       state: "success",
     },
+    { items: [], name: "instructions", reason: null, state: "empty" },
   ],
+  instruction_block_note:
+    "the instructions block is empty because the request declared no instruction set",
+  instruction_disposition: "not_declared",
   quality: { cacheable: true, degraded_blocks: [], reasons: [] },
   receipt_id: receiptId,
   state: "complete",
