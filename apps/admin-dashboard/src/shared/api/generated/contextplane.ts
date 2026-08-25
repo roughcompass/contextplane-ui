@@ -4389,6 +4389,37 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/evaluation/simulations/{simulation_id}/score": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Score Simulation
+     * @description Required-fact recall, boundary violations and precision, with no model in the loop.
+     *
+     *     That absence is the property, not a limitation: it is what keeps a failure of
+     *     these three attributable to what was *served* rather than to what graded it,
+     *     which is the whole reason ADR 0024 could keep memory evaluation and agent
+     *     evaluation in one journey.
+     *
+     *     **It can refuse, and the refusal is the honest answer.** The scorer asks the
+     *     scenario, never the system under test, so it needs expectations declared
+     *     before the run. An interactive simulation has none, and scoring it against
+     *     expectations typed afterwards would measure whatever the system returned.
+     *     `unassertable` carries the reason instead of a zero-filled score.
+     */
+    get: operations["score_simulation_v1_evaluation_simulations__simulation_id__score_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/graph/consumer": {
     parameters: {
       query?: never;
@@ -7762,6 +7793,22 @@ export interface components {
       /** Reason */
       reason: string;
     };
+    /**
+     * BlockTallyResponse
+     * @description One block's contribution, so a total stays attributable.
+     */
+    BlockTallyResponse: {
+      /** Block */
+      block: string;
+      /** Relevant */
+      relevant: number;
+      /** Required Found */
+      required_found: number;
+      /** Served */
+      served: number;
+      /** State */
+      state: string;
+    };
     /** Body_admit_source_upload_v1_arc_sources_uploads_post */
     Body_admit_source_upload_v1_arc_sources_uploads_post: {
       /**
@@ -9065,6 +9112,54 @@ export interface components {
       selector?: {
         [key: string]: unknown;
       };
+    };
+    /**
+     * DeterministicScoreResponse
+     * @description The three criteria a program computes, or the reason it could not.
+     */
+    DeterministicScoreResponse: {
+      /**
+       * Blocks
+       * @default []
+       */
+      blocks: components["schemas"]["BlockTallyResponse"][];
+      /**
+       * Is Safe
+       * @description Whether the resolution served nothing it should not have. One violation fails the case whatever the other numbers say.
+       */
+      is_safe?: boolean | null;
+      /** Precision */
+      precision?: number | null;
+      /**
+       * Prompt Id
+       * @description Which prompt's declared expectations were used, when any were.
+       */
+      prompt_id?: string | null;
+      /** Recall */
+      recall?: number | null;
+      /** Required Found */
+      required_found?: number | null;
+      /** Required Total */
+      required_total?: number | null;
+      /** Rubric Version */
+      rubric_version: string;
+      /** Served Total */
+      served_total?: number | null;
+      /**
+       * Unassertable
+       * @description Present instead of a score when nothing was declared in advance to check. A scenario whose required facts were written after seeing what the system returned would be satisfied by whatever the system returned.
+       */
+      unassertable?: string | null;
+      /**
+       * Unchecked
+       * @default []
+       */
+      unchecked: components["schemas"]["UncheckedResponse"][];
+      /**
+       * Violations
+       * @default []
+       */
+      violations: components["schemas"]["ViolationResponse"][];
     };
     /** DiscardClaimRequest */
     DiscardClaimRequest: {
@@ -14826,6 +14921,23 @@ export interface components {
       trust: string;
     };
     /**
+     * UncheckedResponse
+     * @description One boundary this item could not be checked against, and why.
+     *
+     *     Not a violation and not a pass. A surface that reported neither would let an
+     *     absent check read as a clean one.
+     */
+    UncheckedResponse: {
+      /** Block */
+      block: string;
+      /** Dimension */
+      dimension: string;
+      /** Item Key */
+      item_key: string;
+      /** Reason */
+      reason: string;
+    };
+    /**
      * UpdateEntityRequest
      * @description Bag of attribute updates applied bi-temporally; does not change entity_type or name directly.
      */
@@ -14997,6 +15109,26 @@ export interface components {
       proof:
         | components["schemas"]["DetachedSignatureProof"]
         | components["schemas"]["VerifierAttestationProof"];
+    };
+    /**
+     * ViolationResponse
+     * @description One served item that should not have been served, and which rule it broke.
+     */
+    ViolationResponse: {
+      /**
+       * Block
+       * @description Which arm served it. 'Something leaked' without the arm is unactionable.
+       */
+      block: string;
+      /** Detail */
+      detail: string;
+      /** Item Key */
+      item_key: string;
+      /**
+       * Kind
+       * @description One of ['tenant', 'audience', 'classification', 'lifecycle'].
+       */
+      kind: string;
     };
     /**
      * VocabularyValueCreate
@@ -21882,6 +22014,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PanelResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  score_simulation_v1_evaluation_simulations__simulation_id__score_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        simulation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DeterministicScoreResponse"];
         };
       };
       /** @description Validation Error */

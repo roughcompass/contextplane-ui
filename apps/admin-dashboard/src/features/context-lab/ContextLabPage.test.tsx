@@ -17,6 +17,67 @@ const actorId = "a0000000-0000-4000-8000-000000000001";
 const tenantId = "b0000000-0000-4000-8000-000000000001";
 const receiptId = "c0000000-0000-4000-8000-000000000001";
 const entityId = "d0000000-0000-4000-8000-000000000001";
+const agentActorId = "e1000000-0000-4000-8000-000000000001";
+const undeclaredActorId = "e1000000-0000-4000-8000-000000000002";
+const simulationId = "f0000000-0000-4000-8000-000000000001";
+
+const simulationBody = {
+  answer: "Drain it through the runbook.",
+  assertions: [
+    {
+      citations: [{ receipt_item_id: "served-1", was_served: true }],
+      position: 0,
+      text: "The runbook drains the queue.",
+    },
+    { citations: [], position: 1, text: "It takes four minutes." },
+  ],
+  created_at: "2026-08-12T10:10:00Z",
+  duration_ms: 900,
+  envelope_state: "complete",
+  instruction_disposition: "not_declared",
+  model_id: "claude-sonnet-5",
+  prompt: "Who owns identity resolution?",
+  provider_id: "anthropic",
+  receipt_id: receiptId,
+  run_item_id: null,
+  simulated_actor_id: agentActorId,
+  simulation_id: simulationId,
+  uncited_served_ids: ["served-2"],
+  usage: {
+    cached_prompt_tokens: 0,
+    completion_tokens: 40,
+    prompt_tokens: 220,
+    served_item_count: 2,
+    source: "provider_reported",
+  },
+};
+
+const judgementBody = {
+  confidence: 0.72,
+  confidence_is_calibrated: false,
+  created_at: "2026-08-12T10:11:00Z",
+  criterion: "groundedness",
+  evidence: ["the runbook drains it"],
+  is_disputed: false,
+  judge_model_id: "gpt-judge-2026",
+  judge_provider_id: "openai",
+  judgement_id: "f1000000-0000-4000-8000-000000000001",
+  panel_position: 0,
+  prompt_template_hash: "a".repeat(64),
+  reasoning: "The first assertion cites served-1, which supports it. The second cites nothing.",
+  reviews: [],
+  rubric_version: "agent-response-judge v1.0.0",
+  simulation_id: simulationId,
+  verdict: "fail",
+};
+
+const scoreBody = {
+  blocks: [],
+  prompt_id: null,
+  rubric_version: "context-envelope-judge v2.0.0",
+  unassertable:
+    "this simulation was run interactively and belongs to no prompt, so nothing was declared in advance to score it against.",
+};
 
 const identity = {
   actor_display_name: "Morgan Morris",
@@ -206,6 +267,49 @@ function defaultHandler(path: string, options?: { body?: unknown }): unknown {
       ],
     };
   }
+  if (path === "/v1/evaluation/simulations/availability") {
+    return {
+      available: true,
+      judge_model: "gpt-judge",
+      judge_provider: "openai",
+      simulation_model: "",
+      simulation_provider: "anthropic",
+    };
+  }
+  if (path.startsWith("/v1/admin/actors")) {
+    return {
+      items: [
+        {
+          actor_id: agentActorId,
+          actor_kind: "agent",
+          created_at: "2026-08-01T00:00:00Z",
+          declared_at: "2026-08-01T00:00:00Z",
+          declared_by: actorId,
+          display_name: "Support triage agent",
+          is_declared: true,
+          oidc_subject: "agent-alpha",
+          owner_principal: "platform@example.com",
+        },
+        {
+          actor_id: undeclaredActorId,
+          actor_kind: "unknown",
+          created_at: "2026-08-01T00:00:00Z",
+          declared_at: null,
+          declared_by: null,
+          display_name: "Nobody declared this",
+          is_declared: false,
+          oidc_subject: "mystery",
+          owner_principal: null,
+        },
+      ],
+      next_cursor: null,
+    };
+  }
+  if (path === "/v1/evaluation/simulations") return simulationBody;
+  if (path === `/v1/evaluation/simulations/${simulationId}/judgements`) {
+    return { items: [judgementBody] };
+  }
+  if (path === `/v1/evaluation/simulations/${simulationId}/score`) return scoreBody;
   if (path === "/v1/context/feedback") {
     const body = options?.body as { rating?: string; receipt_item_id?: string };
     return {
@@ -221,6 +325,35 @@ function defaultHandler(path: string, options?: { body?: unknown }): unknown {
     };
   }
   throw testError("not_found", 404);
+}
+
+function renderPageWithSpy(
+  handler: (
+    path: string,
+    options?: { body?: unknown; method?: string; tenantId?: string },
+  ) => unknown = defaultHandler,
+) {
+  const request = vi.fn(async (path: string, options) => handler(path, options));
+  const client = clientFromRequest(request);
+  const queryClient = new QueryClient({
+    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+  });
+  const searchRef = createRef<HTMLInputElement>();
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
+  render(
+    <ContextLabPage
+      activeTenantName="Northstar Systems"
+      apiTenantId={tenantId}
+      client={client}
+      searchRef={searchRef}
+    />,
+    { wrapper: Wrapper },
+  );
+  return { request };
 }
 
 function renderPage(
@@ -441,5 +574,317 @@ describe("ContextLabPage", () => {
     ).toBeVisible();
     expect(screen.queryByRole("textbox", { name: "Prompt" })).toBeNull();
     expect(screen.getByRole("button", { name: "Retry request" })).toBeVisible();
+  });
+  it("keeps the resolver's own boundary on the screen once a simulation is possible", async () => {
+    renderPage();
+
+    // Amended rather than deleted. A reader who has just watched a response
+    // appear is exactly the reader who needs to know which component did not
+    // produce it.
+    expect(
+      await screen.findByText(/The resolver retrieves context only/),
+    ).toBeVisible();
+    expect(screen.getByText(/simulation is a separate receipted operation/)).toBeVisible();
+  });
+
+  it("lists undeclared principals rather than filtering them out", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+
+    expect(await screen.findByRole("option", { name: /Support triage agent/ })).toBeVisible();
+    // ADR 0019's dissent, on screen: a roster that hid what it does not know
+    // would answer "we have no agents" to a deployment that has eleven.
+    expect(screen.getByRole("option", { name: /Nobody declared this/ })).toBeVisible();
+    expect(screen.getByText(/simulating it is refused/)).toBeVisible();
+  });
+
+  it("runs a simulation and shows what each assertion rested on", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(await screen.findByText("Drain it through the runbook.")).toBeVisible();
+    expect(screen.getByText("The runbook drains the queue.")).toBeVisible();
+    // An assertion citing nothing keeps its row and says so: dropping it would
+    // delete the finding.
+    expect(screen.getByText(/Rests on nothing that was served/)).toBeVisible();
+    expect(screen.getByText(/220 in · 40 out/)).toBeVisible();
+  });
+
+  it("shows all three instruction states rather than two", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    expect(await screen.findByText("No instructions declared")).toBeVisible();
+    expect(
+      screen.getByText(/Send one to receive governed corrections/),
+    ).toBeVisible();
+  });
+
+  it("renders the score pane with all five criteria and marks the unfitted judge unproven", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(await screen.findByText("Required-fact recall")).toBeVisible();
+    expect(screen.getByText("Boundary violations")).toBeVisible();
+    expect(screen.getByText("Precision")).toBeVisible();
+    expect(screen.getByText("Groundedness")).toBeVisible();
+    expect(screen.getByText("Answer relevance")).toBeVisible();
+
+    // ADR 0026's corollary: an unexamined number must not acquire an
+    // authoritative look. Awaited because the judged rows arrive from their own
+    // read — the flag comes from the service rather than being inferred here.
+    expect(await screen.findByText("Unproven")).toBeVisible();
+    expect(
+      screen.getByText(/has not been fitted against human confirmations/),
+    ).toBeVisible();
+  });
+
+  it("groups the score by what each criterion implicates", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(await screen.findByText("Implicates memory")).toBeVisible();
+    expect(screen.getByText("Implicates governance")).toBeVisible();
+    expect(screen.getByText("Implicates the agent")).toBeVisible();
+  });
+
+  it("says the deterministic three are unassertable rather than showing zeros", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(await screen.findAllByText("Not assertable")).toHaveLength(3);
+    expect(
+      screen.getAllByText(/nothing was declared in advance to score it against/)[0],
+    ).toBeVisible();
+  });
+
+  it("offers the improvement surface several observations at once, unranked", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    expect(await screen.findByText("Ways to improve this")).toBeVisible();
+    // The user's correction, on screen. Awaited because the observation set
+    // fills in when the receipt trace resolves — the surface reads the run's
+    // record rather than guessing ahead of it.
+    expect(await screen.findByText(/These are observations, not a diagnosis/)).toBeVisible();
+    expect(screen.getByText(/A failing run does not have/)).toBeVisible();
+    // The receipt's exclusion is one of them, and it links out rather than
+    // rebuilding quarantine.
+    expect(screen.getByText("The receipt records an exclusion")).toBeVisible();
+    expect(screen.getByRole("link", { name: /Withheld/ })).toBeVisible();
+  });
+
+  it("names more than one thing each observation could point at", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    expect(await screen.findByText("Ways to improve this")).toBeVisible();
+    expect((await screen.findAllByText("What this could point at")).length).toBeGreaterThan(0);
+    expect(screen.getByText(/governance withheld it/)).toBeVisible();
+  });
+
+  it("tells an operator which setting is missing when simulation is switched off", async () => {
+    renderPage((path, options) => {
+      if (path === "/v1/evaluation/simulations/availability") {
+        return {
+          available: false,
+          judge_model: "",
+          judge_provider: "noop",
+          simulation_model: "",
+          simulation_provider: "noop",
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    expect(
+      await screen.findByText("Simulation is switched off on this deployment"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
+  });
+  it("records a review beside the judge's verdict rather than replacing it", async () => {
+    const { request } = renderPageWithSpy((path, options) => {
+      if (path === "/v1/evaluation/judgements/f1000000-0000-4000-8000-000000000001/review") {
+        return {
+          note: "the cited item says nothing of the kind",
+          observed_confidence: null,
+          reviewed_at: "2026-08-12T10:20:00Z",
+          reviewed_by: actorId,
+          verdict: "overruled",
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Overrule" }));
+    // Overruling needs a reason, and the form says so before the request.
+    expect(screen.getByRole("button", { name: "Record review" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Why (required)"), {
+      target: { value: "the cited item says nothing of the kind" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Record review" }));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        "/v1/evaluation/judgements/f1000000-0000-4000-8000-000000000001/review",
+        {
+          body: {
+            note: "the cited item says nothing of the kind",
+            observed_confidence: null,
+            verdict: "overruled",
+          },
+          method: "POST",
+          tenantId,
+        },
+      ),
+    );
+  });
+
+  it("does not require a reason to confirm a judge", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+    expect(screen.getByLabelText("Why (optional)")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Record review" })).toBeEnabled();
+  });
+
+  it("offers unsure and still asks why, because it says something about the reviewer", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Unsure" }));
+    expect(screen.getByLabelText("Why (required)")).toBeVisible();
+  });
+
+  it("shows a reviewer disagreement as a state rather than as a replaced verdict", async () => {
+    renderPage((path, options) => {
+      if (path === `/v1/evaluation/simulations/${simulationId}/judgements`) {
+        return {
+          items: [
+            {
+              ...judgementBody,
+              is_disputed: true,
+              reviews: [
+                {
+                  note: "the cited item says nothing of the kind",
+                  observed_confidence: null,
+                  reviewed_at: "2026-08-12T10:20:00Z",
+                  reviewed_by: actorId,
+                  verdict: "overruled",
+                },
+              ],
+            },
+          ],
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(await screen.findByText("Reviewer disagrees")).toBeVisible();
+    // The judge's own verdict survives beside it.
+    expect(screen.getByText("Fail")).toBeVisible();
+  });
+
+  it("hides the judge action and says why when no judge is configured", async () => {
+    renderPage((path, options) => {
+      if (path === "/v1/evaluation/simulations/availability") {
+        return {
+          available: true,
+          judge_model: "",
+          judge_provider: "noop",
+          simulation_model: "",
+          simulation_provider: "anthropic",
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+
+    expect(
+      await screen.findByText("Groundedness and relevance need a second provider family"),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Judge the answer/ })).toBeNull();
+    // The three that need no judge are still there.
+    expect(screen.getByText("Required-fact recall")).toBeVisible();
   });
 });

@@ -223,6 +223,54 @@ export interface PanelOutcome {
   judgements: readonly Judgement[];
 }
 
+export interface ScoreViolation {
+  item_key: string;
+  /** Which arm served it. "Something leaked" without the arm is unactionable. */
+  block: string;
+  kind: string;
+  detail: string;
+}
+
+export interface ScoreUnchecked {
+  item_key: string;
+  block: string;
+  dimension: string;
+  /**
+   * Why the check could not run. Neither a pass nor a failure: a surface showing
+   * only violations would render an absent check as a clean one, which is the
+   * shape of every defence that turns out to have been unreachable.
+   */
+  reason: string;
+}
+
+export interface ScoreBlockTally {
+  block: string;
+  state: string;
+  served: number;
+  relevant: number;
+  required_found: number;
+}
+
+export interface DeterministicScore {
+  rubric_version: string;
+  prompt_id: string | null;
+  /**
+   * Present *instead of* a score when nothing was declared in advance to check.
+   * Not a zero-filled score with a flag beside it: zeros render as three failed
+   * criteria and ones as three passes nobody checked.
+   */
+  unassertable: string | null;
+  recall: number | null;
+  precision: number | null;
+  required_total: number | null;
+  required_found: number | null;
+  served_total: number | null;
+  is_safe: boolean | null;
+  violations: readonly ScoreViolation[];
+  unchecked: readonly ScoreUnchecked[];
+  blocks: readonly ScoreBlockTally[];
+}
+
 export interface JudgeCalibrationState {
   judge_model_id: string;
   rubric_version: string;
@@ -724,6 +772,64 @@ export async function recordJudgementReview(
     },
   );
   return parseReview(payload, 0);
+}
+
+/**
+ * The deterministic three for one simulation, or the reason they cannot be computed.
+ *
+ * No model in the loop. That absence is the property rather than a limitation: it
+ * is what keeps a failure of these three attributable to what was *served*
+ * rather than to what graded it.
+ */
+export async function scoreSimulation(
+  client: ContextplaneClient,
+  simulationId: string,
+  context: ContextplaneRequestOptions = {},
+): Promise<DeterministicScore> {
+  const payload = await client.request(
+    `/v1/evaluation/simulations/${encodeURIComponent(simulationId)}/score`,
+    { ...context, method: "GET" },
+  );
+  const row = requiredRecord(payload, "Deterministic score");
+  return {
+    blocks: requiredArray(row.blocks ?? [], "Score blocks").map((entry, index) => {
+      const block = parseRecord(entry, `Score block[${index}]`);
+      return {
+        block: requiredString(block, "block", `Score block[${index}] block`),
+        relevant: requiredInteger(block, "relevant"),
+        required_found: requiredInteger(block, "required_found"),
+        served: requiredInteger(block, "served"),
+        state: requiredString(block, "state", `Score block[${index}] state`),
+      };
+    }),
+    is_safe: typeof row.is_safe === "boolean" ? row.is_safe : null,
+    precision: nullableNumber(row, "precision"),
+    prompt_id: nullableString(row, "prompt_id", "Score prompt_id"),
+    recall: nullableNumber(row, "recall"),
+    required_found: nullableNumber(row, "required_found"),
+    required_total: nullableNumber(row, "required_total"),
+    rubric_version: requiredString(row, "rubric_version", "Score rubric_version"),
+    served_total: nullableNumber(row, "served_total"),
+    unassertable: nullableString(row, "unassertable", "Score unassertable"),
+    unchecked: requiredArray(row.unchecked ?? [], "Score unchecked").map((entry, index) => {
+      const item = parseRecord(entry, `Score unchecked[${index}]`);
+      return {
+        block: requiredString(item, "block", `Score unchecked[${index}] block`),
+        dimension: requiredString(item, "dimension", `Score unchecked[${index}] dimension`),
+        item_key: requiredString(item, "item_key", `Score unchecked[${index}] item_key`),
+        reason: requiredString(item, "reason", `Score unchecked[${index}] reason`),
+      };
+    }),
+    violations: requiredArray(row.violations ?? [], "Score violations").map((entry, index) => {
+      const item = parseRecord(entry, `Score violation[${index}]`);
+      return {
+        block: requiredString(item, "block", `Score violation[${index}] block`),
+        detail: requiredString(item, "detail", `Score violation[${index}] detail`),
+        item_key: requiredString(item, "item_key", `Score violation[${index}] item_key`),
+        kind: requiredString(item, "kind", `Score violation[${index}] kind`),
+      };
+    }),
+  };
 }
 
 /** Every judge tuple that has ever been fitted, at its most recent attempt. */

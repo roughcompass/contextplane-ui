@@ -15,7 +15,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo, useState, type FormEvent, type RefObject } from "react";
 
 import { BRAND } from "@repo/ui/brand";
@@ -44,9 +44,13 @@ import {
   getContextReceipt,
   getContextReceiptExclusions,
   getContextReceiptReferences,
+  getSimulationAvailability,
   getWhoAmI,
+  judgeSimulation,
+  listJudgements,
   recordContextFeedback,
   resolveContext,
+  scoreSimulation,
   type ContextBlock,
   type ContextEnvelope,
   type ContextFeedback,
@@ -58,9 +62,13 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type ResolveContextInput,
+  type Simulation,
   type WhoAmI,
 } from "../../shared/api";
 import { capabilitySource, receiptSource, type PickerSource } from "../../shared/pickers/sources";
+import { ImprovementSurface } from "./ImprovementSurface";
+import { ScorePane } from "./ScorePane";
+import { SimulationPanel } from "./SimulationPanel";
 import {
   contextBlockDescription,
   contextBlockLabel,
@@ -262,7 +270,7 @@ function PromptComposer({
 
   return (
     <SectionSurface
-      description="The resolver retrieves context only. It does not call a language model, generate an answer, or invent an evaluation score."
+      description="The resolver retrieves context only. It does not call a language model, generate an answer, or invent an evaluation score — and that stays true now that this page can simulate an agent, because simulation is a separate receipted operation that resolves through this resolver and then calls a model. If a response appears below, the resolver did not produce it."
       title="Run a prompt"
     >
       <form aria-busy={isPending} className="space-y-5" noValidate onSubmit={submit}>
@@ -669,7 +677,11 @@ function ContextItemRow({
   );
 }
 
-function emptyBlockMessage(block: ContextBlock, arcBlockNote: string | null): string {
+function emptyBlockMessage(
+  block: ContextBlock,
+  arcBlockNote: string | null,
+  instructionBlockNote: string | null,
+): string {
   if (block.name === "arc" && arcBlockNote) return arcBlockNote;
   if (block.name === "canonical") return "No canonical catalog records matched this prompt.";
   if (block.name === "observed_claims") {
@@ -677,6 +689,16 @@ function emptyBlockMessage(block: ContextBlock, arcBlockNote: string | null): st
   }
   if (block.name === "workspace") {
     return "No participant-visible task checkpoints matched this prompt and scope.";
+  }
+  if (block.name === "instructions") {
+    // The three empties are distinguished in the resolution's own note, because
+    // "you declared nothing", "your declared set was never submitted" and "no
+    // correction applies" have different remedies and only the middle one is a
+    // state the caller can leave by acting.
+    return (
+      instructionBlockNote ??
+      "No correction applied to the caller's declared instruction set for this resolution."
+    );
   }
   return "No governed policies were requested or selected for this run.";
 }
@@ -688,9 +710,11 @@ function ContextBlockSection({
   feedbackError,
   feedbackMutation,
   identity,
+  instructionBlockNote,
   receiptId,
 }: {
   arcBlockNote: string | null;
+  instructionBlockNote: string | null;
   block: ContextBlock;
   feedbackByItem: Readonly<Record<string, ContextFeedback>>;
   feedbackError: { error: unknown; itemId: string } | null;
@@ -749,7 +773,7 @@ function ContextBlockSection({
       ) : (
         <div className="px-6 py-8 text-center">
           <p className="text-sm font-medium text-foreground">
-            {emptyBlockMessage(block, arcBlockNote)}
+            {emptyBlockMessage(block, arcBlockNote, instructionBlockNote)}
           </p>
           <p className="mt-1 text-xs leading-5 text-muted">
             Empty, failed, and withheld context remain distinct in the run trace.
@@ -1089,6 +1113,7 @@ function ContextResult({
               feedbackError={feedbackError}
               feedbackMutation={feedbackMutation}
               identity={identity}
+              instructionBlockNote={envelope.instruction_block_note}
               receiptId={envelope.receipt_id}
             />
           ))}
@@ -1124,6 +1149,9 @@ function ContextLab({
   );
 
   const [successfulPrompt, setSuccessfulPrompt] = useState("");
+  const [resolverArguments, setResolverArguments] = useState<Record<string, unknown>>({});
+  const [simulation, setSimulation] = useState<Simulation | null>(null);
+  const queryClient = useQueryClient();
   const [feedbackByItem, setFeedbackByItem] = useState<Record<string, ContextFeedback>>({});
   const [feedbackError, setFeedbackError] = useState<{ error: unknown; itemId: string } | null>(
     null,
@@ -1136,6 +1164,18 @@ function ContextLab({
     mutationFn: (input: ResolveContextInput) => resolveContext(client, input, context),
     onSuccess(_envelope, input) {
       setSuccessfulPrompt(input.query);
+      // The scope this resolution ran under, kept so a simulation resolves the
+      // same question rather than a differently-scoped one. `query` is dropped:
+      // the simulation carries the prompt itself.
+      setResolverArguments({
+        ...(input.arcReceiptId ? { arc_receipt_id: input.arcReceiptId } : {}),
+        ...(input.intentIds?.length ? { intent_ids: input.intentIds } : {}),
+        ...(input.limit ? { limit: input.limit } : {}),
+        ...(input.maxAgeSeconds ? { max_age_s: input.maxAgeSeconds } : {}),
+        ...(input.subjectEntityId ? { subject_entity_id: input.subjectEntityId } : {}),
+        ...(input.workspaceTerm ? { workspace_term: input.workspaceTerm } : {}),
+      });
+      setSimulation(null);
       setFeedbackByItem({});
       setFeedbackError(null);
     },
@@ -1192,6 +1232,35 @@ function ContextLab({
     (query) => query.isError,
   );
   const firstTraceFailure = failedTraceQueries[0]?.error;
+  // Read whether a judge is configured before the action is offered, so an
+  // operator sees a switched-off feature rather than a button that always fails.
+  const availabilityQuery = useQuery({
+    queryFn: () => getSimulationAvailability(client, context),
+    queryKey: ["simulation", "availability", tenantKey],
+  });
+
+  const judgementsQuery = useQuery({
+    enabled: simulation !== null,
+    queryFn: () => listJudgements(client, simulation?.simulation_id ?? "", context),
+    queryKey: ["simulation", "judgements", simulation?.simulation_id ?? "", tenantKey],
+  });
+
+  // The deterministic three. It answers `unassertable` with a reason for an
+  // interactive simulation, which is the honest result rather than an error:
+  // nothing was declared in advance to score against.
+  const scoreQuery = useQuery({
+    enabled: simulation !== null,
+    queryFn: () => scoreSimulation(client, simulation?.simulation_id ?? "", context),
+    queryKey: ["simulation", "score", simulation?.simulation_id ?? "", tenantKey],
+  });
+
+  const judgeMutation = useMutation({
+    mutationFn: (simulationId: string) => judgeSimulation(client, simulationId, context),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["simulation", "judgements"] });
+    },
+  });
+
   const traceLoading = [receiptQuery, exclusionsQuery, referencesQuery].some(
     (query) => query.isLoading,
   );
@@ -1219,6 +1288,52 @@ function ContextLab({
           onRetry={() => {
             if (resolveMutation.variables) resolveMutation.mutate(resolveMutation.variables);
           }}
+        />
+      ) : null}
+
+      {resolveMutation.data ? (
+        <SimulationPanel
+          {...(apiTenantId ? { apiTenantId } : {})}
+          client={client}
+          envelope={resolveMutation.data}
+          onSimulated={(result) => {
+            setSimulation(result);
+            // A new answer invalidates the previous judgement and the previous
+            // deterministic score, both of which were about a different answer.
+            // Clearing them beats leaving a stale verdict beside fresh prose.
+            void queryClient.invalidateQueries({ queryKey: ["simulation"] });
+          }}
+          prompt={successfulPrompt}
+          requestContext={context}
+          resolverArguments={resolverArguments}
+          simulation={simulation}
+        />
+      ) : null}
+
+      {simulation ? (
+        <ScorePane
+          client={client}
+          isJudging={judgeMutation.isPending}
+          judgeAvailable={availabilityQuery.data?.judge_provider !== "noop"}
+          judgements={judgementsQuery.data ?? []}
+          onJudge={() => judgeMutation.mutate(simulation.simulation_id)}
+          requestContext={context}
+          score={scoreQuery.data ?? null}
+          simulationId={simulation.simulation_id}
+        />
+      ) : null}
+
+      {resolveMutation.data ? (
+        <ImprovementSurface
+          client={client}
+          envelope={resolveMutation.data}
+          exclusions={exclusionsQuery.data ?? []}
+          identity={identity}
+          judgements={judgementsQuery.data ?? []}
+          receiptId={resolveMutation.data.receipt_id}
+          requestContext={context}
+          score={scoreQuery.data ?? null}
+          simulation={simulation}
         />
       ) : null}
 

@@ -475,3 +475,158 @@ describe("judged criteria", () => {
     expect(states[0]?.n_adjudicated).toBe(200);
   });
 });
+
+describe("prompt writes and the score read", () => {
+  it("posts a prompt with its expectations, and null when it asserts nothing", async () => {
+    const request = vi.fn(async () => ({
+      expectations: null,
+      intent_note: null,
+      position: 0,
+      prompt_id: "prompt-1",
+      request: { query: "q" },
+    }));
+    const { addPrompt } = await import("./evaluation");
+
+    await addPrompt(clientFromRequest(request), { request: { query: "q" }, setId: "set-1" });
+    expect(request).toHaveBeenCalledWith("/v1/evaluation/prompt-sets/set-1/prompts", {
+      body: { expectations: null, intent_note: null, request: { query: "q" } },
+      method: "POST",
+    });
+
+    await addPrompt(clientFromRequest(request), {
+      expectations: { min_recall: 0.9 },
+      intentNote: "whether the runbook is reachable",
+      request: { query: "q" },
+      setId: "set-1",
+    });
+    expect(request).toHaveBeenLastCalledWith("/v1/evaluation/prompt-sets/set-1/prompts", {
+      body: {
+        expectations: { min_recall: 0.9 },
+        intent_note: "whether the runbook is reachable",
+        request: { query: "q" },
+      },
+      method: "POST",
+    });
+  });
+
+  it("posts a prompt set with a null description rather than omitting the field", async () => {
+    const request = vi.fn(async () => ({
+      created_at: "2026-08-25T09:00:00Z",
+      description: null,
+      name: "s",
+      prompt_count: 0,
+      retired_at: null,
+      set_id: "set-1",
+    }));
+    const { createPromptSet } = await import("./evaluation");
+    await createPromptSet(clientFromRequest(request), { name: "s" });
+    expect(request).toHaveBeenCalledWith("/v1/evaluation/prompt-sets", {
+      body: { description: null, name: "s" },
+      method: "POST",
+    });
+  });
+
+  it("reads an unassertable score as a reason rather than as zeros", async () => {
+    const { scoreSimulation } = await import("./evaluation");
+    const client = stub({
+      blocks: [],
+      prompt_id: null,
+      rubric_version: "context-envelope-judge v2.0.0",
+      unassertable: "nothing was declared in advance",
+    });
+
+    const result = await scoreSimulation(client, "sim-1");
+    expect(result.unassertable).toBe("nothing was declared in advance");
+    expect(result.recall).toBeNull();
+    expect(result.is_safe).toBeNull();
+    expect(result.violations).toEqual([]);
+  });
+
+  it("reads a computed score with its violations, unchecked dimensions and per-block tally", async () => {
+    const { scoreSimulation } = await import("./evaluation");
+    const client = stub({
+      blocks: [{ block: "workspace", relevant: 1, required_found: 1, served: 2, state: "success" }],
+      is_safe: false,
+      precision: 0.5,
+      prompt_id: "prompt-1",
+      recall: 1,
+      required_found: 1,
+      required_total: 1,
+      rubric_version: "context-envelope-judge v2.0.0",
+      served_total: 2,
+      unassertable: null,
+      unchecked: [
+        {
+          block: "canonical",
+          dimension: "classification",
+          item_key: "e1",
+          reason: "canonical items carry no trust metadata by construction",
+        },
+      ],
+      violations: [
+        { block: "workspace", detail: "served from another task", item_key: "c1", kind: "audience" },
+      ],
+    });
+
+    const result = await scoreSimulation(client, "sim-1");
+    expect(result.is_safe).toBe(false);
+    expect(result.violations[0]?.kind).toBe("audience");
+    // An unchecked dimension is neither a pass nor a failure, and it travels.
+    expect(result.unchecked[0]?.reason).toContain("by construction");
+    expect(result.blocks[0]?.served).toBe(2);
+  });
+
+  it("reads prompts for a set", async () => {
+    const { listPrompts } = await import("./evaluation");
+    const client = stub({
+      items: [
+        {
+          expectations: { min_recall: 0.5 },
+          intent_note: "note",
+          position: 0,
+          prompt_id: "prompt-1",
+          request: { query: "q" },
+        },
+      ],
+    });
+    const prompts = await listPrompts(client, "set-1");
+    expect(prompts[0]?.expectations).toEqual({ min_recall: 0.5 });
+    expect(prompts[0]?.intent_note).toBe("note");
+  });
+
+  it("reads one simulation by id", async () => {
+    const { getSimulation } = await import("./evaluation");
+    const client = stub(simulationBody);
+    await expect(getSimulation(client, "sim-1")).resolves.toMatchObject({ simulation_id: "sim-1" });
+  });
+
+  it("posts a simulation belonging to a run item when one is named", async () => {
+    const request = vi.fn(async () => ({ ...simulationBody, run_item_id: "item-1" }));
+    const { runSimulation: run } = await import("./evaluation");
+    await run(clientFromRequest(request), {
+      prompt: "how?",
+      runItemId: "item-1",
+      simulatedActorId: "actor-1",
+    });
+    expect(request).toHaveBeenCalledWith("/v1/evaluation/simulations", {
+      body: { prompt: "how?", request: {}, run_item_id: "item-1", simulated_actor_id: "actor-1" },
+      method: "POST",
+    });
+  });
+
+  it("posts a review with no note and no confidence as explicit nulls", async () => {
+    const request = vi.fn(async () => ({
+      note: null,
+      observed_confidence: null,
+      reviewed_at: "2026-08-25T12:00:00Z",
+      reviewed_by: "r1",
+      verdict: "confirmed",
+    }));
+    const { recordJudgementReview: review } = await import("./evaluation");
+    await review(clientFromRequest(request), { judgementId: "j1", verdict: "confirmed" });
+    expect(request).toHaveBeenCalledWith("/v1/evaluation/judgements/j1/review", {
+      body: { note: null, observed_confidence: null, verdict: "confirmed" },
+      method: "POST",
+    });
+  });
+});
