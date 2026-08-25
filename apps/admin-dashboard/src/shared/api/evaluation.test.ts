@@ -78,7 +78,7 @@ const judgementBody = {
   verdict: "pass",
 };
 
-describe("prompt sets, runs and verdicts", () => {
+describe("evaluation adapters: prompt sets, runs and verdicts", () => {
   it("reads a set list", async () => {
     const client = stub({
       items: [
@@ -247,7 +247,7 @@ describe("prompt sets, runs and verdicts", () => {
   });
 });
 
-describe("simulation", () => {
+describe("evaluation adapters: simulation", () => {
   it("reads availability without asking for a credential", async () => {
     const client = stub({
       available: false,
@@ -339,7 +339,7 @@ describe("simulation", () => {
   });
 });
 
-describe("judged criteria", () => {
+describe("evaluation adapters: judged criteria", () => {
   it("reads a judgement with its reasoning, evidence and pinned tuple", async () => {
     const client = stub({ items: [judgementBody] });
     const judgements = await listJudgements(client, "sim-1");
@@ -476,7 +476,7 @@ describe("judged criteria", () => {
   });
 });
 
-describe("prompt writes and the score read", () => {
+describe("evaluation adapters: prompt writes and the score read", () => {
   it("posts a prompt with its expectations, and null when it asserts nothing", async () => {
     const request = vi.fn(async () => ({
       expectations: null,

@@ -117,7 +117,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("EvaluationPage", () => {
+describe("the evaluation surface", () => {
   it("lands on the set list rather than on a form", async () => {
     renderPage();
 
@@ -240,7 +240,7 @@ describe("EvaluationPage", () => {
     expect(await screen.findByText("Checking: Whether the runbook is reachable")).toBeVisible();
   });
 
-  it("offers no comparison until two runs exist", async () => {
+  it("run comparison is not offered until two runs exist", async () => {
     renderPage();
 
     fireEvent.click(await screen.findByText("Support triage"));
@@ -249,7 +249,7 @@ describe("EvaluationPage", () => {
     expect(screen.queryByRole("button", { name: /Compare runs/ })).not.toBeInTheDocument();
   });
 
-  it("refuses to compare two runs from different deployments", async () => {
+  it("run comparison refuses two runs from different deployments", async () => {
     renderPage((path, options) => {
       if (path === `/v1/evaluation/prompt-sets/${setId}/runs` && options?.method === "GET") {
         return { items: [runHeader, { ...olderRunHeader, resolver_fingerprint: otherFingerprint }] };
@@ -270,7 +270,7 @@ describe("EvaluationPage", () => {
     ).toBeVisible();
   });
 
-  it("names what moved between two comparable runs", async () => {
+  it("run comparison names what moved between two comparable runs", async () => {
     renderPage((path, options) => {
       if (path === `/v1/evaluation/prompt-sets/${setId}/runs` && options?.method === "GET") {
         return { items: [runHeader, olderRunHeader] };

@@ -73,7 +73,7 @@ function judgement(overrides: Partial<Judgement> = {}): Judgement {
   };
 }
 
-describe("run tallies", () => {
+describe("evaluation model: run tallies", () => {
   it("counts an errored item rather than excluding it", () => {
     const tally = tallyRun(
       run([
@@ -124,7 +124,7 @@ describe("run tallies", () => {
   });
 });
 
-describe("comparability", () => {
+describe("evaluation model: run comparison comparability", () => {
   it("refuses two runs from different deployments", () => {
     expect(
       runsAreComparable(run([]), run([], { resolver_fingerprint: otherFingerprint, run_id: "run-2" })),
@@ -140,7 +140,7 @@ describe("comparability", () => {
   });
 });
 
-describe("named change kinds", () => {
+describe("evaluation model: run comparison change kinds", () => {
   it("names an improved verdict and gives it a direction", () => {
     const before = run([item({ verdicts: [verdict("wrong")] })]);
     const after = run(
@@ -248,7 +248,7 @@ describe("named change kinds", () => {
   });
 });
 
-describe("rubric versions", () => {
+describe("evaluation model: rubric versions", () => {
   it("flags a set of judgements spanning two rubric versions", () => {
     expect(
       spansRubricVersions([
@@ -267,7 +267,7 @@ describe("rubric versions", () => {
   });
 });
 
-describe("vocabulary", () => {
+describe("evaluation model: vocabulary", () => {
   it("offers three reviewer verdicts and explains the two that need it", () => {
     expect(runVerdictOptions.map((option) => option.value)).toEqual(["right", "wrong", "unusable"]);
     expect(runVerdictLabel("unusable")).toBe("Unusable");
@@ -298,7 +298,7 @@ describe("vocabulary", () => {
   });
 });
 
-describe("formatting", () => {
+describe("evaluation model: formatting", () => {
   it("shortens a fingerprint without pretending it is the whole digest", () => {
     expect(formatFingerprint(fingerprint)).toBe(`${"a".repeat(12)}…`);
   });
