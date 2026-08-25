@@ -114,8 +114,43 @@ export interface WorkspacePage {
   next_cursor: string | null;
 }
 
-export const contextBlockNames = ["canonical", "arc", "observed_claims", "workspace"] as const;
+/**
+ * Five, in the order the envelope returns them.
+ *
+ * `instructions` is last and is not context about the subject at all — it is
+ * what the product says back about the caller's own declared instruction set.
+ * It counts as a block because a block inherits provenance, trust class, the
+ * receipt and suppression, and an instruction delivered outside all four would
+ * be the highest-leverage input to what an agent does and the only one with no
+ * record of having been given.
+ *
+ * **A reader that counts four reports a clean run over a wrong delta.** The
+ * envelope parser asserts this list against what arrived, so a contract that
+ * grows a sixth breaks here rather than silently dropping it.
+ */
+export const contextBlockNames = [
+  "canonical",
+  "arc",
+  "observed_claims",
+  "workspace",
+  "instructions",
+] as const;
 export type ContextBlockName = (typeof contextBlockNames)[number];
+
+/**
+ * What was known about the caller's instruction set at resolve time.
+ *
+ * Three, and every surface renders all three. `declared_unknown` reported as
+ * `not_declared` would make an integration that declares look identical to one
+ * that never adopted the channel, which is the quiet degradation ADR 0020's
+ * third assumption exists to prevent.
+ */
+export const instructionDispositions = [
+  "not_declared",
+  "declared_unknown",
+  "declared_known",
+] as const;
+export type InstructionDisposition = (typeof instructionDispositions)[number];
 
 export const contextBlockStates = ["success", "empty", "degraded", "failed"] as const;
 export type ContextBlockState = (typeof contextBlockStates)[number];
@@ -162,10 +197,14 @@ export interface ContextBlock extends Omit<
 
 export interface ContextEnvelope extends Omit<
   components["schemas"]["ContextEnvelopeResponse"],
-  "blocks" | "state"
+  "blocks" | "instruction_disposition" | "state"
 > {
   arc_block_note: string | null;
   blocks: readonly ContextBlock[];
+  /** Which of the three instruction states this resolution ran under. */
+  instruction_disposition: InstructionDisposition;
+  /** Why the instructions block is empty, when it is. Absent when it carries something. */
+  instruction_block_note: string | null;
   state: ContextEnvelopeState;
 }
 
@@ -763,16 +802,22 @@ function parseWhoAmI(value: unknown): WhoAmI {
   };
 }
 
+/**
+ * A block name, checked against the list rather than against a hand-written
+ * chain of comparisons.
+ *
+ * It was a chain, and the chain is how this came to know four blocks while the
+ * envelope served five: adding a name to `contextBlockNames` did not add it
+ * here, and nothing connected the two. Reading the list is what makes the
+ * vocabulary have one definition.
+ */
 function parseContextBlockName(value: unknown): ContextBlockName {
-  if (
-    value !== "canonical" &&
-    value !== "arc" &&
-    value !== "observed_claims" &&
-    value !== "workspace"
-  ) {
-    throw new Error("Invalid API response: unknown context block.");
+  if (typeof value !== "string" || !(contextBlockNames as readonly string[]).includes(value)) {
+    throw new Error(
+      `Invalid API response: unknown context block ${String(value)}; the blocks are ${contextBlockNames.join(", ")}.`,
+    );
   }
-  return value;
+  return value as ContextBlockName;
 }
 
 function parseContextBlockState(value: unknown): ContextBlockState {
@@ -836,6 +881,22 @@ function parseContextBlock(value: unknown): ContextBlock {
   };
 }
 
+/**
+ * The disposition, refused rather than defaulted when unknown.
+ *
+ * A fourth value read as `not_declared` would report "nobody declared
+ * instructions" about a resolution the service said something else about, on the
+ * one field whose whole purpose is telling three near-identical states apart.
+ */
+function parseInstructionDisposition(value: unknown): InstructionDisposition {
+  if (typeof value === "string" && (instructionDispositions as readonly string[]).includes(value)) {
+    return value as InstructionDisposition;
+  }
+  throw new Error(
+    `Invalid API response: instruction disposition ${String(value)} is not one of ${instructionDispositions.join(", ")}.`,
+  );
+}
+
 function parseContextEnvelope(value: unknown): ContextEnvelope {
   if (!isRecord(value)) throw new Error("Invalid API context envelope.");
   const blocks = requiredArray(value.blocks, "context blocks").map(parseContextBlock);
@@ -851,6 +912,8 @@ function parseContextEnvelope(value: unknown): ContextEnvelope {
   return {
     arc_block_note: optionalNullableString(value, "arc_block_note"),
     blocks,
+    instruction_block_note: optionalNullableString(value, "instruction_block_note"),
+    instruction_disposition: parseInstructionDisposition(value.instruction_disposition),
     quality: {
       cacheable: requiredBoolean(value.quality, "cacheable"),
       degraded_blocks: parseStringArray(value.quality.degraded_blocks, "degraded context blocks"),

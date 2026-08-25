@@ -1,3 +1,4 @@
+import { contextBlockNames, instructionDispositions } from "../../shared/api";
 import type {
   ContextBlock,
   ContextBlockName,
@@ -6,10 +7,18 @@ import type {
   ContextEnvelopeState,
   ContextItem,
   ContextTrust,
+  InstructionDisposition,
   WhoAmI,
 } from "../../shared/api";
 
-export const contextBlockOrder = ["canonical", "arc", "observed_claims", "workspace"] as const;
+/**
+ * Five, and the count is load-bearing.
+ *
+ * Re-exported from the API vocabulary rather than restated, because this list
+ * was four while the envelope was five — and a pane that silently omits the
+ * instruction block reports a clean run over a wrong delta.
+ */
+export const contextBlockOrder = contextBlockNames;
 
 export const contextLimitOptions = [10, 25, 50, 100] as const;
 export type ContextLimit = (typeof contextLimitOptions)[number];
@@ -49,6 +58,7 @@ const blockLabels: Record<ContextBlockName, string> = {
   arc: "Governed policies",
   observed_claims: "Observed claims",
   workspace: "Workspace recall",
+  instructions: "Instruction corrections",
 };
 
 const blockDescriptions: Record<ContextBlockName, string> = {
@@ -56,6 +66,8 @@ const blockDescriptions: Record<ContextBlockName, string> = {
   arc: "Policy directives selected by a named, attested ARC receipt.",
   observed_claims: "Living Memory claims that remain observations until governed review.",
   workspace: "Task checkpoints visible to the current participant.",
+  instructions:
+    "Corrections this product served back about the caller's own declared instructions. Not context about the subject.",
 };
 
 export function isUuid(value: string): boolean {
@@ -255,6 +267,50 @@ export function identityDisplayName(identity: WhoAmI): string {
     identity.actor_display_name ?? identity.actor_email ?? shortContextIdentifier(identity.actor_id)
   );
 }
+
+const dispositionLabels: Record<InstructionDisposition, string> = {
+  not_declared: "No instructions declared",
+  declared_unknown: "Declared, content never submitted",
+  declared_known: "Declared and submitted",
+};
+
+const dispositionDescriptions: Record<InstructionDisposition, string> = {
+  not_declared:
+    "This request sent no instruction digest, so the product had nothing to correct. Send one to receive governed corrections.",
+  declared_unknown:
+    "A digest arrived whose content was never submitted, so corrections could be served but contradictions could not be computed. This is the one state the caller can leave by acting.",
+  declared_known:
+    "The declared instruction set is on file, so a correction that contradicts it is reported as one.",
+};
+
+/**
+ * The disposition as a reader sees it.
+ *
+ * Three labels rather than "declared" and "not declared", because
+ * `declared_unknown` reported as either would hide partial adoption of the
+ * channel — an integration that declares looking identical to one that never
+ * adopted it. All three are rendered wherever any is.
+ */
+export function instructionDispositionLabel(disposition: InstructionDisposition): string {
+  return dispositionLabels[disposition];
+}
+
+export function instructionDispositionDescription(disposition: InstructionDisposition): string {
+  return dispositionDescriptions[disposition];
+}
+
+export function instructionDispositionTone(
+  disposition: InstructionDisposition,
+): "neutral" | "success" | "warning" {
+  if (disposition === "declared_known") return "success";
+  // Warning rather than neutral: this is the state the caller can fix, and the
+  // one whose invisibility ADR 0020's third assumption was written about.
+  if (disposition === "declared_unknown") return "warning";
+  return "neutral";
+}
+
+/** Every disposition, so a surface cannot render a subset by omission. */
+export const allInstructionDispositions = instructionDispositions;
 
 export function trustSummary(trust: ContextTrust | null): string {
   if (!trust) return "Canonical catalog record";
