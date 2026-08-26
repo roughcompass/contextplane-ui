@@ -165,6 +165,17 @@ export {
   type WorkloadIdentity,
 } from "./envelopes";
 export {
+  confirmClaim,
+  discardClaim,
+  linkClaimSubject,
+  openCurationCase,
+  type ConfirmClaimInput,
+  type CurationCase,
+  type DiscardClaimInput,
+  type LinkClaimSubjectInput,
+  type OpenCurationCaseInput,
+} from "./curationDecisions";
+export {
   declarableKinds,
   declarePrincipal,
   listPrincipals,

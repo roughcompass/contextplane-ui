@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@repo/ui/primitives";
@@ -80,6 +80,53 @@ function testClient(overrides: Record<string, unknown> = {}) {
     throw new Error(`Unexpected path: ${path}`);
   });
   return clientFromRequest(request);
+}
+
+/** A queue whose rows offer every decision the service publishes. */
+const DECIDABLE = {
+  items: [
+    { ...QUEUE.items[0], available_actions: ["confirm", "discard", "escalate"], reason: "contested" },
+    { ...QUEUE.items[1], available_actions: ["link", "discard"], reason: "unlinked" },
+  ],
+  next_cursor: null,
+};
+
+/** Records every write, so a test can assert the request rather than the toast. */
+function decidingClient(queue: unknown = DECIDABLE) {
+  const writes: { body?: unknown; path: string }[] = [];
+  const request = vi.fn(async (path: string, options?: { body?: unknown; method?: string }) => {
+    if (options?.method === "POST") {
+      writes.push({ body: options.body, path });
+      if (path.startsWith("/v1/memory/curation-cases")) {
+        return {
+          case_id: "case-1",
+          disposition: "confirm",
+          predicate: "owned_by_team",
+          status: "open",
+          subject_reference: "svc/checkout",
+        };
+      }
+      return null;
+    }
+    if (path.startsWith("/v1/memory/disposition-policies")) return POLICIES;
+    if (path.startsWith("/v1/memory/curation-queue")) return queue;
+    if (path.startsWith("/v1/capabilities")) {
+      return {
+        items: [
+          {
+            created_at: "2026-08-01T00:00:00Z",
+            entity_id: "entity-checkout",
+            entity_type: "capability",
+            external_id: null,
+            name: "checkout-service",
+          },
+        ],
+        next_cursor: null,
+      };
+    }
+    throw new Error(`Unexpected path: ${path}`);
+  });
+  return { client: clientFromRequest(request), writes };
 }
 
 function renderPage(client: ContextplaneClient) {
@@ -185,5 +232,139 @@ describe("CurationCockpitPage", () => {
     renderPage(failing);
 
     expect(await screen.findByText(/do not act on a queue you could not load/u)).toBeVisible();
+  });
+
+  // --- the queue can be worked, not only read ------------------------------
+
+  it("confirms a claim from the row it is about", async () => {
+    // The gap this covers: the page ranked a queue, published why each row was
+    // there and listed what every disposition commits to — and had no action on
+    // any row and no link off the page. A curator could see their whole queue
+    // and could not touch it.
+    const { client, writes } = decidingClient();
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/checkout/u });
+    fireEvent.click(within(row).getByRole("button", { name: "Confirm this claim" }));
+
+    // The consequence is stated before it is taken, not after.
+    expect(
+      within(row).getByText(/serves as asserted rather than observed/u),
+    ).toBeVisible();
+    fireEvent.click(
+      within(row).getAllByRole("button", { name: "Confirm this claim" })[1]!,
+    );
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toEqual({ body: undefined, path: "/v1/memory/claims/claim-escalated:confirm" });
+  });
+
+  it("requires the reason the service requires, and says so before the click", async () => {
+    const { client, writes } = decidingClient();
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/checkout/u });
+    fireEvent.click(within(row).getByRole("button", { name: "Discard this claim" }));
+
+    // Disabled *and* explained. DESIGN.md: a visible disabled action must say
+    // what condition is missing.
+    expect(within(row).getAllByRole("button", { name: "Discard this claim" })[1]!).toBeDisabled();
+    expect(within(row).getByText(/Give a reason first/u)).toBeVisible();
+
+    fireEvent.change(within(row).getByRole("textbox", { name: "Why it is being discarded" }), {
+      target: { value: "Superseded by the owner's own record" },
+    });
+    fireEvent.click(within(row).getAllByRole("button", { name: "Discard this claim" })[1]!);
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toEqual({
+      body: { reason: "Superseded by the owner's own record" },
+      path: "/v1/memory/claims/claim-escalated:discard",
+    });
+  });
+
+  it("links an unlinked claim to an entity chosen from the catalog", async () => {
+    // ADR 0018, where it matters most: `link_subject` re-derives owner,
+    // visibility and authority from the subject it resolves and refuses one it
+    // cannot, so a text box would let a curator submit prose and read the
+    // refusal afterwards.
+    const { client, writes } = decidingClient();
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/ledger/u });
+    fireEvent.click(within(row).getByRole("button", { name: "Link to a subject" }));
+
+    expect(within(row).getAllByRole("button", { name: "Link to a subject" })[1]!).toBeDisabled();
+    expect(within(row).getByText(/Choose the entity this claim is about/u)).toBeVisible();
+
+    fireEvent.click(within(row).getByRole("button", { name: "Subject entity" }));
+    fireEvent.click(await screen.findByRole("option", { name: /checkout-service/u }));
+    fireEvent.click(within(row).getAllByRole("button", { name: "Link to a subject" })[1]!);
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toEqual({
+      body: { subject_reference: "entity-checkout" },
+      path: "/v1/memory/claims/claim-quiet:link",
+    });
+  });
+
+  it("escalates by opening a case for the subject and predicate", async () => {
+    const { client, writes } = decidingClient();
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/checkout/u });
+    fireEvent.click(within(row).getByRole("button", { name: "Escalate for another approver" }));
+    fireEvent.click(
+      within(row).getAllByRole("button", { name: "Escalate for another approver" })[1]!,
+    );
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    // Keyed by subject and predicate, not by claim: a contested claim is
+    // contested *with* another about the same axis, and a case about one of them
+    // would name half the disagreement.
+    expect(writes[0]).toEqual({
+      body: { predicate: "owned_by_team", subject_reference: "svc/checkout" },
+      path: "/v1/memory/curation-cases",
+    });
+  });
+
+  it("renders the actions the service published rather than deriving them from the reason", async () => {
+    // Two rows, same page, different `reason` and different `available_actions`.
+    // A screen that mapped reason to actions on this side would be a second copy
+    // of a service judgement, wrong the first time a reason is added.
+    const { client } = decidingClient();
+    renderPage(client);
+
+    const contested = await screen.findByRole("row", { name: /svc\/checkout/u });
+    expect(within(contested).getByRole("button", { name: "Confirm this claim" })).toBeVisible();
+    expect(within(contested).queryByRole("button", { name: "Link to a subject" })).toBeNull();
+
+    const unlinked = screen.getByRole("row", { name: /svc\/ledger/u });
+    expect(within(unlinked).getByRole("button", { name: "Link to a subject" })).toBeVisible();
+    expect(within(unlinked).queryByRole("button", { name: "Confirm this claim" })).toBeNull();
+  });
+
+  it("names an action it cannot take rather than hiding it", async () => {
+    // A curator who sees a decision they cannot take here knows to look
+    // elsewhere; one who sees nothing concludes there is nothing.
+    const { client } = decidingClient({
+      items: [{ ...QUEUE.items[0], available_actions: ["confirm", "teleport"] }],
+      next_cursor: null,
+    });
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/checkout/u });
+    expect(within(row).getByText(/also offers teleport on this row/u)).toBeVisible();
+  });
+
+  it("says a row has no decision rather than showing an empty cell", async () => {
+    const { client } = decidingClient({
+      items: [{ ...QUEUE.items[1], available_actions: [] }],
+      next_cursor: null,
+    });
+    renderPage(client);
+
+    const row = await screen.findByRole("row", { name: /svc\/ledger/u });
+    expect(within(row).getByText(/offers no decision on this row/u)).toBeVisible();
   });
 });

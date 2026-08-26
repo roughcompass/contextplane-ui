@@ -14,6 +14,7 @@ import {
   type MemoryCurationItem,
 } from "../../shared/api";
 
+import { ClaimDecision } from "./ClaimDecision";
 import {
   ORDERING_STATEMENT,
   consequencesOf,
@@ -75,7 +76,12 @@ export function CurationCockpitPanel({
             <CockpitFailure error={queue.error} onRetry={() => void queue.refetch()} />
           </div>
         ) : (queue.data?.items.length ?? 0) > 0 ? (
-          <RankedQueue items={queue.data?.items ?? []} />
+          <RankedQueue
+            client={client}
+            items={queue.data?.items ?? []}
+            onDecided={() => void queue.refetch()}
+            requestContext={requestContext}
+          />
         ) : (
           <EmptyState
             description="Nothing is waiting for curator attention in this tenant. This does not imply that no contested or unlinked claims exist outside the current scope."
@@ -151,7 +157,17 @@ function CockpitFailure({ error, onRetry }: { error: unknown; onRetry: () => voi
   );
 }
 
-function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
+function RankedQueue({
+  client,
+  items,
+  onDecided,
+  requestContext,
+}: {
+  client: ContextplaneClient;
+  items: readonly MemoryCurationItem[];
+  onDecided: () => void;
+  requestContext: ContextplaneRequestOptions;
+}) {
   return (
     <div
       aria-label="Scrollable review queue"
@@ -179,6 +195,9 @@ function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
             </th>
             <th className="w-24 px-4 py-3 text-right font-medium" scope="col">
               Confidence
+            </th>
+            <th className="w-72 px-4 py-3 font-medium" scope="col">
+              Decision
             </th>
           </tr>
         </thead>
@@ -215,6 +234,18 @@ function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
                 <span className="mt-1 block text-[0.65rem] leading-4 text-subtle">
                   not ranked on
                 </span>
+              </td>
+              {/* In the row, not on another page. DESIGN.md's archetype for a
+                  review page asks for the item, the policy, the evidence and the
+                  decision controls in one workflow; this column is the sixth of
+                  those six, and it was the missing one. */}
+              <td className="px-4 py-4 align-top">
+                <ClaimDecision
+                  client={client}
+                  item={item}
+                  onDecided={onDecided}
+                  requestContext={requestContext}
+                />
               </td>
             </tr>
           ))}
