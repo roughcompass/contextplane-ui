@@ -441,7 +441,12 @@ describe("ContextLabPage", () => {
     expect(screen.getAllByText("Customer identity resolution")[0]).toBeVisible();
     expect(screen.getAllByText("Authentication scope is required")[0]).toBeVisible();
     expect(screen.getAllByText("Finish identity migration")[0]).toBeVisible();
-    expect(screen.getByText("3 of 4")).toBeVisible();
+    // The denominator counts the envelope's blocks rather than restating a
+    // number. It read "3 of 4" for a release after the service began returning
+    // five, and this assertion is what held it there — the fixture below returns
+    // five blocks, so a hardcoded "4" is now a failure rather than a passing
+    // description of something untrue.
+    expect(screen.getByText("3 of 5")).toBeVisible();
     expect(await screen.findByText("sha256:request")).toBeVisible();
     expect(screen.getByText("The lifecycle scope did not match this claim.")).toBeVisible();
     expect(screen.getByText(/control-plane\/acme\/platform\/build\/build-42/)).toBeVisible();
@@ -722,7 +727,7 @@ describe("ContextLabPage", () => {
     expect(screen.getByText(/governance withheld it/)).toBeVisible();
   });
 
-  it("tells an operator which setting is missing when simulation is switched off", async () => {
+  it("leads with what still works when simulation is unavailable, and buries the variables", async () => {
     renderPage((path, options) => {
       if (path === "/v1/evaluation/simulations/availability") {
         return {
@@ -742,8 +747,22 @@ describe("ContextLabPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
 
     expect(
-      await screen.findByText("Simulation is switched off on this deployment"),
+      await screen.findByText("This deployment cannot generate an agent answer"),
     ).toBeVisible();
+    // What the reader can do now comes before what is missing, and it is stated
+    // in product terms rather than configuration ones.
+    expect(screen.getByText(/You can still resolve context, save prompts into sets/)).toBeVisible();
+    expect(screen.getByText(/needs a language model, and this deployment has none/)).toBeVisible();
+
+    // Environment variables are deployment diagnostics, so they sit behind a
+    // disclosure addressed to the person who can act on them — present, and not
+    // the first thing an evaluator reads.
+    const disclosure = screen.getByText("For whoever runs this deployment").closest("details");
+    expect(disclosure).not.toBeNull();
+    expect(disclosure!.open).toBe(false);
+    expect(within(disclosure!).getByText("SIMULATION_PROVIDER")).toBeInTheDocument();
+    expect(within(disclosure!).getByText("SIMULATION_API_KEY")).toBeInTheDocument();
+
     expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
   });
   it("records a review beside the judge's verdict rather than replacing it", async () => {
@@ -881,10 +900,13 @@ describe("ContextLabPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
 
     expect(
-      await screen.findByText("Groundedness and relevance need a second provider family"),
+      await screen.findByText("Two of the five criteria cannot be graded here"),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: /Judge the answer/ })).toBeNull();
-    // The three that need no judge are still there.
+    // The three that need no judge are still there, and the notice says so
+    // before it says anything about configuration.
     expect(screen.getByText("Required-fact recall")).toBeVisible();
+    expect(screen.getByText(/computed by a program with no model in the loop/)).toBeVisible();
+    expect(screen.getByText("For whoever runs this deployment")).toBeVisible();
   });
 });
