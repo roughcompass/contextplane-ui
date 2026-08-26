@@ -40,6 +40,29 @@ function testClient(overrides: Record<string, unknown> = {}) {
   return clientFromRequest(request);
 }
 
+/** Records which identifiers were reverted, so a test can assert the request. */
+function quarantineClient() {
+  const reverted: string[] = [];
+  const request = vi.fn(async (path: string) => {
+    if (path.includes(":preview")) return preview;
+    if (path.includes(":revert")) {
+      reverted.push(path.split("/").pop()!.replace(":revert", ""));
+      return { quarantine_id: QUARANTINE_ID, restored_count: 1 };
+    }
+    if (path === "/v1/admin/claim-quarantines") {
+      return {
+        matched: [CLAIM_A, CLAIM_B],
+        matched_count: 2,
+        quarantine_id: QUARANTINE_ID,
+        selector: "connector_run",
+        value: "run-42",
+      };
+    }
+    throw new Error(`Unexpected path: ${path}`);
+  });
+  return { client: clientFromRequest(request), reverted };
+}
+
 function renderPage(client: ContextplaneClient) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -184,5 +207,40 @@ describe("QuarantinePage", () => {
     const panel = screen.getByText("Restore the claims this quarantine withheld?").closest("div");
     if (!panel) throw new Error("The confirmation was not rendered.");
     expect(within(panel).getByText(/second, unreverted quarantine stays withheld/u)).toBeVisible();
+  });
+
+  it("says the identifier cannot be looked up later, because it cannot", async () => {
+    // The page promised "put them back". `applied` is component state and the
+    // service exposes no way to list quarantines and writes none to the audit
+    // log — so a reload lost the only handle on a live quarantine, and the
+    // promise held for one browser session.
+    const { client } = quarantineClient();
+    renderPage(client);
+
+    await runPreview();
+    await screen.findByText("Would be withheld");
+    fireEvent.change(screen.getByLabelText("Why"), {
+      target: { value: "Connector run 42 asserted stale ownership." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Withhold 2 claim/u }));
+
+    expect(await screen.findByText("Keep this identifier")).toBeVisible();
+    expect(screen.getByText(/no list of applied quarantines to find it in later/u)).toBeVisible();
+  });
+
+  it("restores a quarantine from an identifier somebody kept", async () => {
+    const { client, reverted } = quarantineClient();
+    renderPage(client);
+
+    // Available without applying anything first — that is the point: an operator
+    // returning tomorrow has the identifier and nothing else.
+    const field = await screen.findByRole("textbox", { name: "Quarantine identifier" });
+    expect(screen.getByRole("button", { name: "Restore what it withheld" })).toBeDisabled();
+    expect(screen.getByText("Paste the identifier the apply step showed.")).toBeVisible();
+
+    fireEvent.change(field, { target: { value: "11111111-1111-4111-8111-111111111111" } });
+    fireEvent.click(screen.getByRole("button", { name: "Restore what it withheld" }));
+
+    await waitFor(() => expect(reverted).toEqual(["11111111-1111-4111-8111-111111111111"]));
   });
 });

@@ -1,9 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ShieldAlert } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import { EmptyState, SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, SearchableSelect, StatusBadge, useToast } from "@repo/ui/primitives";
+import {
+  Button,
+  Notice,
+  RequestFailure,
+  SearchableSelect,
+  StatusBadge,
+  useToast,
+} from "@repo/ui/primitives";
 
 import {
   applyQuarantine,
@@ -46,6 +53,8 @@ export function QuarantinePanel({ client, requestContext }: QuarantinePanelProps
   const [preview, setPreview] = useState<QuarantinePreview | null>(null);
   const [previewedAt, setPreviewedAt] = useState<Date | null>(null);
   const [applied, setApplied] = useState<AppliedQuarantine | null>(null);
+  const [recoveredId, setRecoveredId] = useState("");
+  const recoveredFieldId = useId();
   const [confirmingRevert, setConfirmingRevert] = useState(false);
 
   const ready = selector !== "" && value.trim() !== "";
@@ -208,6 +217,52 @@ export function QuarantinePanel({ client, requestContext }: QuarantinePanelProps
         ) : null}
       </SectionSurface>
 
+      {/* The other half of "put them back", which the page promised and could only
+          honour inside one browser session: `applied` is component state, so a
+          reload lost the only handle on a live quarantine. This is the most the
+          contract allows — there is no list to choose from, so the identifier is
+          typed rather than picked, which ADR 0018 would otherwise refuse. */}
+      <SectionSurface
+        description="Reverting restores exactly what that quarantine withheld, whenever it was applied. There is no list to pick from, so this needs the identifier the apply step showed."
+        title="Restore an earlier quarantine"
+      >
+        <div className="space-y-3 px-6 py-4">
+          <label className="text-xs font-medium text-foreground" htmlFor={recoveredFieldId}>
+            Quarantine identifier
+          </label>
+          <input
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            id={recoveredFieldId}
+            onChange={(event) => setRecoveredId(event.target.value)}
+            placeholder="00000000-0000-0000-0000-000000000000"
+            value={recoveredId}
+          />
+          {revertMutation.isError ? (
+            <RequestFailure
+              onRetry={() => revertMutation.mutate(recoveredId.trim())}
+              title="Nothing was restored"
+            >
+              {revertMutation.error.message}
+            </RequestFailure>
+          ) : null}
+          <div className="space-y-1">
+            <Button
+              disabled={revertMutation.isPending || recoveredId.trim() === ""}
+              onClick={() => revertMutation.mutate(recoveredId.trim())}
+              size="compact"
+              variant="secondary"
+            >
+              {revertMutation.isPending ? "Restoring…" : "Restore what it withheld"}
+            </Button>
+            {recoveredId.trim() === "" ? (
+              <p className="text-xs text-muted">
+                Paste the identifier the apply step showed.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </SectionSurface>
+
       {applied ? (
         <SectionSurface
           description="Reverting restores exactly what this quarantine withheld — not what the predicate matches now."
@@ -219,6 +274,17 @@ export function QuarantinePanel({ client, requestContext }: QuarantinePanelProps
               {applied.matched_count} claim(s) matching {applied.selector} ={" "}
               <code className="text-xs">{applied.value}</code>.
             </p>
+            {/* Said here because it is only true here. The service exposes no way
+                to list quarantines and does not write one to the audit log, so
+                this identifier is shown once and cannot be looked up afterwards
+                — and reverting needs it. A page that let an operator close the
+                tab without saying so would be promising an undo it could not
+                deliver tomorrow. */}
+            <Notice title="Keep this identifier" variant="warning">
+              It is the only handle on this quarantine. There is no list of applied
+              quarantines to find it in later, so reverting after this page closes means
+              pasting it back below.
+            </Notice>
             {/* Revert is a primary action here rather than an item in a menu:
                 an operator who cannot see how to undo a quarantine will not run
                 one on a real incident, which makes its discoverability part of
