@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookmarkPlus } from "lucide-react";
+import { ArrowUpRight, BookmarkPlus } from "lucide-react";
 import { useId, useState } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
@@ -13,6 +13,13 @@ import {
   type ContextplaneClient,
   type ContextplaneRequestOptions,
 } from "../../shared/api";
+
+/** Evaluation, with the set this prompt just joined already selected. */
+function savedSetHref(setId: string): string {
+  const url = new URL("/evaluation", window.location.origin);
+  if (setId) url.searchParams.set("set", setId);
+  return `${url.pathname}${url.search}`;
+}
 
 interface SavePromptToSetProps {
   apiTenantId?: string;
@@ -69,11 +76,16 @@ export function SavePromptToSet({
 }: SavePromptToSetProps) {
   const noteId = useId();
   const newSetId = useId();
-  const [setId, setSetId] = useState("");
+  // Preselected from the address when Evaluation linked here naming a set. That
+  // link exists because the empty-set notice there used to be prose — "add one
+  // from Context Lab" — leaving a reader to navigate away, remember which of
+  // their sets was empty, and find it again in a list here.
+  const [setId, setSetId] = useState(() => new URLSearchParams(window.location.search).get("set") ?? "");
   const [newSetName, setNewSetName] = useState("");
   const [note, setNote] = useState("");
   const [preset, setPreset] = useState("balanced");
   const [saved, setSaved] = useState<string | null>(null);
+  const [savedSetId, setSavedSetId] = useState("");
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const tenantKey = apiTenantId ?? "current";
@@ -109,6 +121,7 @@ export function SavePromptToSet({
     },
     onSuccess: (target) => {
       setSaved(target.name);
+      setSavedSetId(target.set_id);
       setNote("");
       setNewSetName("");
       showToast({
@@ -216,8 +229,20 @@ export function SavePromptToSet({
               be reported near its result, and "did that save?" is the question a
               disappearing confirmation leaves behind. */}
           {saved && !save.isPending ? (
-            <p className="text-xs text-success">
-              <StatusBadge tone="success">Saved</StatusBadge> in {saved}. Run it from Evaluation.
+            <p className="flex flex-wrap items-center gap-2 text-xs text-success">
+              <StatusBadge tone="success">Saved</StatusBadge>
+              <span>in {saved}.</span>
+              {/* A link rather than the words "run it from Evaluation", which is
+                  the same defect this feature was built to fix — an instruction
+                  to go somewhere, with no way to go. It names the set, so the
+                  reader lands on the one they just added to. */}
+              <a
+                className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                href={savedSetHref(savedSetId)}
+              >
+                Run it from Evaluation
+                <ArrowUpRight aria-hidden="true" className="size-3.5" />
+              </a>
             </p>
           ) : null}
         </div>

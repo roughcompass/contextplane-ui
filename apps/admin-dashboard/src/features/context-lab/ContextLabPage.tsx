@@ -49,6 +49,7 @@ import {
   judgeSimulation,
   listJudgements,
   recordContextFeedback,
+  listPromptSets,
   resolveContext,
   scoreSimulation,
   type ContextBlock,
@@ -199,15 +200,59 @@ function ContextLabHeader({ identity }: { identity: WhoAmI }) {
   );
 }
 
+/**
+ * Why the reader is here, when they were sent.
+ *
+ * Evaluation links here from an empty prompt set. Without this, the link landed
+ * a reader on a prompt box with nothing connecting it to the set they came from
+ * — they followed a link about prompt sets and arrived somewhere that never
+ * mentioned one. The panel that finishes the errand only appears *after* a
+ * resolution, which makes the sequence something to be told rather than
+ * discovered.
+ *
+ * Renders nothing when nobody was sent, so the ordinary visit is unchanged.
+ */
+function AddingToSet({
+  client,
+  requestContext,
+  setId,
+}: {
+  client: ContextplaneClient;
+  requestContext: ContextplaneRequestOptions;
+  setId: string;
+}) {
+  const sets = useQuery({
+    enabled: setId !== "",
+    queryFn: () => listPromptSets(client, requestContext),
+    queryKey: ["evaluation", "prompt-sets", "arrival"],
+  });
+  if (setId === "") return null;
+  const name = sets.data?.find((entry) => entry.set_id === setId)?.name;
+  return (
+    <Notice title={name ? `Adding a prompt to ${name}` : "Adding a prompt to a set"} variant="info">
+      Enter a prompt below and resolve it. Once you have seen what came back, a panel appears with
+      {name ? ` ${name}` : " that set"} already chosen, and saving puts the prompt there with the
+      scope this resolution ran under.
+    </Notice>
+  );
+}
+
 function PromptComposer({
+  arrivedForSetId,
   capabilities,
+  client,
   isPending,
   onSubmit,
   prompt,
   receipts,
+  requestContext,
   searchRef,
   setPrompt,
 }: {
+  /** The prompt set a link from Evaluation named, or "" when nobody was sent. */
+  arrivedForSetId: string;
+  client: ContextplaneClient;
+  requestContext: ContextplaneRequestOptions;
   /** The catalog, for the subject field. Threaded rather than built here: the
    *  page owns the client, and a source rebuilt per render would change the
    *  identity of the `load` the picker's effect watches. */
@@ -274,6 +319,15 @@ function PromptComposer({
       description="The resolver retrieves context only. It does not call a language model, generate an answer, or invent an evaluation score — and that stays true now that this page can simulate an agent, because simulation is a separate receipted operation that resolves through this resolver and then calls a model. If a response appears below, the resolver did not produce it."
       title="Run a prompt"
     >
+      {/* The page has to know why the reader arrived. Evaluation links here when
+          a set holds no prompts, and without this the reader landed on a screen
+          that said nothing about the set they came from — followed a link about
+          prompt sets and found a prompt box with no visible connection to one.
+          The save panel that completes the errand only appears after a
+          resolution, so the sequence has to be stated up front rather than
+          discovered. */}
+      <AddingToSet client={client} requestContext={requestContext} setId={arrivedForSetId} />
+
       <form aria-busy={isPending} className="space-y-5" noValidate onSubmit={submit}>
         <div>
           <label className="text-sm font-medium text-foreground" htmlFor={promptId}>
@@ -1154,6 +1208,12 @@ function ContextLab({
     [apiTenantId, client],
   );
 
+  // The set a link from Evaluation named. Read once: it states why the reader is
+  // here, and the save panel preselects it.
+  const arrivedForSetId = useMemo(
+    () => new URLSearchParams(window.location.search).get("set") ?? "",
+    [],
+  );
   const [successfulPrompt, setSuccessfulPrompt] = useState("");
   const [resolverArguments, setResolverArguments] = useState<Record<string, unknown>>({});
   const [simulation, setSimulation] = useState<Simulation | null>(null);
@@ -1279,11 +1339,14 @@ function ContextLab({
     <PageContainer className="space-y-8">
       <ContextLabHeader identity={identity} />
       <PromptComposer
+        arrivedForSetId={arrivedForSetId}
         capabilities={capabilities}
+        client={client}
         isPending={resolveMutation.isPending}
         onSubmit={(input) => resolveMutation.mutate(input)}
         prompt={prompt}
         receipts={receipts}
+        requestContext={context}
         searchRef={searchRef}
         setPrompt={setPrompt}
       />
@@ -1344,20 +1407,6 @@ function ContextLab({
       ) : null}
 
       {resolveMutation.data ? (
-        <ImprovementSurface
-          client={client}
-          envelope={resolveMutation.data}
-          exclusions={exclusionsQuery.data ?? []}
-          identity={identity}
-          judgements={judgementsQuery.data ?? []}
-          receiptId={resolveMutation.data.receipt_id}
-          requestContext={context}
-          score={scoreQuery.data ?? null}
-          simulation={simulation}
-        />
-      ) : null}
-
-      {resolveMutation.data ? (
         <ContextResult
           envelope={resolveMutation.data}
           exclusions={exclusionsQuery.data}
@@ -1380,6 +1429,23 @@ function ContextLab({
           }}
         />
       )}
+
+      {/* After the result, not before it. This rendered above the envelope it
+          describes, so a reader was offered ways to improve something they had
+          not been shown yet. */}
+      {resolveMutation.data ? (
+        <ImprovementSurface
+          client={client}
+          envelope={resolveMutation.data}
+          exclusions={exclusionsQuery.data ?? []}
+          identity={identity}
+          judgements={judgementsQuery.data ?? []}
+          receiptId={resolveMutation.data.receipt_id}
+          requestContext={context}
+          score={scoreQuery.data ?? null}
+          simulation={simulation}
+        />
+      ) : null}
     </PageContainer>
   );
 }

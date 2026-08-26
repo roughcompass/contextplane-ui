@@ -1282,4 +1282,62 @@ describe("Context Lab accessibility", () => {
 
     expect(await violations(container)).toEqual([]);
   });
+
+  it("says why the reader is here when Evaluation sent them", async () => {
+    // The circle this closes: Evaluation's empty-set notice links here, and the
+    // reader landed on a prompt box with nothing connecting it to the set they
+    // came from. The panel that finishes the errand only appears after a
+    // resolution, so the sequence has to be stated rather than discovered.
+    window.history.replaceState({}, "", "/context-lab?set=set-existing");
+    try {
+      renderPage();
+
+      expect(await screen.findByText("Adding a prompt to Ownership questions")).toBeVisible();
+      expect(
+        screen.getByText(/Enter a prompt below and resolve it/),
+      ).toBeVisible();
+    } finally {
+      window.history.replaceState({}, "", "/context-lab");
+    }
+  });
+
+  it("preselects the set it was sent for, so saving finishes the errand", async () => {
+    window.history.replaceState({}, "", "/context-lab?set=set-existing");
+    const writes: { body?: unknown; path: string }[] = [];
+    try {
+      renderPage((path, options) => {
+        if (path.startsWith("/v1/evaluation/prompt-sets/") && path.endsWith("/prompts")) {
+          writes.push({ body: options?.body, path });
+          return {
+            created_at: "2026-08-12T10:00:00Z",
+            expectations: null,
+            intent_note: null,
+            position: 0,
+            prompt_id: "p-1",
+            request: {},
+          };
+        }
+        return defaultHandler(path, options);
+      });
+
+      fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+        target: { value: "Who owns identity resolution?" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+      await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+      await screen.findByText("The standing default. Both judged criteria must pass.");
+
+      // No set has to be chosen: the link already said which one.
+      fireEvent.click(screen.getByRole("button", { name: "Save this prompt" }));
+
+      await waitFor(() => expect(writes).toHaveLength(1));
+      expect(writes[0]!.path).toBe("/v1/evaluation/prompt-sets/set-existing/prompts");
+      // And the way back is a link, not the words "run it from Evaluation".
+      expect(
+        await screen.findByRole("link", { name: /Run it from Evaluation/ }),
+      ).toHaveAttribute("href", "/evaluation?set=set-existing");
+    } finally {
+      window.history.replaceState({}, "", "/context-lab");
+    }
+  });
 });

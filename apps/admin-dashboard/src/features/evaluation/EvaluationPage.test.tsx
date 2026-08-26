@@ -368,4 +368,25 @@ describe("the evaluation surface", () => {
       }),
     );
   });
+
+  it("links an empty set to the place a prompt comes from, naming the set", async () => {
+    // The dead end this closes: the notice read "Add one from Context Lab" as
+    // prose, on the screen showing an empty set, with nothing to click. A reader
+    // had to navigate away, remember which of their sets was empty, resolve a
+    // prompt and find the set again in a list.
+    const empty = { ...promptSet, name: "Empty set", prompt_count: 0, set_id: "set-empty" };
+    renderPage((path) => {
+      if (path === "/v1/evaluation/prompt-sets") return { items: [empty] };
+      if (path.endsWith("/prompts")) return { items: [] };
+      if (path.endsWith("/runs")) return { items: [] };
+      return defaultHandler(path);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /Empty set/ }));
+
+    const link = await screen.findByRole("link", { name: /Resolve a prompt for this set/ });
+    expect(link).toHaveAttribute("href", "/context-lab?set=set-empty");
+    // The set is named, so the link is not "go and figure out which one".
+    expect(screen.getByText(/already chosen/)).toBeVisible();
+  });
 });
