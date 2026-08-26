@@ -39,6 +39,21 @@ export interface ContextplaneRequestOptions {
   method?: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
   signal?: AbortSignal | undefined;
   tenantId?: string;
+  /**
+   * A deadline for this call, when the client-wide one is the wrong shape of
+   * answer for it.
+   *
+   * The default suits a read: a service that has not replied in ten seconds is
+   * one something is wrong with. It is the wrong bound for an operation that
+   * calls a language model, and there was no way to say so — the timeout was a
+   * client-construction option and nothing else, so every request in the
+   * application shared one number chosen for the fastest of them.
+   *
+   * Measured against the running service: a simulation took **12.3 s** against a
+   * 10 s deadline and therefore failed every time, and judging took 5.8 s, close
+   * enough that a longer answer or a slower model would have failed too.
+   */
+  timeoutMs?: number;
 }
 
 /** A parsed body together with the validator the response carried, if any. */
@@ -152,7 +167,10 @@ export function createContextplaneClient({
     const controller = new AbortController();
     const abortFromCaller = () => controller.abort(options.signal?.reason);
     options.signal?.addEventListener("abort", abortFromCaller, { once: true });
-    const timeout = window.setTimeout(() => controller.abort("timeout"), timeoutMs);
+    // The caller's deadline wins where it gave one: only the caller knows whether
+    // this request waits on a database or on a model.
+    const deadline = options.timeoutMs ?? timeoutMs;
+    const timeout = window.setTimeout(() => controller.abort("timeout"), deadline);
 
     try {
       const send = async () => {

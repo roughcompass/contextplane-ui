@@ -12,6 +12,8 @@ import {
   listJudgements,
   listPromptSets,
   listRuns,
+  MODEL_CALL_TIMEOUT_MS,
+  PANEL_CALL_TIMEOUT_MS,
   recordJudgementReview,
   recordRunVerdict,
   runSimulation,
@@ -328,6 +330,8 @@ describe("evaluation adapters: simulation", () => {
       simulatedActorId: "actor-1",
     });
     expect(request).toHaveBeenCalledWith("/v1/evaluation/simulations", {
+      // A simulation waits on a model, so it does not share the deadline meant
+      // for a query — see MODEL_CALL_TIMEOUT_MS.
       body: {
         prompt: "how?",
         request: { limit: 10 },
@@ -335,6 +339,7 @@ describe("evaluation adapters: simulation", () => {
         simulated_actor_id: "actor-1",
       },
       method: "POST",
+      timeoutMs: MODEL_CALL_TIMEOUT_MS,
     });
   });
 });
@@ -373,6 +378,7 @@ describe("evaluation adapters: judged criteria", () => {
     expect(request).toHaveBeenCalledWith("/v1/evaluation/simulations/sim-1/judgements", {
       body: { panel_position: 0 },
       method: "POST",
+      timeoutMs: MODEL_CALL_TIMEOUT_MS,
     });
   });
 
@@ -609,8 +615,11 @@ describe("evaluation adapters: prompt writes and the score read", () => {
       simulatedActorId: "actor-1",
     });
     expect(request).toHaveBeenCalledWith("/v1/evaluation/simulations", {
+      // A simulation waits on a model, so it does not share the deadline meant
+      // for a query — see MODEL_CALL_TIMEOUT_MS.
       body: { prompt: "how?", request: {}, run_item_id: "item-1", simulated_actor_id: "actor-1" },
       method: "POST",
+      timeoutMs: MODEL_CALL_TIMEOUT_MS,
     });
   });
 
@@ -628,5 +637,68 @@ describe("evaluation adapters: prompt writes and the score read", () => {
       body: { note: null, observed_confidence: null, verdict: "confirmed" },
       method: "POST",
     });
+  });
+
+});
+
+describe("deadlines for calls that run a model", () => {
+  /**
+   * The client's default is ten seconds, which is right for a read and wrong for
+   * generation. Measured against the running service, a simulation took 12.3 s —
+   * so it failed *every time*, reporting "the service did not respond before the
+   * request deadline" about a service that was working and about to answer.
+   */
+  type Recorded = (path: string, options?: Record<string, unknown>) => Promise<unknown>;
+
+  function recordingClient() {
+    // Typed through an alias rather than by naming unused parameters: the test
+    // asserts on the *options* the caller sent, and an untyped `vi.fn` records
+    // calls with no arguments.
+    const request = vi.fn<Recorded>(async () => ({}));
+    return { client: clientFromRequest(request), request };
+  }
+
+  it("gives a simulation a deadline sized for a model, not for a query", async () => {
+    const { client, request } = recordingClient();
+    await runSimulation(client, { prompt: "p", simulatedActorId: "a" }).catch(() => undefined);
+
+    expect(request.mock.calls[0]![1]).toMatchObject({ timeoutMs: MODEL_CALL_TIMEOUT_MS });
+    expect(MODEL_CALL_TIMEOUT_MS).toBeGreaterThan(12_300);
+  });
+
+  it("gives judging the same deadline", async () => {
+    const { client, request } = recordingClient();
+    await judgeSimulation(client, "sim-1").catch(() => undefined);
+
+    expect(request.mock.calls[0]![1]).toMatchObject({ timeoutMs: MODEL_CALL_TIMEOUT_MS });
+  });
+
+  it("gives a panel longer, because it runs every judge", async () => {
+    // The service describes a panel as three times the cost of one judge. The
+    // operation expected to take longest must not be the one most likely to be
+    // cut off.
+    const { client, request } = recordingClient();
+    await judgeWithPanel(client, "sim-1").catch(() => undefined);
+
+    expect(request.mock.calls[0]![1]).toMatchObject({ timeoutMs: PANEL_CALL_TIMEOUT_MS });
+    expect(PANEL_CALL_TIMEOUT_MS).toBeGreaterThan(MODEL_CALL_TIMEOUT_MS);
+  });
+
+  it("leaves an ordinary read on the client's own deadline", async () => {
+    // Only the calls that wait on a model are widened. A read that hangs for two
+    // minutes is a broken service, and should be reported as one.
+    const { client, request } = recordingClient();
+    await listPromptSets(client).catch(() => undefined);
+
+    expect(request.mock.calls[0]![1]).not.toHaveProperty("timeoutMs");
+  });
+
+  it("lets a caller override, because only the caller knows the operation", async () => {
+    const { client, request } = recordingClient();
+    await runSimulation(client, { prompt: "p", simulatedActorId: "a" }, { timeoutMs: 5_000 }).catch(
+      () => undefined,
+    );
+
+    expect(request.mock.calls[0]![1]).toMatchObject({ timeoutMs: 5_000 });
   });
 });
