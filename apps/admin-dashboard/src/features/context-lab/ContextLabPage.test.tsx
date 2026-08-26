@@ -1133,4 +1133,52 @@ describe("ContextLabPage", () => {
     ).toBeVisible();
     expect(screen.getByText("Pins the classification ceiling at internal.")).toBeVisible();
   });
+
+  it("offers a panel where a verdict says its confidence is unfitted", async () => {
+    // Delivered and unreachable: the panel endpoint shipped and nothing called
+    // it. It matters most here, because this pane already tells a reader the
+    // verdict is a claim rather than a measurement and then offered no way to
+    // get a better one — a screen that names a problem and withholds the remedy.
+    const calls: string[] = [];
+    renderPage((path, options) => {
+      if (path.endsWith("/judgements/panel")) {
+        calls.push(path);
+        return {
+          items: [
+            {
+              criterion: "groundedness",
+              is_split: true,
+              judgements: [judgementBody],
+              majority: "fail",
+              votes: { fail: 2, pass: 1 },
+            },
+          ],
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Judge the answer" }));
+
+    // The offer is tied to the unproven verdict, not shown unconditionally.
+    const ask = await screen.findByRole("button", { name: "Ask a panel of judges" });
+    // The criterion row says it and so does the panel offer; the offer is the
+    // one that names how many verdicts rest on it.
+    expect(screen.getByText(/above rest[s]? on a judge whose confidence has not been fitted/)).toBeVisible();
+    fireEvent.click(ask);
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    // A 2-1 is reported as 2-1. Averaging would destroy the signal the panel
+    // costs three times as much to produce.
+    expect(await screen.findByText("2× fail · 1× pass")).toBeVisible();
+    expect(screen.getByText("Majority fail")).toBeVisible();
+    expect(screen.getByText(/Worth a human/)).toBeVisible();
+  });
 });
