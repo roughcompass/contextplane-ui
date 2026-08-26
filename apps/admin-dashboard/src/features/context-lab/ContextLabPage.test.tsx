@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import axe from "axe-core";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createRef, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -409,7 +410,9 @@ function renderPage(
     </QueryClientProvider>
   );
 
-  render(
+  // `container` is returned so the accessibility checks below can hand the
+  // rendered tree to axe; every other test reaches through `screen`.
+  const { container } = render(
     <ContextLabPage
       activeTenantName="Northstar Systems"
       apiTenantId={tenantId}
@@ -418,7 +421,7 @@ function renderPage(
     />,
     { wrapper: Wrapper },
   );
-  return { client, searchRef };
+  return { client, container, searchRef };
 }
 
 afterEach(() => {
@@ -1180,5 +1183,103 @@ describe("ContextLabPage", () => {
     expect(await screen.findByText("2× fail · 1× pass")).toBeVisible();
     expect(screen.getByText("Majority fail")).toBeVisible();
     expect(screen.getByText(/Worth a human/)).toBeVisible();
+  });
+});
+
+// --- accessibility ---------------------------------------------------------
+
+/** Rules jsdom can actually decide. Contrast and layout need a real browser. */
+const RUNNABLE_AXE_RULES = {
+  rules: {
+    "color-contrast": { enabled: false },
+    region: { enabled: false },
+  },
+};
+
+async function violations(container: HTMLElement) {
+  const result = await axe.run(container, RUNNABLE_AXE_RULES);
+  return result.violations.map((v) => `${v.id}: ${v.nodes.length} node(s) — ${v.help}`);
+}
+
+/**
+ * Controls whose only accessible name is their placeholder.
+ *
+ * DESIGN.md: *"Associate every control with a persistent label, help, and error
+ * text. **Placeholder text is never the label.**"* axe does not enforce that —
+ * its `label` rule is satisfied by any accessible name, and a placeholder
+ * supplies one, so an input with a placeholder and no label passes. Verified
+ * rather than assumed: removing a `<label htmlFor>` while leaving the
+ * placeholder produced no axe violation at all.
+ *
+ * The rule exists because a placeholder disappears the moment somebody types.
+ * A reader who looks away mid-form is left with a box of text and nothing
+ * saying what it is, and a screen-reader user re-reading the field hears the
+ * value instead of the question.
+ */
+function placeholderOnlyLabels(container: HTMLElement): string[] {
+  const controls = container.querySelectorAll<HTMLElement>("input, textarea, select");
+  const offenders: string[] = [];
+  for (const control of controls) {
+    if (control.getAttribute("type") === "hidden") continue;
+    const placeholder = control.getAttribute("placeholder");
+    if (!placeholder) continue;
+    const labelled =
+      control.getAttribute("aria-label") ||
+      control.getAttribute("aria-labelledby") ||
+      (control.id && container.querySelector(`label[for="${CSS.escape(control.id)}"]`)) ||
+      control.closest("label");
+    if (!labelled) offenders.push(`${control.tagName.toLowerCase()}[placeholder="${placeholder}"]`);
+  }
+  return offenders;
+}
+
+describe("Context Lab accessibility", () => {
+  it("has no violations before a prompt is resolved", async () => {
+    const { container } = renderPage();
+    await screen.findByRole("textbox", { name: "Prompt" });
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it("labels every control with something that survives typing", async () => {
+    // The repository's rule, which axe does not check: a placeholder is not a
+    // label, because it disappears the moment somebody types into the field.
+    const { container } = renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+
+    expect(placeholderOnlyLabels(container)).toEqual([]);
+  });
+
+  it("has no violations once the envelope and its actions are on screen", async () => {
+    // The state that matters: the panels added recently all appear after a
+    // resolution, so the empty page passing says little about them.
+    const { container } = renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it("has no violations while an action is blocked and offering its remedy", async () => {
+    // A blocked control with an inline form beside it is the densest thing on
+    // this page: a disabled button, a live explanation, a labelled field and a
+    // second action, all describing one decision.
+    const { container } = renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Nobody declared this/ }));
+    await screen.findByText(/Nobody has said what Nobody declared this is/);
+
+    expect(await violations(container)).toEqual([]);
   });
 });
