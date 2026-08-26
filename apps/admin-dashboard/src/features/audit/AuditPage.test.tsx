@@ -205,9 +205,50 @@ describe("AuditPage", () => {
       });
     });
     renderAuditPage(failedClient);
-    expect(await screen.findByText("Audit history unavailable")).toBeVisible();
+    // A 503 is transient until shown otherwise, so it keeps its retry.
+    expect(await screen.findByText("audit history could not be loaded")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry request" })).toBeVisible();
     expect(screen.getByText("Request ID:")).toBeVisible();
     expect(screen.queryByText("private detail")).not.toBeInTheDocument();
+  });
+
+  it("tells a reader they lack the role rather than offering a retry that cannot succeed", async () => {
+    // `GET /v1/admin/audit` requires `auditor`, which most administrators do not
+    // hold — so "Audit history unavailable, Retry request" was the ordinary
+    // experience of a service that was working and had answered definitively.
+    // Every word of it was wrong about what happened.
+    const refusedClient = clientFor(() => {
+      throw new ContextplaneApiError({
+        errors: [
+          { code: "forbidden", message: "requires one of: ['auditor']; got: ['admin']", path: null },
+        ],
+        requestId: "request-c",
+        status: 403,
+      });
+    });
+    renderAuditPage(refusedClient);
+
+    expect(await screen.findByText("You do not have access to audit history")).toBeVisible();
+    // The service names the missing role; this screen cannot, and guessing would
+    // be worse than quoting.
+    expect(screen.getByText(/requires one of: \['auditor'\]/u)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Retry request" })).toBeNull();
+  });
+
+  it("says a capability is not built here rather than calling it a failure", async () => {
+    const missingClient = clientFor(() => {
+      throw new ContextplaneApiError({
+        errors: [{ code: "not_implemented", message: "not yet implemented", path: null }],
+        requestId: "request-d",
+        status: 501,
+      });
+    });
+    renderAuditPage(missingClient);
+
+    expect(
+      await screen.findByText("This deployment does not provide audit history"),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Retry request" })).toBeNull();
   });
 
   it("does not call this history immutable, because it is not", async () => {

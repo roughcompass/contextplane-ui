@@ -1,3 +1,5 @@
+export { ApiFailure } from "./ApiFailure";
+export { apiFailureKind, type ApiFailureKind } from "./apiFailureKind";
 export {
   ContextplaneApiError,
   clientFromRequest,

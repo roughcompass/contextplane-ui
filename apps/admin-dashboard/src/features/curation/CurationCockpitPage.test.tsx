@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@repo/ui/primitives";
 
 import type { ContextplaneClient } from "../../shared/api";
-import { clientFromRequest } from "../../shared/api";
+import { ContextplaneApiError, clientFromRequest } from "../../shared/api";
 import { CurationCockpitPage } from "./CurationCockpitPage";
 
 const POLICIES = {
@@ -231,7 +231,30 @@ describe("CurationCockpitPage", () => {
     );
     renderPage(failing);
 
-    expect(await screen.findByText(/do not act on a queue you could not load/u)).toBeVisible();
+    expect(await screen.findByText(/Do not act on a queue you could not load/u)).toBeVisible();
+    // A plain failure is transient until shown otherwise, so it keeps its retry.
+    expect(screen.getByRole("button", { name: "Retry request" })).toBeVisible();
+  });
+
+  it("does not offer a retry when the queue was refused rather than unavailable", async () => {
+    // The page distinguished these two already and offered a retry for both,
+    // which invites a reader to press a button that cannot change a settled
+    // answer.
+    const refused = clientFromRequest(
+      vi.fn(async (path: string) => {
+        if (path.startsWith("/v1/memory/disposition-policies")) return POLICIES;
+        throw new ContextplaneApiError({
+          errors: [{ code: "forbidden", message: "requires the curator role", path: null }],
+          requestId: "request-a",
+          status: 403,
+        });
+      }),
+    );
+    renderPage(refused);
+
+    expect(await screen.findByText("You do not have access to the review queue")).toBeVisible();
+    expect(screen.getByText("requires the curator role")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Retry request" })).toBeNull();
   });
 
   // --- the queue can be worked, not only read ------------------------------
