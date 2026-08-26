@@ -292,3 +292,72 @@ describe("clientFromRequest", () => {
     expect(request).toHaveBeenCalledWith("/v1/thing", { tenantId: "tenant-a" });
   });
 });
+
+describe("per-request deadlines", () => {
+  /**
+   * The timeout was a client-construction option and nothing else, so every
+   * request in the application shared one number chosen for the fastest of
+   * them. Measured against the running service, a simulation took 12.3 s
+   * against that 10 s default and therefore failed every time — reporting "the
+   * service did not respond before the request deadline" about a service that
+   * was working and about to answer.
+   */
+  function neverResolvingFetch() {
+    return vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+  }
+
+  it("aborts on the caller's deadline rather than the client's", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = createContextplaneClient({
+        fetchImplementation: neverResolvingFetch(),
+        timeoutMs: 10_000,
+      });
+      // The assertion is attached before any timer moves: a rejection that fires
+      // between the advance and the await is an unhandled rejection, which
+      // Vitest reports as an error even though the test passes.
+      const settled = vi.fn();
+      const pending = client.request("/v1/slow", { timeoutMs: 60_000 });
+      const outcome = pending.then(() => "resolved", () => "rejected").then((r) => {
+        settled();
+        return r;
+      });
+
+      // Past the client-wide deadline, and the caller said this one waits longer.
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(settled).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(45_000);
+      await expect(outcome).resolves.toBe("rejected");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still applies the client's deadline when the caller names none", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = createContextplaneClient({
+        fetchImplementation: neverResolvingFetch(),
+        timeoutMs: 10_000,
+      });
+      const pending = client.request("/v1/ordinary", {});
+      const outcome = pending.catch((error: unknown) =>
+        error instanceof ContextplaneApiError ? error.code : "other",
+      );
+
+      await vi.advanceTimersByTimeAsync(11_000);
+
+      await expect(outcome).resolves.toBe("timeout");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

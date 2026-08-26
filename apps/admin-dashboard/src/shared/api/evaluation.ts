@@ -674,6 +674,33 @@ export async function getSimulationAvailability(
   };
 }
 
+/**
+ * How long a call is given when a language model is in the loop.
+ *
+ * The client's default is ten seconds, which is right for a read: a service that
+ * has not answered a query in ten seconds is one something is wrong with. It is
+ * the wrong bound for generation, and applying it there made the feature
+ * unusable rather than slow — measured against the running service, a
+ * simulation took **12.3 s** and so failed every time, reporting *"the service
+ * did not respond before the request deadline"* about a service that was
+ * working and about to answer.
+ *
+ * Two minutes rather than a number just above what was measured. The bound
+ * exists to catch a request that will never return, not to police how long a
+ * model may think; sizing it to today's latency would make it a limit somebody
+ * hits the first time a prompt is longer or a provider is busy, and the failure
+ * would look identical to a broken service.
+ */
+export const MODEL_CALL_TIMEOUT_MS = 120_000;
+
+/**
+ * A panel runs every configured judge over the same answer, which the service
+ * describes as three times the cost of one. Its deadline is scaled to match, so
+ * the operation that is expected to take longest is not the one most likely to
+ * be cut off.
+ */
+export const PANEL_CALL_TIMEOUT_MS = 300_000;
+
 export async function runSimulation(
   client: ContextplaneClient,
   input: {
@@ -693,6 +720,7 @@ export async function runSimulation(
       simulated_actor_id: input.simulatedActorId,
     },
     method: "POST",
+    timeoutMs: context.timeoutMs ?? MODEL_CALL_TIMEOUT_MS,
   });
   return parseSimulation(payload);
 }
@@ -716,7 +744,12 @@ export async function judgeSimulation(
 ): Promise<readonly Judgement[]> {
   const payload = await client.request(
     `/v1/evaluation/simulations/${encodeURIComponent(simulationId)}/judgements`,
-    { ...context, body: { panel_position: 0 }, method: "POST" },
+    {
+      ...context,
+      body: { panel_position: 0 },
+      method: "POST",
+      timeoutMs: context.timeoutMs ?? MODEL_CALL_TIMEOUT_MS,
+    },
   );
   const body = requiredRecord(payload, "Judgement list");
   return requiredArray(body.items, "Judgement list items").map(parseJudgement);
@@ -743,7 +776,7 @@ export async function judgeWithPanel(
 ): Promise<readonly PanelOutcome[]> {
   const payload = await client.request(
     `/v1/evaluation/simulations/${encodeURIComponent(simulationId)}/judgements/panel`,
-    { ...context, method: "POST" },
+    { ...context, method: "POST", timeoutMs: context.timeoutMs ?? PANEL_CALL_TIMEOUT_MS },
   );
   const body = requiredRecord(payload, "Panel list");
   return requiredArray(body.items, "Panel list items").map(parsePanelOutcome);
