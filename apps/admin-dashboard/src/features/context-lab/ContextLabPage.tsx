@@ -68,6 +68,7 @@ import {
 import { capabilitySource, receiptSource, type PickerSource } from "../../shared/pickers/sources";
 import { ImprovementSurface } from "./ImprovementSurface";
 import { ScorePane } from "./ScorePane";
+import { SavePromptToSet } from "./SavePromptToSet";
 import { SimulationPanel } from "./SimulationPanel";
 import {
   contextBlockDescription,
@@ -1312,6 +1313,20 @@ function ContextLab({
           requestContext={context}
           resolverArguments={resolverArguments}
           simulation={simulation}
+        />
+      ) : null}
+
+      {/* After the resolution, because a prompt worth keeping is one somebody has
+          just seen the result of — and because the Evaluation page has been
+          telling readers to save prompts "from Context Lab" while nothing here
+          could. */}
+      {resolveMutation.data ? (
+        <SavePromptToSet
+          {...(apiTenantId ? { apiTenantId } : {})}
+          client={client}
+          prompt={successfulPrompt}
+          requestContext={context}
+          resolverArguments={resolverArguments}
         />
       ) : null}
 

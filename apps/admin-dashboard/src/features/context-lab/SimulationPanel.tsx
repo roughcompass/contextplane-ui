@@ -163,7 +163,7 @@ export function SimulationPanel({
               </p>
             </>
           }
-          stillWorks="You can still resolve context, save prompts into sets, run them and record verdicts. Required-fact recall, boundary violations and precision are computed without any model, so they are unaffected."
+          stillWorks="You can still resolve context, save this prompt into a set below, run those sets and record verdicts. Required-fact recall, boundary violations and precision are computed without any model, so they are unaffected."
           summary="Answering a prompt needs a language model, and this deployment has none configured."
           title="This deployment cannot generate an agent answer"
         />
