@@ -185,7 +185,7 @@ function ContextLabHeader({ identity }: { identity: WhoAmI }) {
   return (
     <PageHeader
       breadcrumbs={[{ href: "/", label: identity.tenant_display_name }, { label: "Context Lab" }]}
-      description="Test a prompt against the context resolver, inspect the four source layers it returns, and leave item-level relevance feedback without mistaking an observation for canonical truth."
+      description="Test a prompt against the context resolver, inspect each source layer it returns, and leave item-level relevance feedback without mistaking an observation for canonical truth."
       metadata={
         <>
           <StatusBadge tone="info">Evaluation workspace</StatusBadge>
@@ -428,7 +428,7 @@ function EmptyLab({ onUsePrompt }: { onUsePrompt: (prompt: string) => void }) {
 
   return (
     <SectionSurface
-      description="One run keeps the four source layers separate, records a receipt, and exposes what was withheld."
+      description="One run keeps every source layer separate, records a receipt, and exposes what was withheld."
       title="See what the resolver would supply"
     >
       <div className="grid border-y border-border-subtle sm:grid-cols-2 xl:grid-cols-4">
@@ -1040,7 +1040,7 @@ function ContextResult({
       value: contextEnvelopeStateLabel(envelope.state),
     },
     {
-      detail: "Across all four source blocks",
+      detail: "Across every source block the envelope returned",
       id: "items",
       label: "Context items",
       value: totalContextItems(envelope),
@@ -1049,7 +1049,12 @@ function ContextResult({
       detail: "Sources that returned at least one item",
       id: "sources",
       label: "Sources represented",
-      value: `${returnedContextBlocks(envelope)} of 4`,
+      // Counted from the envelope rather than written down. The literal "4"
+      // here outlived the fourth block by an entire release: the service began
+      // returning five and this line kept reporting a denominator no longer
+      // true, which is the one number on the strip a reader would use to
+      // decide whether anything was missing.
+      value: `${returnedContextBlocks(envelope)} of ${envelope.blocks.length}`,
     },
     {
       detail: exclusions ? "Recorded on this receipt" : "Trace read incomplete",

@@ -5,7 +5,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import { SectionSurface, SummaryStrip } from "@repo/ui/layouts";
 import {
   Button,
-  Notice,
   RequestFailure,
   ResourcePicker,
   StatusBadge,
@@ -24,6 +23,7 @@ import {
   type Principal,
   type Simulation,
 } from "../../shared/api";
+import { CapabilityUnavailable } from "./CapabilityUnavailable";
 import {
   formatContextTimestamp,
   instructionDispositionDescription,
@@ -121,13 +121,25 @@ export function SimulationPanel({
       title="Simulate an agent"
     >
       {unavailable ? (
-        <Notice title="Simulation is switched off on this deployment" variant="info">
-          No response provider is configured, so no model can answer. Prompt sets, runs, verdicts and
-          the three deterministic criteria all work without one. Set{" "}
-          <code>SIMULATION_PROVIDER</code> and <code>SIMULATION_API_KEY</code> to enable it — and{" "}
-          <code>JUDGE_PROVIDER</code> to a <em>different</em> provider family, because a judge from
-          the candidate&apos;s own family scores it 10–25 % higher than a third party does.
-        </Notice>
+        <CapabilityUnavailable
+          operatorNote={
+            <>
+              <p>
+                Set <code>SIMULATION_PROVIDER</code> to <code>anthropic</code> or{" "}
+                <code>openai</code>, and <code>SIMULATION_API_KEY</code> to a key for it.
+              </p>
+              <p>
+                To grade the answers too, set <code>JUDGE_PROVIDER</code> to the{" "}
+                <em>other</em> family and <code>JUDGE_API_KEY</code> to a key for that one. The
+                service refuses a judge from the same family as the agent, because a model scores
+                its own family higher than a third party does.
+              </p>
+            </>
+          }
+          stillWorks="You can still resolve context, save prompts into sets, run them and record verdicts. Required-fact recall, boundary violations and precision are computed without any model, so they are unaffected."
+          summary="Answering a prompt needs a language model, and this deployment has none configured."
+          title="This deployment cannot generate an agent answer"
+        />
       ) : null}
 
       <form className="space-y-4" noValidate onSubmit={submit}>

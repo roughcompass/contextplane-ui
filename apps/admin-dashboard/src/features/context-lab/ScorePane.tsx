@@ -3,7 +3,7 @@ import { CircleHelp, ShieldAlert } from "lucide-react";
 import { useId, useState } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
-import { Button, Notice, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
+import { Button, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
   recordJudgementReview,
@@ -13,6 +13,7 @@ import {
   type Judgement,
   type ReviewVerdict,
 } from "../../shared/api";
+import { CapabilityUnavailable } from "./CapabilityUnavailable";
 import {
   criteriaStates,
   criterionLabels,
@@ -93,11 +94,18 @@ export function ScorePane({
       title="Score"
     >
       {judgeAvailable ? null : (
-        <Notice title="Groundedness and relevance need a second provider family" variant="info">
-          No judge is configured, so the two model-judged criteria are unavailable. The three
-          deterministic criteria need no judge and are unaffected — that separation is what keeps a
-          failure of those attributable to what was served rather than to what graded it.
-        </Notice>
+        <CapabilityUnavailable
+          operatorNote={
+            <p>
+              Set <code>JUDGE_PROVIDER</code> and <code>JUDGE_API_KEY</code>. It must be a
+              different provider family from the one answering, which the service enforces — a
+              model scores its own family higher than a third party does.
+            </p>
+          }
+          stillWorks="The three criteria below are computed by a program with no model in the loop, which is what keeps a failure of them attributable to what was served rather than to what graded it."
+          summary="Groundedness and answer relevance are graded by a model, and this deployment has no judge configured."
+          title="Two of the five criteria cannot be graded here"
+        />
       )}
 
       <div className="space-y-6">
