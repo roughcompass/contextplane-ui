@@ -61,10 +61,18 @@ const blockLabels: Record<ContextBlockName, string> = {
   instructions: "Instruction corrections",
 };
 
+// Each description says **what scoped the block**, because that is the question a
+// reader has when a block's contents surprise them and the one thing the items
+// cannot answer for themselves. Observed claims is why: it returned the tenant's
+// most recent claims whatever the prompt asked, and every one of them was real,
+// current and correctly trusted — so nothing on the screen could have told a
+// reader they were about something else. Service-side that is fixed (ADR 0027);
+// saying what scopes the block is what stops the next such gap being silent.
 const blockDescriptions: Record<ContextBlockName, string> = {
   canonical: "Approved catalog records and the facts that matched this prompt.",
   arc: "Policy directives selected by a named, attested ARC receipt.",
-  observed_claims: "Living Memory claims that remain observations until governed review.",
+  observed_claims:
+    "Living Memory claims matching the prompt, or the subject entity when one is chosen. Observations until governed review.",
   workspace: "Task checkpoints visible to the current participant.",
   instructions:
     "Corrections this product served back about the caller's own declared instructions. Not context about the subject.",
