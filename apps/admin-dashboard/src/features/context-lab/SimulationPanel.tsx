@@ -1,21 +1,26 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Bot, MessageSquareQuote, Quote } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 
 import { SectionSurface, SummaryStrip } from "@repo/ui/layouts";
 import {
   Button,
+  Notice,
   RequestFailure,
   ResourcePicker,
   StatusBadge,
+  useToast,
   type ResourceOption,
   type ResourcePage,
   type ResourceQuery,
 } from "@repo/ui/primitives";
 
 import {
+  declarePrincipal,
   getSimulationAvailability,
   listPrincipals,
+  OWNER_PRINCIPAL_MAX,
+  OWNER_PRINCIPAL_MIN,
   runSimulation,
   type ContextEnvelope,
   type ContextplaneClient,
@@ -89,13 +94,35 @@ export function SimulationPanel({
   simulation,
 }: SimulationPanelProps) {
   const [actorId, setActorId] = useState("");
+  const queryClient = useQueryClient();
+  const rosterKey = useMemo(() => ["principals", apiTenantId ?? "current"], [apiTenantId]);
 
   const availability = useQuery({
     queryFn: () => getSimulationAvailability(client, requestContext),
     queryKey: ["simulation", "availability", apiTenantId ?? "current"],
   });
 
-  const principals = useMemo(() => principalSource(client, requestContext), [client, requestContext]);
+  // One roster read, shared. The picker needs options and this screen needs the
+  // selected row itself -- whether anybody has declared it is the difference
+  // between an action that works and one that is refused -- and two independent
+  // fetches would let the button and the warning disagree about the same
+  // principal.
+  const roster = useQuery({
+    queryFn: () => listPrincipals(client, { pageSize: 100 }, requestContext),
+    queryKey: rosterKey,
+  });
+
+  const principals = useMemo(
+    () => principalSource(queryClient, rosterKey, client, requestContext),
+    [client, queryClient, requestContext, rosterKey],
+  );
+
+  const selected = roster.data?.items.find((principal) => principal.actor_id === actorId) ?? null;
+  // Both halves, because they fail for different reasons and the service checks
+  // both: a principal nobody declared, and one declared as something a
+  // simulation cannot stand in for.
+  const simulatable = selected !== null && selected.is_declared && selected.actor_kind === SIMULATABLE_KIND;
+  const blocked = selected !== null && !simulatable;
 
   const simulate = useMutation({
     mutationFn: () =>
@@ -155,9 +182,20 @@ export function SimulationPanel({
         />
         <p className="text-xs text-muted-foreground">
           Undeclared principals are listed rather than hidden — a roster that hid what it does not
-          know would answer &ldquo;we have no agents&rdquo; to a deployment that has eleven.
-          Simulating one is refused by the service, which names the declaration route.
+          know would answer &ldquo;we have no agents&rdquo; to a deployment that has eleven. Pick one
+          and you can declare it here.
         </p>
+
+        {blocked && selected ? (
+          <DeclareAgent
+            client={client}
+            onDeclared={() => {
+              void queryClient.invalidateQueries({ queryKey: rosterKey });
+            }}
+            principal={selected}
+            requestContext={requestContext}
+          />
+        ) : null}
 
         {envelope ? <InstructionsInForce envelope={envelope} /> : null}
 
@@ -167,9 +205,28 @@ export function SimulationPanel({
           </RequestFailure>
         ) : null}
 
-        <Button disabled={unavailable || simulate.isPending || !actorId || !prompt.trim()} type="submit">
-          {simulate.isPending ? "Answering…" : "Simulate this prompt"}
-        </Button>
+        {/* Disabled *and* explained. A control that refuses without saying why
+            teaches a reader that the screen is broken; the sentence beside it is
+            what makes the same state read as a prerequisite instead. */}
+        <div className="space-y-1">
+          <Button
+            disabled={unavailable || simulate.isPending || !actorId || !prompt.trim() || blocked}
+            type="submit"
+          >
+            {simulate.isPending ? "Answering…" : "Simulate this prompt"}
+          </Button>
+          {blocked ? (
+            <p className="text-xs text-muted-foreground">
+              Declare this principal above and it becomes available.
+            </p>
+          ) : null}
+          {!blocked && !actorId ? (
+            <p className="text-xs text-muted-foreground">Choose which agent to answer as.</p>
+          ) : null}
+          {!blocked && actorId && !prompt.trim() ? (
+            <p className="text-xs text-muted-foreground">Enter a prompt above first.</p>
+          ) : null}
+        </div>
       </form>
 
       {simulation ? <ResponsePane simulation={simulation} /> : null}
@@ -341,9 +398,29 @@ function ResponsePane({ simulation }: { simulation: Simulation }) {
  * filtered out, per ADR 0019 assumption 2 — and the *service* refuses to
  * simulate one, so the screen does not have to pretend they do not exist.
  */
-function principalSource(client: ContextplaneClient, context: ContextplaneRequestOptions) {
+/**
+ * The picker's options, read through the same cache entry the panel reads.
+ *
+ * `fetchQuery` rather than a bare call: the panel needs the selected row to know
+ * whether simulating it is even possible, and a second independent request would
+ * let the option list and the warning beside it describe different states of the
+ * same principal — most visibly right after a declaration, when one has refreshed
+ * and the other has not.
+ */
+function principalSource(
+  queryClient: QueryClient,
+  rosterKey: readonly unknown[],
+  client: ContextplaneClient,
+  context: ContextplaneRequestOptions,
+) {
+  const read = () =>
+    queryClient.fetchQuery({
+      queryFn: () => listPrincipals(client, { pageSize: 100 }, context),
+      queryKey: rosterKey,
+    });
+
   async function load(query: ResourceQuery): Promise<ResourcePage> {
-    const page = await listPrincipals(client, { pageSize: 50 }, context);
+    const page = await read();
     const term = query.search.trim().toLowerCase();
     const options = page.items
       .filter((principal) =>
@@ -356,12 +433,143 @@ function principalSource(client: ContextplaneClient, context: ContextplaneReques
   }
 
   async function resolve(value: string): Promise<ResourceOption | null> {
-    const page = await listPrincipals(client, { pageSize: 100 }, context);
+    const page = await read();
     const found = page.items.find((principal) => principal.actor_id === value);
     return found ? toOption(found) : null;
   }
 
   return { load, resolve };
+}
+
+//: What a simulation can stand in for. `human` is declarable and not simulatable:
+//: a simulation models an agent answering, and standing in for a person is a
+//: different claim than this feature makes.
+const SIMULATABLE_KIND = "agent";
+
+/**
+ * The prerequisite, resolved where it blocks rather than somewhere else.
+ *
+ * Context Lab refuses to simulate a principal nobody has declared, and it is
+ * right to: ADR 0019 holds that an agent is declared and never inferred, because
+ * a person in an IDE and an unattended agent arrive over the same transport. But
+ * the refusal was a *server* error rendered verbatim, and it ended *"declare it
+ * through POST /v1/admin/actors/{actor_id}/declare with actor_kind='agent'
+ * first"* — an HTTP call, shown to somebody sitting in a dashboard that had no
+ * declare action anywhere in it. The task could not be finished without leaving
+ * for a terminal.
+ *
+ * So it is finished here. Two reasons this is not a competing primary action:
+ * it only exists while the primary one is blocked, and it is the *same* decision
+ * the reader is already making — they picked this principal to stand in for an
+ * agent, and declaring it is saying so.
+ *
+ * The kind is not offered as a choice. The reader is on the simulate screen
+ * having chosen who to simulate, so `agent` is the only answer consistent with
+ * what they are doing, and a dropdown whose other option guarantees a refusal is
+ * a worse question than no question. Declaring a principal `human` belongs on a
+ * roster screen, where that is a thing somebody might mean.
+ *
+ * The owner is asked because the service requires it and because the reason is
+ * worth passing on: a principal whose owner is unrecorded is one nobody is
+ * accountable for.
+ */
+function DeclareAgent({
+  client,
+  onDeclared,
+  principal,
+  requestContext,
+}: {
+  client: ContextplaneClient;
+  onDeclared: () => void;
+  principal: Principal;
+  requestContext: ContextplaneRequestOptions;
+}) {
+  const ownerId = useId();
+  const [owner, setOwner] = useState("");
+  const { showToast } = useToast();
+  const name = principal.display_name || principal.oidc_subject || principal.actor_id;
+
+  const declare = useMutation({
+    mutationFn: () =>
+      declarePrincipal(
+        client,
+        { actorId: principal.actor_id, actorKind: SIMULATABLE_KIND, ownerPrincipal: owner },
+        requestContext,
+      ),
+    onSuccess: (declared) => {
+      showToast({
+        message: `${name} is an agent owned by ${declared.owner_principal ?? owner}. Re-declaring later overwrites it.`,
+        title: "Declared",
+        variant: "success",
+      });
+      setOwner("");
+      onDeclared();
+    },
+  });
+
+  const trimmed = owner.trim();
+  const tooShort = trimmed.length > 0 && trimmed.length < OWNER_PRINCIPAL_MIN;
+  const tooLong = trimmed.length > OWNER_PRINCIPAL_MAX;
+  const invalid = tooShort || tooLong;
+
+  return (
+    <Notice
+      title={
+        principal.is_declared
+          ? `${name} is declared a ${principal.actor_kind}, which a simulation cannot stand in for`
+          : `Nobody has said what ${name} is`
+      }
+      variant="info"
+    >
+      <p>
+        {principal.is_declared
+          ? "A simulation models an agent answering a prompt. Declaring this principal an agent is what makes that a claim somebody made rather than one this screen inferred."
+          : "An agent is declared, never inferred — a person in an IDE and an unattended agent reach this service over the same transport, so nothing about the connection says which one arrived."}
+      </p>
+
+      <div className="mt-3">
+        <label className="text-xs font-medium text-foreground" htmlFor={ownerId}>
+          Who to talk to about it
+        </label>
+        <input
+          aria-describedby={`${ownerId}-help`}
+          aria-invalid={invalid}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          id={ownerId}
+          maxLength={OWNER_PRINCIPAL_MAX}
+          onChange={(event) => setOwner(event.target.value)}
+          placeholder="platform-team@example.com"
+          value={owner}
+        />
+        <p className="mt-1 text-xs text-muted-foreground" id={`${ownerId}-help`}>
+          {tooShort
+            ? `At least ${OWNER_PRINCIPAL_MIN} characters.`
+            : tooLong
+              ? `At most ${OWNER_PRINCIPAL_MAX} characters.`
+              : "A team, a rotation or a person. A principal whose owner is unrecorded is one nobody is accountable for."}
+        </p>
+      </div>
+
+      {declare.isError ? (
+        <div className="mt-2">
+          <RequestFailure onRetry={() => declare.mutate()} title="The declaration was not recorded">
+            {declare.error.message}
+          </RequestFailure>
+        </div>
+      ) : null}
+
+      <div className="mt-3">
+        <Button
+          disabled={declare.isPending || trimmed.length < OWNER_PRINCIPAL_MIN || tooLong}
+          onClick={() => declare.mutate()}
+          size="compact"
+          variant="secondary"
+        >
+          {declare.isPending ? "Declaring…" : "Declare as an agent"}
+        </Button>
+      </div>
+    </Notice>
+  );
 }
 
 function toOption(principal: Principal): ResourceOption {
@@ -371,6 +579,6 @@ function toOption(principal: Principal): ResourceOption {
   // nobody has spoken about.
   const description = principal.is_declared
     ? `${principal.actor_kind} · owner ${principal.owner_principal ?? "not recorded"}`
-    : "unknown — nobody has declared what this is, so simulating it is refused";
+    : "unknown — nobody has declared what this is; pick it to declare it";
   return { description, label: name, value: principal.actor_id };
 }

@@ -605,7 +605,75 @@ describe("ContextLabPage", () => {
     // ADR 0019's dissent, on screen: a roster that hid what it does not know
     // would answer "we have no agents" to a deployment that has eleven.
     expect(screen.getByRole("option", { name: /Nobody declared this/ })).toBeVisible();
-    expect(screen.getByText(/simulating it is refused/)).toBeVisible();
+    expect(screen.getByText(/pick it to declare it/)).toBeVisible();
+  });
+
+  it("lets a user declare a principal without leaving the page", async () => {
+    // The end-to-end break this covers: the service refuses to simulate a
+    // principal nobody declared, and the refusal it returns ends "declare it
+    // through POST /v1/admin/actors/{actor_id}/declare". That sentence was
+    // rendered verbatim to somebody in a dashboard which had no declare action
+    // anywhere in it, so the task could not be finished without a terminal.
+    const declared: unknown[] = [];
+    renderPage((path, options) => {
+      if (path.endsWith("/declare")) {
+        declared.push({ body: options?.body, path });
+        return {
+          actor_id: undeclaredActorId,
+          actor_kind: "agent",
+          created_at: "2026-08-01T00:00:00Z",
+          declared_at: "2026-08-12T10:00:00Z",
+          declared_by: actorId,
+          display_name: "Nobody declared this",
+          is_declared: true,
+          oidc_subject: "mystery",
+          owner_principal: "platform-team@example.com",
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Nobody declared this/ }));
+
+    // Blocked, and explained — a control that refuses without saying why reads
+    // as a broken screen rather than as a prerequisite.
+    expect(await screen.findByText(/Nobody has said what Nobody declared this is/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
+    expect(screen.getByText("Declare this principal above and it becomes available.")).toBeVisible();
+
+    // The owner is required, so the action stays unavailable until it is given.
+    const declare = screen.getByRole("button", { name: "Declare as an agent" });
+    expect(declare).toBeDisabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Who to talk to about it" }), {
+      target: { value: "platform-team@example.com" },
+    });
+    expect(screen.getByRole("button", { name: "Declare as an agent" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Declare as an agent" }));
+
+    await waitFor(() => expect(declared).toHaveLength(1));
+    expect(declared[0]).toEqual({
+      body: { actor_kind: "agent", owner_principal: "platform-team@example.com" },
+      path: `/v1/admin/actors/${undeclaredActorId}/declare`,
+    });
+  });
+
+  it("says why the simulate button is unavailable rather than only disabling it", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    // No agent chosen yet. A disabled control with no adjacent reason is the
+    // shape a reader reads as "this screen is broken".
+    expect(await screen.findByText("Choose which agent to answer as.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
   });
 
   it("runs a simulation and shows what each assertion rested on", async () => {

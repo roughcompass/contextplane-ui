@@ -165,7 +165,13 @@ export {
   type WorkloadIdentity,
 } from "./envelopes";
 export {
+  declarableKinds,
+  declarePrincipal,
   listPrincipals,
+  OWNER_PRINCIPAL_MAX,
+  OWNER_PRINCIPAL_MIN,
+  type DeclarableKind,
+  type DeclarePrincipalInput,
   type Principal,
   type PrincipalPage,
   type PrincipalQuery,
