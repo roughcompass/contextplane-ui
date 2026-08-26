@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, GitCompareArrows, Play, Plus } from "lucide-react";
+import { ArrowUpRight, ClipboardList, GitCompareArrows, Play, Plus } from "lucide-react";
 import { useId, useMemo, useState, type FormEvent } from "react";
 
 import { EmptyState, PageContainer, SectionSurface } from "@repo/ui/layouts";
@@ -58,9 +58,46 @@ interface EvaluationPageProps {
  * than treated as passing — a run where two of twenty were reviewed is two
  * opinions and eighteen absences.
  */
+//: Matches the control links elsewhere in the dashboard. A link, not a button:
+//: this navigates, and DESIGN.md asks for links to navigate and buttons to
+//: command.
+const noticeLinkClassName =
+  "inline-flex min-h-11 items-center gap-2 rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-foreground transition-colors duration-150 hover:border-accent hover:bg-accent-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+
+/** The set named in the address, so a link into this page can choose one. */
+function readSelectedSetId(): string {
+  return new URLSearchParams(window.location.search).get("set") ?? "";
+}
+
+function writeSelectedSetId(setId: string) {
+  const url = new URL(window.location.href);
+  if (setId) url.searchParams.set("set", setId);
+  else url.searchParams.delete("set");
+  window.history.replaceState(window.history.state, "", url);
+}
+
+/**
+ * Context Lab, with this set already chosen in its save panel.
+ *
+ * The page used to say *"Add one from Context Lab"* as prose, on the screen
+ * showing an empty set, with nothing to click. A reader had to navigate away,
+ * remember which of their sets was empty, resolve a prompt and find the set
+ * again in a list — four steps to follow an instruction the product had given
+ * them, and the set they were looking at was not carried through any of them.
+ */
+function contextLabHref(setId: string): string {
+  const url = new URL("/context-lab", window.location.origin);
+  if (setId) url.searchParams.set("set", setId);
+  return `${url.pathname}${url.search}`;
+}
+
 export function EvaluationPage({ activeTenantName, apiTenantId, client }: EvaluationPageProps) {
   const requestContext: ContextplaneRequestOptions = apiTenantId ? { tenantId: apiTenantId } : {};
-  const [selectedSetId, setSelectedSetId] = useState<string>("");
+  // In the address, not only in state: DESIGN.md asks that a selection survive
+  // reload and sharing, and Context Lab links back here naming a set — a link
+  // that could not say *which* set would drop the reader on whichever one this
+  // page happened to pick.
+  const [selectedSetId, setSelectedSetId] = useState<string>(readSelectedSetId);
   const [openRunId, setOpenRunId] = useState<string>("");
   const [comparing, setComparing] = useState(false);
 
@@ -112,6 +149,7 @@ export function EvaluationPage({ activeTenantName, apiTenantId, client }: Evalua
         isLoading={sets.isPending}
         onSelect={(setId) => {
           setSelectedSetId(setId);
+          writeSelectedSetId(setId);
           setOpenRunId("");
           setComparing(false);
         }}
@@ -281,7 +319,7 @@ function CreateSetForm({ client, onCreated, requestContext }: CreateSetFormProps
       ),
     onSuccess: async (set) => {
       showToast({
-        message: "Add prompts to it from Context Lab, where a resolution you have already looked at can be saved.",
+        message: `Open Context Lab, resolve a prompt, and save it into ${set.name}. The empty set below links straight there.`,
         title: `Created ${set.name}`,
         variant: "success",
       });
@@ -394,8 +432,18 @@ function RunList({
       title="Runs"
     >
       {promptCount === 0 ? (
-        <Notice title="This set holds no prompts yet" variant="info">
-          Add one from Context Lab, where a resolution you have already looked at can be saved into a set.
+        <Notice
+          action={
+            <a className={noticeLinkClassName} href={contextLabHref(set.set_id)}>
+              Resolve a prompt for this set
+              <ArrowUpRight aria-hidden="true" className="size-4" />
+            </a>
+          }
+          title="This set holds no prompts yet"
+          variant="info"
+        >
+          A prompt worth keeping is one somebody has just seen the result of, so they are added
+          from Context Lab. This link opens it with {set.name} already chosen.
         </Notice>
       ) : null}
 

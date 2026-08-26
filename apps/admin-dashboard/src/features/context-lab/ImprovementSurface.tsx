@@ -87,9 +87,22 @@ export function ImprovementSurface({
     >
       {observations.length === 0 ? (
         <EmptyState
-          description="Every served item was cited, every assertion rested on something served, no block degraded, and nothing was withheld. That is a real result rather than a missing one."
+          // Two different empty results, and the page used to report the second
+          // one for both. With no simulation there are no assertions and no
+          // citations, so "every assertion rested on something served" described
+          // a check that had not run — a clean bill of health for work nobody
+          // did, on the surface whose whole job is saying what a record supports.
+          description={
+            simulation === null
+              ? "Nothing was withheld and no block degraded, which is all this resolution alone can say. Simulate an agent above to find out what an answer built from it would rest on."
+              : "Every served item was cited, every assertion rested on something served, no block degraded, and nothing was withheld. That is a real result rather than a missing one."
+          }
           icon={Lightbulb}
-          title="This run's record supports no observations"
+          title={
+            simulation === null
+              ? "This resolution's record supports no observations yet"
+              : "This run's record supports no observations"
+          }
         />
       ) : (
         <>
