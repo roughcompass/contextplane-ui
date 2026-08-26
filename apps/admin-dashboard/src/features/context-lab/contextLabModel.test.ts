@@ -151,6 +151,14 @@ describe("contextLabModel", () => {
   it("keeps service states distinct and summarizes the returned envelope", () => {
     expect(contextBlockLabel("observed_claims")).toBe("Observed claims");
     expect(contextBlockDescription("workspace")).toMatch(/checkpoints/i);
+    // A block's description has to say what scoped it. The claims block is why:
+    // it returned the tenant's most recent claims whatever the prompt asked, and
+    // every one was real, current and correctly trusted — so no reader could tell
+    // from the items that they were about something else. Both scopes are named
+    // because the block has two, and a description naming only one is a
+    // description that is wrong half the time.
+    expect(contextBlockDescription("observed_claims")).toMatch(/prompt/i);
+    expect(contextBlockDescription("observed_claims")).toMatch(/subject/i);
     expect(contextBlockStateLabel("success")).toBe("Returned context");
     expect(contextBlockStateLabel("empty")).toBe("No context returned");
     expect(contextBlockStateLabel("degraded")).toBe("Partial context");
