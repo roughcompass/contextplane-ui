@@ -18,9 +18,10 @@ import {
   TableSection,
 } from "@repo/ui/layouts";
 import { PageHeader } from "../../shared/navigation/surface";
-import { Button, Notice, RequestFailure, SearchField, StatusBadge } from "@repo/ui/primitives";
+import { Button, Notice, SearchField, StatusBadge } from "@repo/ui/primitives";
 
 import {
+  ApiFailure,
   ContextplaneApiError,
   queryAuditRecords,
   type AuditRecord,
@@ -395,8 +396,6 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
     Boolean(urlState.cursor) &&
     auditQuery.error instanceof ContextplaneApiError &&
     auditQuery.error.status === 422;
-  const auditRequestId =
-    auditQuery.error instanceof ContextplaneApiError ? auditQuery.error.requestId : null;
 
   return (
     <PageContainer>
@@ -444,14 +443,16 @@ export function AuditPage({ activeTenantName, apiTenantId, client, searchRef }: 
             entries with the current filters still applied.
           </Notice>
         ) : auditQuery.isError ? (
-          <RequestFailure
+          // Refusal and outage are different answers. `auditor` is a role most
+          // administrators do not hold, so "unavailable, retry" was the ordinary
+          // experience of a working service — see `ApiFailure`.
+          <ApiFailure
+            error={auditQuery.error}
             onRetry={() => void auditQuery.refetch()}
-            requestId={auditRequestId}
-            title="Audit history unavailable"
+            subject="audit history"
           >
-            The service did not return audit history for the active tenant. Filters and cursor state
-            have been preserved.
-          </RequestFailure>
+            Filters and cursor state have been preserved.
+          </ApiFailure>
         ) : result ? (
           <TableSection
             description="Expand an entry to compare the recorded state before and after the action."

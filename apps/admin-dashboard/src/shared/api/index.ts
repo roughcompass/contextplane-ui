@@ -1,3 +1,5 @@
+export { ApiFailure } from "./ApiFailure";
+export { apiFailureKind, type ApiFailureKind } from "./apiFailureKind";
 export {
   ContextplaneApiError,
   clientFromRequest,
@@ -165,7 +167,24 @@ export {
   type WorkloadIdentity,
 } from "./envelopes";
 export {
+  confirmClaim,
+  discardClaim,
+  linkClaimSubject,
+  openCurationCase,
+  type ConfirmClaimInput,
+  type CurationCase,
+  type DiscardClaimInput,
+  type LinkClaimSubjectInput,
+  type OpenCurationCaseInput,
+} from "./curationDecisions";
+export {
+  declarableKinds,
+  declarePrincipal,
   listPrincipals,
+  OWNER_PRINCIPAL_MAX,
+  OWNER_PRINCIPAL_MIN,
+  type DeclarableKind,
+  type DeclarePrincipalInput,
   type Principal,
   type PrincipalPage,
   type PrincipalQuery,

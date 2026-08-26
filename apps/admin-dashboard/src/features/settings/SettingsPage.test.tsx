@@ -781,4 +781,38 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry request" }));
     await waitFor(() => expect(attempt).toBeGreaterThan(3));
   });
+
+  it("keeps a tab working when one of its reads is not implemented here", async () => {
+    // `/v1/admin/edge-property-schemas` answers 501 on this deployment, and it
+    // sat inside a bare `Promise.all` with two reads that work — so the whole
+    // Graph schema tab rendered as a failure with a retry that could never
+    // change the outcome, hiding a vocabulary and entity-type schemas that had
+    // loaded fine. "Partial" is a state DESIGN.md asks to keep distinct from
+    // "failed", and this is what that costs when it is not.
+    const client = clientFor((path) => {
+      if (path === "/v1/admin/edge-property-schemas") {
+        throw new ContextplaneApiError({
+          errors: [
+            {
+              code: "not_implemented",
+              message: "edge-property schema management is not yet implemented",
+              path: null,
+            },
+          ],
+          requestId: "request-edge",
+          status: 501,
+        });
+      }
+      return fixtureResolver(path);
+    });
+    renderPage(client);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Graph schema" }));
+
+    // The unimplemented section says so, in terms about the deployment.
+    expect(await screen.findByText("Not provided by this deployment")).toBeVisible();
+    // And the reads beside it still rendered.
+    expect(screen.getByText("Edge property schemas")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Retry request" })).toBeNull();
+  });
 });

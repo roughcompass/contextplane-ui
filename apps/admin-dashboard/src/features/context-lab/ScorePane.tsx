@@ -1,16 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CircleHelp, ShieldAlert } from "lucide-react";
+import { CircleHelp, ShieldAlert, Users } from "lucide-react";
 import { useId, useState } from "react";
 
 import { SectionSurface } from "@repo/ui/layouts";
 import { Button, RequestFailure, StatusBadge, useToast } from "@repo/ui/primitives";
 
 import {
+  judgeWithPanel,
   recordJudgementReview,
   type ContextplaneClient,
   type ContextplaneRequestOptions,
   type DeterministicScore,
   type Judgement,
+  type PanelOutcome,
   type ReviewVerdict,
 } from "../../shared/api";
 import { CapabilityUnavailable } from "./CapabilityUnavailable";
@@ -93,6 +95,15 @@ export function ScorePane({
       description="Five criteria, each showing what it concluded and what it concluded it from. Nothing here is averaged: a boundary violation fails the case whatever the other four say."
       title="Score"
     >
+      {judgeAvailable && judgements.length > 0 ? (
+        <PanelVote
+          client={client}
+          requestContext={requestContext}
+          simulationId={simulationId}
+          states={states}
+        />
+      ) : null}
+
       {judgeAvailable ? null : (
         <CapabilityUnavailable
           operatorNote={
@@ -131,6 +142,119 @@ export function ScorePane({
         )}
       </div>
     </SectionSurface>
+  );
+}
+
+/**
+ * A second and third opinion, offered where the first one says it is unproven.
+ *
+ * ## Delivered and unreachable
+ *
+ * The panel endpoint shipped and nothing in this application called it. That
+ * matters most here, because this pane already tells a reader their verdict is a
+ * claim rather than a measurement — *"this judge's confidence has not been fitted
+ * against human confirmations for its pinned tuple"* — and then offered no way to
+ * get a better one. A screen that names a problem and withholds the remedy is a
+ * dead end wearing a caveat.
+ *
+ * ## Opt-in, because it costs three times as much
+ *
+ * The service is explicit: right for a run gating a launch decision, wrong for
+ * the interactive loop where nobody is making one. So it is a button somebody
+ * presses, never something that happens because a verdict looked shaky.
+ *
+ * ## A 2–1 is shown as 2–1
+ *
+ * Nothing is averaged. A criterion three judges disagree about is the one most
+ * worth a human's time, and a blended figure would destroy the signal the panel
+ * costs 3× to produce. A tie has no majority and says so rather than picking one.
+ */
+function PanelVote({
+  client,
+  requestContext,
+  simulationId,
+  states,
+}: {
+  client: ContextplaneClient;
+  requestContext: ContextplaneRequestOptions;
+  simulationId: string;
+  states: readonly CriterionState[];
+}) {
+  const [outcomes, setOutcomes] = useState<readonly PanelOutcome[] | null>(null);
+  const { showToast } = useToast();
+
+  const panel = useMutation({
+    mutationFn: () => judgeWithPanel(client, simulationId, requestContext),
+    onSuccess: (result) => {
+      setOutcomes(result);
+      const split = result.filter((entry) => entry.is_split).length;
+      showToast({
+        message:
+          split > 0
+            ? `${split} of ${result.length} criteria split. A criterion judges disagree about is the one most worth your time.`
+            : "Every judge agreed on every criterion.",
+        title: "Panel finished",
+        variant: "success",
+      });
+    },
+  });
+
+  // Only worth offering where a single judge has already spoken and said its
+  // confidence is unfitted — that is the question a panel answers.
+  const unproven = states.filter(
+    (state) => state.judge !== "deterministic" && state.outcome !== "unjudged" && !state.isProven,
+  );
+  if (unproven.length === 0 && outcomes === null) return null;
+
+  return (
+    <div className="mb-6 space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      <p className="text-xs text-muted-foreground">
+        {unproven.length > 0
+          ? `${unproven.length === 1 ? "One verdict above rests" : `${unproven.length} verdicts above rest`} on a judge whose confidence has not been fitted. A panel runs every configured judge over the same answer and leaves the split visible.`
+          : "Every configured judge ran over this answer."}
+      </p>
+
+      {panel.isError ? (
+        <RequestFailure onRetry={() => panel.mutate()} title="The panel did not run">
+          {panel.error.message}
+        </RequestFailure>
+      ) : null}
+
+      {outcomes ? (
+        <ul className="space-y-2">
+          {outcomes.map((outcome) => (
+            <li className="flex flex-wrap items-center gap-2 text-xs" key={outcome.criterion}>
+              <span className="font-medium text-foreground">
+                {criterionLabels[outcome.criterion]}
+              </span>
+              {outcome.majority === null ? (
+                <StatusBadge tone="warning">Split, no majority</StatusBadge>
+              ) : (
+                <StatusBadge tone={outcome.majority === "pass" ? "success" : "danger"}>
+                  Majority {outcome.majority}
+                </StatusBadge>
+              )}
+              <span className="text-muted-foreground">
+                {Object.entries(outcome.votes)
+                  .map(([verdict, count]) => `${count}× ${verdict}`)
+                  .join(" · ")}
+              </span>
+              {outcome.is_split ? (
+                <span className="text-warning">Worth a human&apos;s time.</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <Button disabled={panel.isPending} onClick={() => panel.mutate()} size="compact" variant="secondary">
+        <Users className="size-3.5" />
+        {panel.isPending ? "Running every judge…" : outcomes ? "Run the panel again" : "Ask a panel of judges"}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Three times the cost of one judge. Right for a run gating a decision, wrong for the loop.
+      </p>
+    </div>
   );
 }
 

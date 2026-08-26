@@ -26,6 +26,7 @@ import {
   getPromotionPolicy,
   getWhoAmI,
   listEntityTypeSchemas,
+  apiFailureKind,
   listEdgePropertySchemas,
   listExternalSystems,
   listExtractionStrategies,
@@ -554,7 +555,17 @@ function SchemaTab({
       const [vocabulary, entityTypeSchemas, edgeSchemas] = await Promise.all([
         listVocabularyValues(client, vocabularyKind, context, signal),
         listEntityTypeSchemas(client, context, signal),
-        listEdgePropertySchemas(client, context, signal),
+        // A capability this deployment does not implement must not take down the
+        // two reads beside it. `/v1/admin/edge-property-schemas` answers `501`
+        // today, and inside a bare `Promise.all` that rejected the whole tab —
+        // so vocabulary and entity-type schemas, both working, rendered as a
+        // failed section with a retry that could never change the outcome.
+        // `null` distinguishes "this deployment does not provide it" from "it
+        // provided none", which are different answers to a reader.
+        listEdgePropertySchemas(client, context, signal).catch((error: unknown) => {
+          if (apiFailureKind(error) === "not-built") return null;
+          throw error;
+        }),
       ]);
       return { edgeSchemas, entityTypeSchemas, vocabulary };
     },
@@ -782,7 +793,12 @@ function SchemaTab({
         flush
         title="Edge property schemas"
       >
-        {query.data.edgeSchemas.length === 0 ? (
+        {query.data.edgeSchemas === null ? (
+          <EmptyState
+            description="The service reports that edge-property schema management is not implemented on this deployment. Everything else on this tab is unaffected."
+            title="Not provided by this deployment"
+          />
+        ) : query.data.edgeSchemas.length === 0 ? (
           <EmptyState
             description="No edge property schemas were returned."
             title="No edge property schemas"

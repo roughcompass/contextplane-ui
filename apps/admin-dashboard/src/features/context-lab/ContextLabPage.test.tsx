@@ -221,6 +221,42 @@ function testError(code = "network_error", status = 0) {
 
 function defaultHandler(path: string, options?: { body?: unknown }): unknown {
   if (path === "/v1/whoami") return identity;
+  // Saving a resolution into a prompt set reads both of these, and asserts the
+  // preset's own published reasoning rather than restating it.
+  if (path === "/v1/evaluation/expectation-presets") {
+    return {
+      items: [
+        {
+          description: "The standing default. Both judged criteria must pass.",
+          envelope_rubric_version: "context-envelope-judge v2.0.0",
+          expectations: { preset: "balanced", require_groundedness: true, require_relevance: true },
+          judge_rubric_version: "agent-response-judge v1.0.0",
+          name: "balanced",
+        },
+        {
+          description: "Pins the classification ceiling at internal.",
+          envelope_rubric_version: "context-envelope-judge v2.0.0",
+          expectations: { max_classification: "internal", preset: "compliance" },
+          judge_rubric_version: "agent-response-judge v1.0.0",
+          name: "compliance",
+        },
+      ],
+    };
+  }
+  if (path === "/v1/evaluation/prompt-sets") {
+    return {
+      items: [
+        {
+          created_at: "2026-08-01T00:00:00Z",
+          description: null,
+          name: "Ownership questions",
+          prompt_count: 2,
+          retired_at: null,
+          set_id: "set-existing",
+        },
+      ],
+    };
+  }
   // The two collections the scope pickers read. Both existed before this screen
   // called them — the catalog since the beginning, the receipt listing since
   // E23-T1.
@@ -605,7 +641,75 @@ describe("ContextLabPage", () => {
     // ADR 0019's dissent, on screen: a roster that hid what it does not know
     // would answer "we have no agents" to a deployment that has eleven.
     expect(screen.getByRole("option", { name: /Nobody declared this/ })).toBeVisible();
-    expect(screen.getByText(/simulating it is refused/)).toBeVisible();
+    expect(screen.getByText(/pick it to declare it/)).toBeVisible();
+  });
+
+  it("lets a user declare a principal without leaving the page", async () => {
+    // The end-to-end break this covers: the service refuses to simulate a
+    // principal nobody declared, and the refusal it returns ends "declare it
+    // through POST /v1/admin/actors/{actor_id}/declare". That sentence was
+    // rendered verbatim to somebody in a dashboard which had no declare action
+    // anywhere in it, so the task could not be finished without a terminal.
+    const declared: unknown[] = [];
+    renderPage((path, options) => {
+      if (path.endsWith("/declare")) {
+        declared.push({ body: options?.body, path });
+        return {
+          actor_id: undeclaredActorId,
+          actor_kind: "agent",
+          created_at: "2026-08-01T00:00:00Z",
+          declared_at: "2026-08-12T10:00:00Z",
+          declared_by: actorId,
+          display_name: "Nobody declared this",
+          is_declared: true,
+          oidc_subject: "mystery",
+          owner_principal: "platform-team@example.com",
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Nobody declared this/ }));
+
+    // Blocked, and explained — a control that refuses without saying why reads
+    // as a broken screen rather than as a prerequisite.
+    expect(await screen.findByText(/Nobody has said what Nobody declared this is/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
+    expect(screen.getByText("Declare this principal above and it becomes available.")).toBeVisible();
+
+    // The owner is required, so the action stays unavailable until it is given.
+    const declare = screen.getByRole("button", { name: "Declare as an agent" });
+    expect(declare).toBeDisabled();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Who to talk to about it" }), {
+      target: { value: "platform-team@example.com" },
+    });
+    expect(screen.getByRole("button", { name: "Declare as an agent" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Declare as an agent" }));
+
+    await waitFor(() => expect(declared).toHaveLength(1));
+    expect(declared[0]).toEqual({
+      body: { actor_kind: "agent", owner_principal: "platform-team@example.com" },
+      path: `/v1/admin/actors/${undeclaredActorId}/declare`,
+    });
+  });
+
+  it("says why the simulate button is unavailable rather than only disabling it", async () => {
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    // No agent chosen yet. A disabled control with no adjacent reason is the
+    // shape a reader reads as "this screen is broken".
+    expect(await screen.findByText("Choose which agent to answer as.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Simulate this prompt" })).toBeDisabled();
   });
 
   it("runs a simulation and shows what each assertion rested on", async () => {
@@ -751,7 +855,7 @@ describe("ContextLabPage", () => {
     ).toBeVisible();
     // What the reader can do now comes before what is missing, and it is stated
     // in product terms rather than configuration ones.
-    expect(screen.getByText(/You can still resolve context, save prompts into sets/)).toBeVisible();
+    expect(screen.getByText(/You can still resolve context, save this prompt into a set below/)).toBeVisible();
     expect(screen.getByText(/needs a language model, and this deployment has none/)).toBeVisible();
 
     // Environment variables are deployment diagnostics, so they sit behind a
@@ -908,5 +1012,173 @@ describe("ContextLabPage", () => {
     expect(screen.getByText("Required-fact recall")).toBeVisible();
     expect(screen.getByText(/computed by a program with no model in the loop/)).toBeVisible();
     expect(screen.getByText("For whoever runs this deployment")).toBeVisible();
+  });
+
+  // --- the evaluation journey's missing link ------------------------------
+
+  it("saves the resolved prompt into an existing set", async () => {
+    // The dead end this closes: creating a prompt set on the Evaluation page
+    // raised a toast reading "Add prompts to it from Context Lab, where a
+    // resolution you have already looked at can be saved." Context Lab had no
+    // such action and `addPrompt` was called from nowhere in the application, so
+    // the journey was: create an empty set, be sent here, find nothing.
+    const writes: { body?: unknown; path: string }[] = [];
+    renderPage((path, options) => {
+      if (path.startsWith("/v1/evaluation/prompt-sets/") && path.endsWith("/prompts")) {
+        writes.push({ body: options?.body, path });
+        return {
+          created_at: "2026-08-12T10:00:00Z",
+          expectations: null,
+          intent_note: null,
+          position: 0,
+          prompt_id: "p-1",
+          request: {},
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    chooseOption("Maximum items per source", "50 items");
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+    // The set list arrives asynchronously; opening the control before its
+    // options exist leaves it on "Create a new set…".
+    fireEvent.click(screen.getByRole("combobox", { name: /^Prompt set/ }));
+    fireEvent.click(await screen.findByRole("option", { name: /Ownership questions/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /What this prompt is checking/ }), {
+      target: { value: "Ownership must reach the owning team" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save this prompt" }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]!.path).toBe("/v1/evaluation/prompt-sets/set-existing/prompts");
+    const body = writes[0]!.body as Record<string, unknown>;
+    // The scope the resolution *ran under*, not the state of the form now. A
+    // regression prompt that asks a slightly different question than the one
+    // that revealed the problem is worse than no prompt.
+    expect(body.request).toMatchObject({ limit: 50, query: "Who owns identity resolution?" });
+    expect(body.intent_note).toBe("Ownership must reach the owning team");
+    expect(body.expectations).toMatchObject({ preset: "balanced" });
+  });
+
+  it("creates the set first when there is nowhere to put the prompt", async () => {
+    const writes: { body?: unknown; path: string }[] = [];
+    renderPage((path, options) => {
+      if (path === "/v1/evaluation/prompt-sets" && options?.method === "POST") {
+        writes.push({ body: options.body, path });
+        return {
+          created_at: "2026-08-12T10:00:00Z",
+          description: null,
+          name: "Regressions",
+          prompt_count: 0,
+          retired_at: null,
+          set_id: "set-new",
+        };
+      }
+      if (path.startsWith("/v1/evaluation/prompt-sets/") && path.endsWith("/prompts")) {
+        writes.push({ body: options?.body, path });
+        return {
+          created_at: "2026-08-12T10:00:00Z",
+          expectations: null,
+          intent_note: null,
+          position: 0,
+          prompt_id: "p-1",
+          request: {},
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+
+    await screen.findByText("The standing default. Both judged criteria must pass.");
+
+    // Disabled and explained, rather than only grey.
+    expect(screen.getByRole("button", { name: "Save this prompt" })).toBeDisabled();
+    expect(screen.getByText("Name the new set first.")).toBeVisible();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "New set name" }), {
+      target: { value: "Regressions" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save this prompt" }));
+
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[0]).toEqual({ body: { description: null, name: "Regressions" }, path: "/v1/evaluation/prompt-sets" });
+    expect(writes[1]!.path).toBe("/v1/evaluation/prompt-sets/set-new/prompts");
+    // Persistent, not only a toast: "did that save?" is the question a
+    // disappearing confirmation leaves behind.
+    expect(await screen.findByText(/Run it from Evaluation/)).toBeVisible();
+  });
+
+  it("offers each expectation preset with the reasoning the service published", async () => {
+    // Choosing `compliance` over `balanced` is a decision about what a failure
+    // will mean, and a reader cannot make it from a word.
+    renderPage();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+
+    await screen.findByRole("heading", { level: 2, name: /Save this prompt for later runs/ });
+    expect(
+      await screen.findByText("The standing default. Both judged criteria must pass."),
+    ).toBeVisible();
+    expect(screen.getByText("Pins the classification ceiling at internal.")).toBeVisible();
+  });
+
+  it("offers a panel where a verdict says its confidence is unfitted", async () => {
+    // Delivered and unreachable: the panel endpoint shipped and nothing called
+    // it. It matters most here, because this pane already tells a reader the
+    // verdict is a claim rather than a measurement and then offered no way to
+    // get a better one — a screen that names a problem and withholds the remedy.
+    const calls: string[] = [];
+    renderPage((path, options) => {
+      if (path.endsWith("/judgements/panel")) {
+        calls.push(path);
+        return {
+          items: [
+            {
+              criterion: "groundedness",
+              is_split: true,
+              judgements: [judgementBody],
+              majority: "fail",
+              votes: { fail: 2, pass: 1 },
+            },
+          ],
+        };
+      }
+      return defaultHandler(path, options);
+    });
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Prompt" }), {
+      target: { value: "Who owns identity resolution?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resolve context" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Simulate as" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Support triage agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate this prompt" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Judge the answer" }));
+
+    // The offer is tied to the unproven verdict, not shown unconditionally.
+    const ask = await screen.findByRole("button", { name: "Ask a panel of judges" });
+    // The criterion row says it and so does the panel offer; the offer is the
+    // one that names how many verdicts rest on it.
+    expect(screen.getByText(/above rest[s]? on a judge whose confidence has not been fitted/)).toBeVisible();
+    fireEvent.click(ask);
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    // A 2-1 is reported as 2-1. Averaging would destroy the signal the panel
+    // costs three times as much to produce.
+    expect(await screen.findByText("2× fail · 1× pass")).toBeVisible();
+    expect(screen.getByText("Majority fail")).toBeVisible();
+    expect(screen.getByText(/Worth a human/)).toBeVisible();
   });
 });

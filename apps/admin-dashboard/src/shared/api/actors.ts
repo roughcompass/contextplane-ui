@@ -42,6 +42,29 @@ export interface PrincipalPage {
   next_cursor: string | null;
 }
 
+/**
+ * The two kinds a person may declare, and the reason there are only two.
+ *
+ * `sync_worker` and `system_curator` are the service's own provisioning and
+ * `unknown` is what a principal is before anybody speaks about it — none of the
+ * three is a thing a person declares, so none is offered. The service refuses
+ * them; this list is what stops a user reaching a refusal at all.
+ */
+export const declarableKinds = ["agent", "human"] as const;
+
+export type DeclarableKind = (typeof declarableKinds)[number];
+
+/** Bounds copied from the contract, so the form refuses before the request does. */
+export const OWNER_PRINCIPAL_MIN = 3;
+export const OWNER_PRINCIPAL_MAX = 200;
+
+export interface DeclarePrincipalInput {
+  actorId: string;
+  actorKind: DeclarableKind;
+  /** Who to talk to about this principal. Unrecorded means nobody is accountable. */
+  ownerPrincipal: string;
+}
+
 export interface PrincipalQuery {
   actorKind?: string;
   cursor?: string | null;
@@ -77,5 +100,51 @@ export async function listPrincipals(
       };
     }),
     next_cursor: nullableString(body, "next_cursor", "Principal page next_cursor"),
+  };
+}
+
+
+/**
+ * Say what a principal is, and who is accountable for it.
+ *
+ * **The dashboard could not do this at all, and one screen depended on it.**
+ * Context Lab refuses to simulate a principal nobody has declared — correctly,
+ * because ADR 0019 holds that an agent is declared and never inferred — and the
+ * service's refusal ends *"declare it through POST
+ * /v1/admin/actors/{actor_id}/declare with actor_kind='agent' first"*. That
+ * sentence was rendered verbatim to somebody sitting in a dashboard, and there
+ * was no declare action anywhere in this application, so the task could not be
+ * finished without leaving for a terminal.
+ *
+ * Re-declaring is permitted and overwrites, which the service states plainly: a
+ * principal that was a person's session and is now an unattended agent is a real
+ * change, and refusing it would leave the roster wrong in the direction that
+ * matters. So callers may treat this as an edit, not only a create.
+ *
+ * No idempotency key: this is not a create. The route is keyed by `actor_id` and
+ * declaring twice with the same body is the same row, so a retried request
+ * cannot mint a second principal.
+ */
+export async function declarePrincipal(
+  client: ContextplaneClient,
+  input: DeclarePrincipalInput,
+  context: ContextplaneRequestOptions = {},
+): Promise<Principal> {
+  const payload = await client.request(`/v1/admin/actors/${input.actorId}/declare`, {
+    ...context,
+    body: { actor_kind: input.actorKind, owner_principal: input.ownerPrincipal.trim() },
+    method: "POST",
+  });
+  const row = requiredRecord(payload, "Declared principal");
+  return {
+    actor_id: requiredString(row, "actor_id", "Declared principal actor_id"),
+    actor_kind: requiredString(row, "actor_kind", "Declared principal actor_kind"),
+    created_at: requiredString(row, "created_at", "Declared principal created_at"),
+    declared_at: nullableString(row, "declared_at", "Declared principal declared_at"),
+    declared_by: nullableString(row, "declared_by", "Declared principal declared_by"),
+    display_name: requiredString(row, "display_name", "Declared principal display_name"),
+    is_declared: requiredBoolean(row, "is_declared", "Declared principal is_declared"),
+    oidc_subject: nullableString(row, "oidc_subject", "Declared principal oidc_subject"),
+    owner_principal: nullableString(row, "owner_principal", "Declared principal owner_principal"),
   };
 }

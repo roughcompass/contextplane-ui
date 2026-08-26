@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Inbox, Scale } from "lucide-react";
 
 import { EmptyState, SectionSurface } from "@repo/ui/layouts";
-import { Notice, RequestFailure, Skeleton, StatusBadge } from "@repo/ui/primitives";
+import { Notice, Skeleton, StatusBadge } from "@repo/ui/primitives";
 
 import {
-  ContextplaneApiError,
+  ApiFailure,
   listDispositionPolicies,
   listMemoryCurationQueue,
   type ContextplaneClient,
@@ -14,6 +14,7 @@ import {
   type MemoryCurationItem,
 } from "../../shared/api";
 
+import { ClaimDecision } from "./ClaimDecision";
 import {
   ORDERING_STATEMENT,
   consequencesOf,
@@ -72,10 +73,15 @@ export function CurationCockpitPanel({
           </div>
         ) : queue.isError ? (
           <div className="p-6">
-            <CockpitFailure error={queue.error} onRetry={() => void queue.refetch()} />
+            <CockpitFailure error={queue.error} onRetry={() => void queue.refetch()} subject="the review queue" />
           </div>
         ) : (queue.data?.items.length ?? 0) > 0 ? (
-          <RankedQueue items={queue.data?.items ?? []} />
+          <RankedQueue
+            client={client}
+            items={queue.data?.items ?? []}
+            onDecided={() => void queue.refetch()}
+            requestContext={requestContext}
+          />
         ) : (
           <EmptyState
             description="Nothing is waiting for curator attention in this tenant. This does not imply that no contested or unlinked claims exist outside the current scope."
@@ -97,7 +103,11 @@ export function CurationCockpitPanel({
           </div>
         ) : policies.isError ? (
           <div className="p-6">
-            <CockpitFailure error={policies.error} onRetry={() => void policies.refetch()} />
+            <CockpitFailure
+              error={policies.error}
+              onRetry={() => void policies.refetch()}
+              subject="the disposition policies"
+            />
           </div>
         ) : grouped && grouped.settles.length + grouped.proposes.length > 0 ? (
           <div className="space-y-8 p-6">
@@ -132,26 +142,34 @@ export function CurationCockpitPanel({
  * vocabulary the deployment does not publish means the screen cannot say what a
  * decision commits to — which is a reason to stop, not to guess.
  */
-function CockpitFailure({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const apiError = error instanceof ContextplaneApiError ? error : null;
-  const restricted = apiError?.status === 403 || apiError?.code === "unauthenticated";
+/**
+ * The queue's failure, told apart from its refusal.
+ *
+ * This distinguished the two already and still offered a retry for both, which
+ * invites a reader to press a button that cannot change a settled answer. The
+ * shared `ApiFailure` owns that judgement now, so a third page cannot get it
+ * subtly different again.
+ */
+function CockpitFailure({ error, onRetry, subject }: { error: unknown; onRetry: () => void; subject: string }) {
   return (
-    <RequestFailure
-      onRetry={onRetry}
-      requestId={apiError?.requestId ?? null}
-      title={
-        restricted ? "This review scope is restricted" : "The review queue could not be loaded"
-      }
-      variant={restricted ? "warning" : "danger"}
-    >
-      {restricted
-        ? "The resolved identity cannot read this curation scope. Nothing has been changed, and no decision has been recorded."
-        : "No claim has been disposed and no proposal has been raised. Retry when the service is available; do not act on a queue you could not load."}
-    </RequestFailure>
+    <ApiFailure error={error} onRetry={onRetry} subject={subject}>
+      No claim has been disposed and no proposal has been raised. Do not act on a queue you could
+      not load.
+    </ApiFailure>
   );
 }
 
-function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
+function RankedQueue({
+  client,
+  items,
+  onDecided,
+  requestContext,
+}: {
+  client: ContextplaneClient;
+  items: readonly MemoryCurationItem[];
+  onDecided: () => void;
+  requestContext: ContextplaneRequestOptions;
+}) {
   return (
     <div
       aria-label="Scrollable review queue"
@@ -179,6 +197,9 @@ function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
             </th>
             <th className="w-24 px-4 py-3 text-right font-medium" scope="col">
               Confidence
+            </th>
+            <th className="w-72 px-4 py-3 font-medium" scope="col">
+              Decision
             </th>
           </tr>
         </thead>
@@ -215,6 +236,18 @@ function RankedQueue({ items }: { items: readonly MemoryCurationItem[] }) {
                 <span className="mt-1 block text-[0.65rem] leading-4 text-subtle">
                   not ranked on
                 </span>
+              </td>
+              {/* In the row, not on another page. DESIGN.md's archetype for a
+                  review page asks for the item, the policy, the evidence and the
+                  decision controls in one workflow; this column is the sixth of
+                  those six, and it was the missing one. */}
+              <td className="px-4 py-4 align-top">
+                <ClaimDecision
+                  client={client}
+                  item={item}
+                  onDecided={onDecided}
+                  requestContext={requestContext}
+                />
               </td>
             </tr>
           ))}
